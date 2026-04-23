@@ -231,7 +231,7 @@ export default function AdminUsuariosPage() {
               <div>
                 <h3 className="text-white font-medium text-sm">{u.nombre || u.email}</h3>
                 <p className="text-zinc-500 text-xs mt-0.5">{u.email}</p>
-                <p className="text-zinc-600 text-xs mt-1">{u.nombre_comercial || '-'}</p>
+                <p className="text-zinc-600 text-xs mt-1">{u.empresa || u.nombre_comercial || '-'}</p>
               </div>
               <div className="flex items-center gap-2">
                 {u.rol === 'admin' && <span className={cx.badge('bg-purple-500/10 text-purple-400')}>admin</span>}
@@ -282,7 +282,7 @@ export default function AdminUsuariosPage() {
               <tr key={u.id} className={cx.tr}>
                 <td className={cx.td + ' text-white font-medium'}>{u.nombre || '-'}</td>
                 <td className={cx.td + ' text-zinc-300'}>{u.email}</td>
-                <td className={cx.td + ' text-zinc-400'}>{u.nombre_comercial || u.empresa || '-'}</td>
+                <td className={cx.td + ' text-zinc-400'}>{u.empresa || u.nombre_comercial || '-'}</td>
                 <td className={cx.td}>
                   <span className={cx.badge(u.rol === 'admin' ? 'bg-purple-500/10 text-purple-400' : 'bg-zinc-800 text-zinc-400')}>
                     {u.rol}

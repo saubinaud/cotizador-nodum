@@ -154,7 +154,15 @@ export default function PrepPredPage() {
             </div>
             <div>
               <label className={cx.label}>Unidad</label>
-              <input type="text" value={editData.unidad} onChange={(e) => setEditData({ ...editData, unidad: e.target.value })} className={cx.input} />
+              <select value={editData.unidad} onChange={(e) => setEditData({ ...editData, unidad: e.target.value })} className={cx.select}>
+                <option value="">Seleccionar</option>
+                <option value="g">g</option>
+                <option value="ml">ml</option>
+                <option value="uni">uni</option>
+                <option value="oz">oz</option>
+                <option value="kg">kg</option>
+                <option value="l">l</option>
+              </select>
             </div>
           </div>
 

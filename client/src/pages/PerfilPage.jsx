@@ -3,12 +3,16 @@ import { useAuth } from '../context/AuthContext';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
-import { User, Lock, Save } from 'lucide-react';
+import { User, Lock, Save, Pencil, X } from 'lucide-react';
 
 export default function PerfilPage() {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
   const api = useApi();
   const toast = useToast();
+
+  const [editing, setEditing] = useState(false);
+  const [profileForm, setProfileForm] = useState({});
+  const [savingProfile, setSavingProfile] = useState(false);
 
   const [pwForm, setPwForm] = useState({
     current_password: '',
@@ -16,6 +20,38 @@ export default function PerfilPage() {
     confirm_password: '',
   });
   const [saving, setSaving] = useState(false);
+
+  const startEditing = () => {
+    setProfileForm({
+      nombre: user?.nombre || '',
+      nombre_comercial: user?.empresa || user?.nombre_comercial || '',
+      ruc: user?.ruc || '',
+      razon_social: user?.razon_social || '',
+      igv_rate: user?.igv_rate || 0.18,
+    });
+    setEditing(true);
+  };
+
+  const cancelEditing = () => {
+    setEditing(false);
+    setProfileForm({});
+  };
+
+  const handleSaveProfile = async () => {
+    setSavingProfile(true);
+    try {
+      const data = await api.put('/auth/perfil', profileForm);
+      const updatedUser = data.data?.user || data.data;
+      setUser(updatedUser);
+      localStorage.setItem('nodum_user', JSON.stringify(updatedUser));
+      toast.success('Perfil actualizado');
+      setEditing(false);
+    } catch (err) {
+      toast.error(err.message || 'Error actualizando perfil');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   const handleChangePassword = async (e) => {
     e.preventDefault();
@@ -42,48 +78,128 @@ export default function PerfilPage() {
     }
   };
 
+  const igvDisplay = user?.igv_rate != null
+    ? (Number(user.igv_rate) < 1 ? Math.round(Number(user.igv_rate) * 100) : Number(user.igv_rate))
+    : 18;
+
   return (
     <div className="max-w-xl mx-auto space-y-6">
       <h2 className="text-xl font-bold text-white">Mi Perfil</h2>
 
       {/* Profile info */}
       <div className={`${cx.card} p-5`}>
-        <div className="flex items-center gap-4 mb-6">
-          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
-            <User size={28} className="text-white" />
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-4">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
+              <User size={28} className="text-white" />
+            </div>
+            <div>
+              <h3 className="text-white font-semibold text-lg">{user?.nombre || 'Usuario'}</h3>
+              <p className="text-zinc-500 text-sm">{user?.email}</p>
+            </div>
           </div>
-          <div>
-            <h3 className="text-white font-semibold text-lg">{user?.nombre || 'Usuario'}</h3>
-            <p className="text-zinc-500 text-sm">{user?.email}</p>
-          </div>
+          {!editing && (
+            <button onClick={startEditing} className={cx.btnGhost + ' flex items-center gap-1'}>
+              <Pencil size={14} /> Editar
+            </button>
+          )}
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <label className={cx.label}>DNI</label>
-            <p className="text-white text-sm">{user?.dni || '-'}</p>
+        {editing ? (
+          <div className="space-y-4">
+            <div>
+              <label className={cx.label}>Nombre</label>
+              <input
+                type="text"
+                value={profileForm.nombre}
+                onChange={(e) => setProfileForm({ ...profileForm, nombre: e.target.value })}
+                className={cx.input}
+              />
+            </div>
+            <div>
+              <label className={cx.label}>Nombre comercial</label>
+              <input
+                type="text"
+                value={profileForm.nombre_comercial}
+                onChange={(e) => setProfileForm({ ...profileForm, nombre_comercial: e.target.value })}
+                className={cx.input}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={cx.label}>RUC</label>
+                <input
+                  type="text"
+                  value={profileForm.ruc}
+                  onChange={(e) => setProfileForm({ ...profileForm, ruc: e.target.value })}
+                  className={cx.input}
+                />
+              </div>
+              <div>
+                <label className={cx.label}>Razon social</label>
+                <input
+                  type="text"
+                  value={profileForm.razon_social}
+                  onChange={(e) => setProfileForm({ ...profileForm, razon_social: e.target.value })}
+                  className={cx.input}
+                />
+              </div>
+            </div>
+            <div>
+              <label className={cx.label}>Tasa IGV (decimal, ej: 0.18)</label>
+              <input
+                type="number"
+                step="0.01"
+                value={profileForm.igv_rate}
+                onChange={(e) => setProfileForm({ ...profileForm, igv_rate: e.target.value })}
+                className={cx.input + ' w-32'}
+              />
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                className={cx.btnPrimary + ' flex items-center gap-2'}
+              >
+                {savingProfile ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <><Save size={14} /> Guardar</>
+                )}
+              </button>
+              <button onClick={cancelEditing} className={cx.btnSecondary + ' flex items-center gap-1'}>
+                <X size={14} /> Cancelar
+              </button>
+            </div>
           </div>
-          <div>
-            <label className={cx.label}>RUC</label>
-            <p className="text-white text-sm">{user?.ruc || '-'}</p>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={cx.label}>DNI</label>
+              <p className="text-white text-sm">{user?.dni || '-'}</p>
+            </div>
+            <div>
+              <label className={cx.label}>RUC</label>
+              <p className="text-white text-sm">{user?.ruc || '-'}</p>
+            </div>
+            <div>
+              <label className={cx.label}>Nombre comercial</label>
+              <p className="text-white text-sm">{user?.empresa || user?.nombre_comercial || '-'}</p>
+            </div>
+            <div>
+              <label className={cx.label}>Razon social</label>
+              <p className="text-white text-sm">{user?.razon_social || '-'}</p>
+            </div>
+            <div>
+              <label className={cx.label}>Tasa IGV</label>
+              <p className="text-white text-sm">{igvDisplay}%</p>
+            </div>
+            <div>
+              <label className={cx.label}>Rol</label>
+              <p className="text-white text-sm capitalize">{user?.rol || 'cliente'}</p>
+            </div>
           </div>
-          <div>
-            <label className={cx.label}>Nombre comercial</label>
-            <p className="text-white text-sm">{user?.nombre_comercial || '-'}</p>
-          </div>
-          <div>
-            <label className={cx.label}>Razon social</label>
-            <p className="text-white text-sm">{user?.razon_social || '-'}</p>
-          </div>
-          <div>
-            <label className={cx.label}>Tasa IGV</label>
-            <p className="text-white text-sm">{user?.igv_rate || 18}%</p>
-          </div>
-          <div>
-            <label className={cx.label}>Rol</label>
-            <p className="text-white text-sm capitalize">{user?.rol || 'cliente'}</p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Change password */}

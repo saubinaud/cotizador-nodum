@@ -57,6 +57,8 @@ router.post('/login', async (req, res) => {
           rol: user.rol,
           empresa: user.nombre_comercial,
           igv_rate: user.igv_rate,
+          ruc: user.ruc,
+          razon_social: user.razon_social,
           permisos: user.permisos,
         },
       },
@@ -71,7 +73,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, permisos FROM usuarios WHERE id = $1',
+      'SELECT id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, ruc, razon_social, permisos FROM usuarios WHERE id = $1',
       [req.user.id]
     );
     if (result.rows.length === 0) {
@@ -120,6 +122,32 @@ router.post('/cambiar-password', auth, async (req, res) => {
     return res.json({ success: true, data: { message: 'Password actualizada correctamente' } });
   } catch (err) {
     console.error('Change password error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
+// PUT /api/auth/perfil
+router.put('/perfil', auth, async (req, res) => {
+  try {
+    const { nombre, nombre_comercial, ruc, razon_social, igv_rate } = req.body;
+    const result = await pool.query(
+      `UPDATE usuarios SET
+        nombre = COALESCE($1, nombre),
+        nombre_comercial = COALESCE($2, nombre_comercial),
+        ruc = COALESCE($3, ruc),
+        razon_social = COALESCE($4, razon_social),
+        igv_rate = COALESCE($5, igv_rate),
+        updated_at = NOW()
+       WHERE id = $6
+       RETURNING id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, ruc, razon_social, permisos`,
+      [nombre || null, nombre_comercial || null, ruc || null, razon_social || null, igv_rate || null, req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    }
+    return res.json({ success: true, data: { user: result.rows[0] } });
+  } catch (err) {
+    console.error('Update profile error:', err);
     return res.status(500).json({ success: false, error: 'Error interno del servidor' });
   }
 });

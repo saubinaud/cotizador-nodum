@@ -188,6 +188,7 @@ export default function CotizadorPage() {
       insumo_id: catalogItem.id,
       nombre: catalogItem.nombre,
       costo_unitario: costoUnit,
+      unidad_medida: catalogItem.unidad_medida,
     });
   };
 
@@ -211,6 +212,7 @@ export default function CotizadorPage() {
               precio: Number(catalogItem.cantidad_presentacion) > 0
               ? Number(catalogItem.precio_presentacion) / Number(catalogItem.cantidad_presentacion)
               : Number(catalogItem.precio_presentacion) || 0,
+              unidad_medida: catalogItem.unidad_medida,
             }
           : m
       )
@@ -409,6 +411,7 @@ export default function CotizadorPage() {
                                 placeholder="Cant."
                                 className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
                               />
+                              <span className="text-zinc-500 text-xs">{ins.unidad_medida || ''}</span>
                               <span className="text-zinc-500 text-xs">x {formatCurrency(ins.costo_unitario)}</span>
                               <span className="ml-auto text-white text-sm font-medium">
                                 {formatCurrency((Number(ins.costo_unitario) || 0) * (Number(ins.cantidad) || 0))}
@@ -444,13 +447,16 @@ export default function CotizadorPage() {
                                 />
                               </td>
                               <td className="py-2 px-2">
-                                <input
-                                  type="number"
-                                  value={ins.cantidad}
-                                  onChange={(e) => updateInsumo(prep._id, ins._id, { cantidad: e.target.value })}
-                                  placeholder="0"
-                                  className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
-                                />
+                                <div className="flex items-center gap-1">
+                                  <input
+                                    type="number"
+                                    value={ins.cantidad}
+                                    onChange={(e) => updateInsumo(prep._id, ins._id, { cantidad: e.target.value })}
+                                    placeholder="0"
+                                    className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                                  />
+                                  <span className="text-zinc-500 text-xs">{ins.unidad_medida || ''}</span>
+                                </div>
                               </td>
                               <td className="py-2 px-2 text-sm text-zinc-400 text-center">
                                 {formatCurrency(ins.costo_unitario)}
@@ -512,6 +518,7 @@ export default function CotizadorPage() {
                           placeholder="Cant."
                           className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
                         />
+                        <span className="text-zinc-500 text-xs">{mat.unidad_medida || ''}</span>
                         <span className="text-zinc-500 text-xs">x {formatCurrency(mat.precio)}</span>
                         <span className="ml-auto text-white text-sm font-medium">
                           {formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}
@@ -547,13 +554,16 @@ export default function CotizadorPage() {
                           />
                         </td>
                         <td className="py-2 px-2">
-                          <input
-                            type="number"
-                            value={mat.cantidad}
-                            onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
-                            placeholder="1"
-                            className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
-                          />
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              value={mat.cantidad}
+                              onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
+                              placeholder="1"
+                              className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                            />
+                            <span className="text-zinc-500 text-xs">{mat.unidad_medida || ''}</span>
+                          </div>
                         </td>
                         <td className="py-2 px-2 text-sm text-zinc-400 text-center">
                           {formatCurrency(mat.precio)}
