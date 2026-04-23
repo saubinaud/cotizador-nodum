@@ -96,27 +96,115 @@ export default function DashboardPage() {
     (p.nombre || '').toLowerCase().includes(search.toLowerCase())
   );
 
-  const exportExcel = () => {
+  const [exporting, setExporting] = useState(false);
+
+  const exportExcel = async () => {
     if (products.length === 0) return;
-    const headers = ['Nombre', 'Costo Insumos', 'Costo Empaque', 'Costo Neto', 'Margen %', 'Precio Venta', 'IGV', 'Precio Final'];
-    const rows = products.map((p) => [
-      p.nombre,
-      Number(p.costo_insumos).toFixed(2),
-      Number(p.costo_empaque).toFixed(2),
-      Number(p.costo_neto).toFixed(2),
-      (Number(p.margen) * 100).toFixed(1),
-      Number(p.precio_venta).toFixed(2),
-      (Number(p.precio_final) - Number(p.precio_venta)).toFixed(2),
-      Number(p.precio_final).toFixed(2),
-    ]);
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${c}"`).join(',')).join('\n');
-    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `productos_nodum_${new Date().toISOString().slice(0, 10)}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
+    setExporting(true);
+    try {
+      // Load full details for each product
+      const details = await Promise.all(
+        products.map((p) => api.get(`/productos/${p.id}`).then((d) => d.data || d).catch(() => p))
+      );
+
+      const sep = ',';
+      const esc = (v) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+      const lines = [];
+
+      // ===== RESUMEN =====
+      lines.push([esc('RESUMEN DE PRODUCTOS NODUM'), '', '', '', '', '', '', ''].join(sep));
+      lines.push([esc(`Fecha: ${new Date().toLocaleDateString('es-PE')}`), '', '', '', '', '', '', ''].join(sep));
+      lines.push([].join(sep));
+      lines.push(['Producto', 'Costo Insumos', 'Costo Empaque', 'Costo Neto', 'Margen %', 'Precio Venta', 'IGV', 'Precio Final'].map(esc).join(sep));
+      products.forEach((p) => {
+        lines.push([
+          p.nombre,
+          Number(p.costo_insumos).toFixed(2),
+          Number(p.costo_empaque).toFixed(2),
+          Number(p.costo_neto).toFixed(2),
+          (Number(p.margen) * 100).toFixed(1) + '%',
+          Number(p.precio_venta).toFixed(2),
+          (Number(p.precio_final) - Number(p.precio_venta)).toFixed(2),
+          Number(p.precio_final).toFixed(2),
+        ].map(esc).join(sep));
+      });
+
+      // ===== DETALLE POR PRODUCTO =====
+      details.forEach((prod) => {
+        lines.push([].join(sep));
+        lines.push([].join(sep));
+        lines.push([esc(`═══ ${(prod.nombre || '').toUpperCase()} ═══`), '', '', '', '', '', '', ''].join(sep));
+        lines.push([].join(sep));
+
+        // Preparaciones
+        (prod.preparaciones || []).forEach((prep, pi) => {
+          lines.push([esc(`Preparación ${pi + 1}: ${prep.nombre || 'Sin nombre'}${prep.capacidad ? ` (${parseFloat(prep.capacidad)} ${prep.unidad_capacidad || ''})` : ''}`), '', '', '', '', '', '', ''].join(sep));
+          lines.push(['Insumo', 'Unidad', 'Cantidad', 'Costo Unitario', 'Subtotal', '', '', ''].map(esc).join(sep));
+
+          let totalPrep = 0;
+          (prep.insumos || []).forEach((ins) => {
+            const cu = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+            const cant = parseFloat(ins.cantidad_usada || ins.cantidad) || 0;
+            const sub = cu * cant;
+            totalPrep += sub;
+            lines.push([
+              ins.nombre || '',
+              ins.unidad_medida || '',
+              cant,
+              cu.toFixed(4),
+              sub.toFixed(2),
+              '', '', '',
+            ].map(esc).join(sep));
+          });
+          lines.push([esc(''), esc(''), esc(''), esc('Subtotal preparación:'), esc(totalPrep.toFixed(2)), '', '', ''].join(sep));
+          lines.push([].join(sep));
+        });
+
+        // Materiales
+        if ((prod.materiales || []).length > 0) {
+          lines.push([esc('Empaque / Materiales'), '', '', '', '', '', '', ''].join(sep));
+          lines.push(['Material', 'Unidad', 'Cantidad', 'Precio Unitario', 'Subtotal', '', '', ''].map(esc).join(sep));
+          let totalMat = 0;
+          (prod.materiales || []).forEach((mat) => {
+            const pu = Number(mat.cantidad_presentacion) > 0 ? Number(mat.precio_presentacion) / Number(mat.cantidad_presentacion) : 0;
+            const cant = parseFloat(mat.cantidad) || 0;
+            const sub = pu * cant;
+            totalMat += sub;
+            lines.push([
+              mat.nombre || '',
+              mat.unidad_medida || '',
+              cant,
+              pu.toFixed(4),
+              sub.toFixed(2),
+              '', '', '',
+            ].map(esc).join(sep));
+          });
+          lines.push([esc(''), esc(''), esc(''), esc('Subtotal materiales:'), esc(totalMat.toFixed(2)), '', '', ''].join(sep));
+          lines.push([].join(sep));
+        }
+
+        // Resumen del producto
+        lines.push([esc('COSTOS'), '', '', '', '', '', '', ''].join(sep));
+        lines.push([esc('Costo insumos:'), esc(Number(prod.costo_insumos).toFixed(2)), '', esc('Precio venta:'), esc(Number(prod.precio_venta).toFixed(2)), '', '', ''].join(sep));
+        lines.push([esc('Costo empaque:'), esc(Number(prod.costo_empaque).toFixed(2)), '', esc('IGV:'), esc((Number(prod.precio_final) - Number(prod.precio_venta)).toFixed(2)), '', '', ''].join(sep));
+        lines.push([esc('Costo neto:'), esc(Number(prod.costo_neto).toFixed(2)), '', esc('PRECIO FINAL:'), esc(Number(prod.precio_final).toFixed(2)), '', '', ''].join(sep));
+        lines.push([esc('Margen:'), esc((Number(prod.margen) * 100).toFixed(1) + '%'), '', '', '', '', '', ''].join(sep));
+      });
+
+      const csv = lines.join('\n');
+      const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `recetas_nodum_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast.success('Excel descargado');
+    } catch {
+      toast.error('Error generando Excel');
+    } finally {
+      setExporting(false);
+    }
   };
 
   if (loading) {
@@ -139,10 +227,11 @@ export default function DashboardPage() {
         <div className="flex gap-2">
           <button
             onClick={exportExcel}
+            disabled={exporting}
             className={cx.btnSecondary + ' flex items-center gap-2'}
-            title="Exportar CSV"
+            title="Exportar recetas completas"
           >
-            <Download size={16} />
+            {exporting ? <div className="w-4 h-4 border-2 border-zinc-500 border-t-white rounded-full animate-spin" /> : <Download size={16} />}
           </button>
           <button
             onClick={() => navigate('/cotizador')}
