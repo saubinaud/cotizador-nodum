@@ -30,6 +30,8 @@ export default function DashboardPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [historyModal, setHistoryModal] = useState(null);
   const [history, setHistory] = useState([]);
+  const [selectedVersion, setSelectedVersion] = useState(null);
+  const [confirmRestore, setConfirmRestore] = useState(null);
   const [viewMode, setViewMode] = useState('gallery');
   const [detailModal, setDetailModal] = useState(null);
   const [detailData, setDetailData] = useState(null);
@@ -417,42 +419,141 @@ export default function DashboardPage() {
       {/* History modal */}
       {historyModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setHistoryModal(null)} />
-          <div className={`${cx.card} relative p-6 w-full max-w-md mx-4 max-h-[80vh] overflow-y-auto`}>
+          <div className="absolute inset-0 bg-black/60" onClick={() => { setHistoryModal(null); setSelectedVersion(null); setConfirmRestore(null); }} />
+          <div className={`${cx.card} relative p-6 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto`}>
             <h3 className="text-white font-semibold mb-4">Historial: {historyModal.nombre}</h3>
+
             {history.length === 0 ? (
               <p className="text-zinc-500 text-sm">Sin historial disponible.</p>
-            ) : (
-              <div className="space-y-3">
-                {history.map((h, i) => (
-                  <div key={i} className="border-l-2 border-zinc-700 pl-3 py-2 flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-sm text-white">Version {h.version} — {h.motivo}</p>
-                      <p className="text-xs text-zinc-500">{formatDate(h.created_at)}</p>
-                      {h.costo_neto && <p className="text-xs text-zinc-400 mt-0.5">Costo: {formatCurrency(h.costo_neto)} → Final: {formatCurrency(h.precio_final)}</p>}
+            ) : confirmRestore ? (
+              /* Confirmation step */
+              <div className="space-y-4">
+                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
+                  <p className="text-amber-400 text-sm font-medium mb-1">Confirmar restauracion</p>
+                  <p className="text-zinc-300 text-sm">
+                    Vas a revertir <strong>{historyModal.nombre}</strong> a la <strong>version {confirmRestore.version}</strong> ({confirmRestore.motivo}).
+                  </p>
+                  <p className="text-zinc-500 text-xs mt-2">Se creara una nueva version con los valores restaurados. Los datos actuales no se pierden.</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={async () => {
+                      try {
+                        await api.post(`/productos/${historyModal.id}/restaurar/${confirmRestore.version}`);
+                        toast.success(`Restaurado a version ${confirmRestore.version}`);
+                        setHistoryModal(null);
+                        setSelectedVersion(null);
+                        setConfirmRestore(null);
+                        loadProducts();
+                      } catch {
+                        toast.error('Error restaurando version');
+                      }
+                    }}
+                    className={cx.btnPrimary + ' flex-1 bg-amber-600 hover:bg-amber-500'}
+                  >
+                    Si, restaurar
+                  </button>
+                  <button onClick={() => setConfirmRestore(null)} className={cx.btnSecondary + ' flex-1'}>
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : selectedVersion ? (
+              /* Version detail view */
+              <div className="space-y-4">
+                <button onClick={() => setSelectedVersion(null)} className={cx.btnGhost + ' text-xs mb-2'}>
+                  ← Volver al listado
+                </button>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-zinc-300 text-sm font-semibold">Version {selectedVersion.version} — {selectedVersion.motivo}</h4>
+                  <span className="text-zinc-500 text-xs">{formatDate(selectedVersion.created_at)}</span>
+                </div>
+
+                {/* Snapshot details */}
+                {(() => {
+                  const snap = selectedVersion.snapshot_json || {};
+                  const current = historyModal;
+                  const fields = [
+                    { key: 'nombre', label: 'Nombre' },
+                    { key: 'costo_insumos', label: 'Costo insumos', fmt: formatCurrency },
+                    { key: 'costo_empaque', label: 'Costo empaque', fmt: formatCurrency },
+                    { key: 'costo_neto', label: 'Costo neto', fmt: formatCurrency },
+                    { key: 'margen', label: 'Margen', fmt: (v) => (Number(v) < 1 ? (Number(v) * 100).toFixed(1) : Number(v).toFixed(1)) + '%' },
+                    { key: 'precio_venta', label: 'Precio venta', fmt: formatCurrency },
+                    { key: 'precio_final', label: 'Precio final', fmt: formatCurrency },
+                  ];
+                  return (
+                    <div className="bg-zinc-800 rounded-xl overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="text-zinc-500 text-[10px] uppercase tracking-wider">
+                            <th className="text-left px-3 py-2">Campo</th>
+                            <th className="text-center px-3 py-2">Esta version</th>
+                            <th className="text-center px-3 py-2">Actual</th>
+                            <th className="text-center px-3 py-2">Cambio</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {fields.map((f) => {
+                            const snapVal = snap[f.key];
+                            const currVal = current[f.key];
+                            const changed = String(snapVal) !== String(currVal);
+                            const display = f.fmt || ((v) => v ?? '-');
+                            return (
+                              <tr key={f.key} className="border-t border-zinc-700/50">
+                                <td className="px-3 py-2 text-zinc-400">{f.label}</td>
+                                <td className="px-3 py-2 text-center text-white font-medium">{display(snapVal)}</td>
+                                <td className="px-3 py-2 text-center text-zinc-400">{display(currVal)}</td>
+                                <td className="px-3 py-2 text-center">
+                                  {changed ? <span className="text-amber-400 text-xs">Diferente</span> : <span className="text-zinc-600 text-xs">—</span>}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
                     </div>
-                    {i > 0 && (
-                      <button
-                        onClick={async () => {
-                          try {
-                            await api.post(`/productos/${historyModal.id}/restaurar/${h.version}`);
-                            toast.success(`Restaurado a version ${h.version}`);
-                            setHistoryModal(null);
-                            loadProducts();
-                          } catch {
-                            toast.error('Error restaurando version');
-                          }
-                        }}
-                        className="text-xs text-amber-400 hover:text-amber-300 whitespace-nowrap px-2 py-1 rounded-lg hover:bg-amber-500/10 transition-colors"
-                      >
-                        Restaurar
-                      </button>
-                    )}
-                  </div>
+                  );
+                })()}
+
+                {/* Restore button (not for latest version) */}
+                {selectedVersion.version < history[0]?.version && (
+                  <button
+                    onClick={() => setConfirmRestore(selectedVersion)}
+                    className={cx.btnPrimary + ' w-full bg-amber-600 hover:bg-amber-500 flex items-center justify-center gap-2'}
+                  >
+                    Restaurar a esta version
+                  </button>
+                )}
+              </div>
+            ) : (
+              /* Version list */
+              <div className="space-y-2">
+                {history.map((h, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setSelectedVersion(h)}
+                    className="w-full text-left border-l-2 border-zinc-700 hover:border-[#FA7B21] pl-3 py-2 rounded-r-lg hover:bg-zinc-800 transition-all"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <p className="text-sm text-white">
+                          {i === 0 && <span className="text-[10px] bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded mr-2">Actual</span>}
+                          Version {h.version}
+                        </p>
+                        <p className="text-xs text-zinc-500">{h.motivo}</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-xs text-zinc-500">{formatDate(h.created_at)}</p>
+                        {h.precio_final && <p className="text-xs text-[#FA7B21]">{formatCurrency(h.precio_final)}</p>}
+                      </div>
+                    </div>
+                  </button>
                 ))}
               </div>
             )}
-            <button onClick={() => setHistoryModal(null)} className={cx.btnSecondary + ' mt-4 w-full'}>
+
+            <button onClick={() => { setHistoryModal(null); setSelectedVersion(null); setConfirmRestore(null); }} className={cx.btnSecondary + ' mt-4 w-full'}>
               Cerrar
             </button>
           </div>
