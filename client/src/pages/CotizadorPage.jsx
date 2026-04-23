@@ -348,7 +348,7 @@ export default function CotizadorPage() {
 
             <div className="space-y-4">
               {preparaciones.map((prep) => (
-                <div key={prep._id} className={`${cx.card} overflow-hidden`}>
+                <div key={prep._id} className={cx.card}>
                   {/* Prep header */}
                   <div className="flex items-center gap-2 p-4 border-b border-zinc-800">
                     <GripVertical size={16} className="text-zinc-700 flex-shrink-0" />

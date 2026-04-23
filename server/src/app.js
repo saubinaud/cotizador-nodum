@@ -13,8 +13,11 @@ const materialesRoutes = require('./routes/materiales');
 const productosRoutes = require('./routes/productos');
 const predeterminadosRoutes = require('./routes/predeterminados');
 const historialRoutes = require('./routes/historial');
+const runMigrations = require('./models/migrate');
 
 const app = express();
+
+runMigrations();
 
 // --------------- Middleware ---------------
 
