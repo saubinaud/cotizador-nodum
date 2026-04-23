@@ -21,6 +21,12 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS precio_final NUMERIC(12,4)
     `);
 
+    // usuarios — add permisos column if missing
+    await client.query(`
+      ALTER TABLE usuarios
+        ADD COLUMN IF NOT EXISTS permisos JSONB NOT NULL DEFAULT '["dashboard","cotizador","insumos","materiales","preparaciones","empaques"]'::jsonb
+    `);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

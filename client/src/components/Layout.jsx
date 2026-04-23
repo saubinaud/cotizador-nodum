@@ -16,13 +16,13 @@ import {
   LogOut,
 } from 'lucide-react';
 
-const links = [
-  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/cotizador', label: 'Cotizador', icon: Calculator },
-  { to: '/insumos', label: 'Insumos', icon: Salad },
-  { to: '/materiales', label: 'Materiales', icon: Package },
-  { to: '/preparaciones-predeterminadas', label: 'Prep. Predet.', icon: ChefHat },
-  { to: '/empaques-predeterminados', label: 'Empaques Pred.', icon: BoxSelect },
+const allLinks = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, perm: 'dashboard' },
+  { to: '/cotizador', label: 'Cotizador', icon: Calculator, perm: 'cotizador' },
+  { to: '/insumos', label: 'Insumos', icon: Salad, perm: 'insumos' },
+  { to: '/materiales', label: 'Materiales', icon: Package, perm: 'materiales' },
+  { to: '/preparaciones-predeterminadas', label: 'Prep. Predet.', icon: ChefHat, perm: 'preparaciones' },
+  { to: '/empaques-predeterminados', label: 'Empaques Pred.', icon: BoxSelect, perm: 'empaques' },
   { to: '/perfil', label: 'Perfil', icon: User },
 ];
 
@@ -55,6 +55,8 @@ export default function Layout() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const isAdmin = user?.rol === 'admin';
+  const permisos = Array.isArray(user?.permisos) ? user.permisos : ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques'];
+  const links = isAdmin ? allLinks : allLinks.filter((l) => !l.perm || permisos.includes(l.perm));
 
   const handleLogout = () => {
     logout();

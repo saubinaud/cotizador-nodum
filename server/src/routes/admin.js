@@ -12,8 +12,10 @@ router.use(requireRole('admin'));
 // POST /api/admin/usuarios — create client with onboarding token
 router.post('/usuarios', async (req, res) => {
   try {
-    const { email, nombre, empresa: nombre_comercial, rol } = req.body;
+    const { email, nombre, empresa: nombre_comercial, rol, permisos } = req.body;
     const validRol = ['cliente', 'admin'].includes(rol) ? rol : 'cliente';
+    const ALL_MODULES = ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques'];
+    const validPermisos = Array.isArray(permisos) ? permisos.filter((p) => ALL_MODULES.includes(p)) : ALL_MODULES;
 
     if (!email || !nombre) {
       return res.status(400).json({ success: false, error: 'Email y nombre son requeridos' });
@@ -32,10 +34,10 @@ router.post('/usuarios', async (req, res) => {
     const onboarding_expira = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     const result = await pool.query(
-      `INSERT INTO usuarios (email, nombre, nombre_comercial, rol, estado, onboarding_token, onboarding_token_expires, password_hash)
-       VALUES ($1, $2, $3, $4, 'pendiente', $5, $6, '')
-       RETURNING id, email, nombre, nombre_comercial AS empresa, rol, estado, onboarding_token, onboarding_token_expires, created_at`,
-      [email.toLowerCase().trim(), nombre, nombre_comercial || null, validRol, onboarding_token, onboarding_expira]
+      `INSERT INTO usuarios (email, nombre, nombre_comercial, rol, estado, permisos, onboarding_token, onboarding_token_expires, password_hash)
+       VALUES ($1, $2, $3, $4, 'pendiente', $5, $6, $7, '')
+       RETURNING id, email, nombre, nombre_comercial AS empresa, rol, estado, permisos, onboarding_token, onboarding_token_expires, created_at`,
+      [email.toLowerCase().trim(), nombre, nombre_comercial || null, validRol, JSON.stringify(validPermisos), onboarding_token, onboarding_expira]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -49,7 +51,7 @@ router.post('/usuarios', async (req, res) => {
 router.get('/usuarios', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, email, nombre, nombre_comercial AS empresa, rol, estado, ruc, igv_rate, created_at, updated_at
+      `SELECT id, email, nombre, nombre_comercial AS empresa, rol, estado, ruc, igv_rate, permisos, created_at, updated_at
        FROM usuarios
        ORDER BY created_at DESC`
     );
@@ -84,6 +86,34 @@ router.patch('/usuarios/:id/estado', async (req, res) => {
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('Update estado error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
+// PATCH /api/admin/usuarios/:id/permisos — update user permissions
+router.patch('/usuarios/:id/permisos', async (req, res) => {
+  try {
+    const { permisos } = req.body;
+    const ALL_MODULES = ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques'];
+
+    if (!Array.isArray(permisos)) {
+      return res.status(400).json({ success: false, error: 'Permisos debe ser un array' });
+    }
+
+    const valid = permisos.filter((p) => ALL_MODULES.includes(p));
+
+    const result = await pool.query(
+      'UPDATE usuarios SET permisos = $1, updated_at = NOW() WHERE id = $2 RETURNING id, permisos',
+      [JSON.stringify(valid), req.params.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    }
+
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Update permisos error:', err);
     return res.status(500).json({ success: false, error: 'Error interno del servidor' });
   }
 });

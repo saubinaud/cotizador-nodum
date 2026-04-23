@@ -57,6 +57,7 @@ router.post('/login', async (req, res) => {
           rol: user.rol,
           empresa: user.nombre_comercial,
           igv_rate: user.igv_rate,
+          permisos: user.permisos,
         },
       },
     });
@@ -70,7 +71,7 @@ router.post('/login', async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, nombre, rol, nombre_comercial AS empresa, igv_rate FROM usuarios WHERE id = $1',
+      'SELECT id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, permisos FROM usuarios WHERE id = $1',
       [req.user.id]
     );
     if (result.rows.length === 0) {
