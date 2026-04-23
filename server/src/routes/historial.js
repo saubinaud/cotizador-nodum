@@ -19,7 +19,7 @@ router.get('/productos/:id/versiones', async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT id, version, motivo, created_at
+      `SELECT id, version, motivo, snapshot_json, costo_neto, precio_final, created_at
        FROM producto_versiones
        WHERE producto_id = $1
        ORDER BY version DESC`,
