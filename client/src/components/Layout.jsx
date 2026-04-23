@@ -25,6 +25,7 @@ const allLinks = [
   { to: '/preparaciones-predeterminadas', label: 'Prep. Predet.', icon: ChefHat, perm: 'preparaciones' },
   { to: '/empaques-predeterminados', label: 'Empaques Pred.', icon: BoxSelect, perm: 'empaques' },
   { to: '/proyeccion', label: 'Proyección', icon: TrendingUp, perm: 'cotizador' },
+  { to: '/actividad', label: 'Mi Actividad', icon: Activity },
   { to: '/perfil', label: 'Perfil', icon: User },
 ];
 

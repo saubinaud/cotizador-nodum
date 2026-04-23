@@ -61,23 +61,40 @@ router.get('/productos/:id/versiones/:version', async (req, res) => {
   }
 });
 
-// GET /api/historial/actividad — recent activity log for user
+// GET /api/historial/actividad — merged activity: CRUD logs + product versions
 router.get('/actividad', async (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const limit = Math.min(parseInt(req.query.limit) || 100, 200);
 
-    const result = await pool.query(
-      `SELECT pv.id, pv.producto_id, pv.version, pv.motivo, pv.created_at,
-              p.nombre AS producto_nombre
-       FROM producto_versiones pv
-       JOIN productos p ON p.id = pv.producto_id
-       WHERE p.usuario_id = $1
-       ORDER BY pv.created_at DESC
-       LIMIT $2`,
+    // CRUD activity logs
+    const logsRes = await pool.query(
+      `SELECT al.id, 'log' AS tipo, al.entidad, al.entidad_id, al.accion, al.cambios_json, al.created_at,
+              NULL AS producto_id, NULL AS version, NULL AS motivo, NULL AS producto_nombre, NULL AS precio_final, NULL AS costo_neto
+       FROM actividad_log al
+       WHERE al.usuario_id = $1
+       ORDER BY al.created_at DESC LIMIT $2`,
       [req.user.id, limit]
     );
 
-    return res.json({ success: true, data: result.rows });
+    // Product version logs
+    const versionsRes = await pool.query(
+      `SELECT pv.id, 'version' AS tipo, 'producto' AS entidad, pv.producto_id AS entidad_id,
+              CASE WHEN pv.version = 1 THEN 'crear' ELSE 'actualizar' END AS accion,
+              NULL AS cambios_json, pv.created_at,
+              pv.producto_id, pv.version, pv.motivo, p.nombre AS producto_nombre, pv.precio_final, pv.costo_neto
+       FROM producto_versiones pv
+       JOIN productos p ON p.id = pv.producto_id
+       WHERE p.usuario_id = $1
+       ORDER BY pv.created_at DESC LIMIT $2`,
+      [req.user.id, limit]
+    );
+
+    // Merge and sort by date
+    const merged = [...logsRes.rows, ...versionsRes.rows]
+      .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+      .slice(0, limit);
+
+    return res.json({ success: true, data: merged });
   } catch (err) {
     console.error('Activity log error:', err);
     return res.status(500).json({ success: false, error: 'Error interno del servidor' });
