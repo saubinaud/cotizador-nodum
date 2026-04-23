@@ -57,7 +57,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const isAdmin = user?.rol === 'admin';
-  const permisos = Array.isArray(user?.permisos) ? user.permisos : ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques'];
+  const permisos = Array.isArray(user?.permisos) ? user.permisos : ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion'];
   const links = isAdmin ? allLinks : allLinks.filter((l) => !l.perm || permisos.includes(l.perm));
 
   const handleLogout = () => {

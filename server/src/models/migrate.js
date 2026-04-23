@@ -24,7 +24,7 @@ async function runMigrations() {
     // usuarios — add permisos column if missing
     await client.query(`
       ALTER TABLE usuarios
-        ADD COLUMN IF NOT EXISTS permisos JSONB NOT NULL DEFAULT '["dashboard","cotizador","insumos","materiales","preparaciones","empaques"]'::jsonb
+        ADD COLUMN IF NOT EXISTS permisos JSONB NOT NULL DEFAULT '["dashboard","cotizador","insumos","materiales","preparaciones","empaques","proyeccion"]'::jsonb
     `);
 
     // productos — add imagen_url column if missing
