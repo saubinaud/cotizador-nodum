@@ -11,7 +11,7 @@ router.use(auth);
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { nombre, margen, preparaciones, materiales } = req.body;
+    const { nombre, margen, preparaciones, materiales, imagen_url } = req.body;
 
     if (!nombre) {
       return res.status(400).json({ success: false, error: 'Nombre es requerido' });
@@ -24,10 +24,10 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN');
 
     const prodRes = await client.query(
-      `INSERT INTO productos (usuario_id, nombre, margen, igv_rate)
-       VALUES ($1, $2, $3, $4)
+      `INSERT INTO productos (usuario_id, nombre, margen, igv_rate, imagen_url)
+       VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [req.user.id, nombre, margenDecimal, igv_rate]
+      [req.user.id, nombre, margenDecimal, igv_rate, imagen_url || null]
     );
     const producto = prodRes.rows[0];
 
@@ -126,7 +126,7 @@ router.get('/', async (req, res) => {
     const result = await pool.query(
       `SELECT id, nombre, margen, igv_rate,
               costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final,
-              created_at, updated_at
+              imagen_url, created_at, updated_at
        FROM productos
        WHERE usuario_id = $1
        ORDER BY nombre ASC`,
@@ -192,7 +192,7 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { nombre, margen, preparaciones, materiales } = req.body;
+    const { nombre, margen, preparaciones, materiales, imagen_url } = req.body;
 
     const existing = await client.query(
       'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
@@ -214,9 +214,10 @@ router.put('/:id', async (req, res) => {
         nombre = COALESCE($1, nombre),
         margen = COALESCE($2, margen),
         igv_rate = $3,
+        imagen_url = COALESCE($5, imagen_url),
         updated_at = NOW()
        WHERE id = $4`,
-      [nombre, margenDecimal, igv_rate, req.params.id]
+      [nombre, margenDecimal, igv_rate, req.params.id, imagen_url]
     );
 
     let allInsumos = [];
@@ -407,11 +408,11 @@ router.post('/:id/duplicar', async (req, res) => {
 
     const newProd = await client.query(
       `INSERT INTO productos (usuario_id, nombre, margen, igv_rate,
-        costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final, imagen_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
       [req.user.id, prod.nombre + ' (copia)', prod.margen, prod.igv_rate,
-        prod.costo_insumos, prod.costo_empaque, prod.costo_neto, prod.precio_venta, prod.precio_final]
+        prod.costo_insumos, prod.costo_empaque, prod.costo_neto, prod.precio_venta, prod.precio_final, prod.imagen_url]
     );
     const newId = newProd.rows[0].id;
 

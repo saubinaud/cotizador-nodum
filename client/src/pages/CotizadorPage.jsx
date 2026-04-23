@@ -15,6 +15,7 @@ import {
   ChevronDown,
   ChevronUp,
   GripVertical,
+  ImageIcon,
 } from 'lucide-react';
 
 let tempId = 0;
@@ -53,6 +54,7 @@ export default function CotizadorPage() {
   const toast = useToast();
 
   const [nombre, setNombre] = useState('');
+  const [imagenUrl, setImagenUrl] = useState('');
   const [preparaciones, setPreparaciones] = useState([emptyPreparacion()]);
   const [materiales, setMateriales] = useState([]);
   const [margen, setMargen] = useState(50);
@@ -63,6 +65,7 @@ export default function CotizadorPage() {
 
   const [catalogInsumos, setCatalogInsumos] = useState([]);
   const [catalogMateriales, setCatalogMateriales] = useState([]);
+  const [catalogPreps, setCatalogPreps] = useState([]);
 
   const costos = useCalculadorCostos(preparaciones, materiales, margen, igvRate);
 
@@ -70,6 +73,7 @@ export default function CotizadorPage() {
   useEffect(() => {
     api.get('/insumos').then((d) => setCatalogInsumos(d.data || [])).catch(() => {});
     api.get('/materiales').then((d) => setCatalogMateriales(d.data || [])).catch(() => {});
+    api.get('/predeterminados/preparaciones').then((d) => setCatalogPreps(d.data || [])).catch(() => {});
   }, []);
 
   // Load product for edit mode
@@ -80,6 +84,7 @@ export default function CotizadorPage() {
       .then((data) => {
         const p = data.data || data;
         setNombre(p.nombre || '');
+        setImagenUrl(p.imagen_url || '');
         // DB stores decimals (0.5, 0.18), UI uses integers (50, 18)
         setMargen(p.margen ? Math.round(p.margen * 100) : 50);
         setIgvRate(p.igv_rate ? Math.round(p.igv_rate * 100) : (user?.igv_rate ? Math.round(user.igv_rate * 100) : 18));
@@ -137,6 +142,30 @@ export default function CotizadorPage() {
   // --- Preparaciones handlers ---
   const addPreparacion = () => {
     setPreparaciones((prev) => [...prev, emptyPreparacion()]);
+  };
+
+  const loadPredeterminada = (pred) => {
+    const newPrep = {
+      _id: newTempId(),
+      nombre: pred.nombre,
+      capacidad: parseFloat(pred.capacidad) || '',
+      unidad: pred.unidad_capacidad || '',
+      collapsed: false,
+      insumos: (pred.insumos || []).map((ins) => {
+        const cu = Number(ins.cantidad_presentacion) > 0
+          ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion)
+          : Number(ins.precio_presentacion) || 0;
+        return {
+          _id: newTempId(),
+          insumo_id: ins.insumo_id,
+          nombre: ins.nombre || '',
+          unidad_medida: ins.unidad_medida || '',
+          cantidad: parseFloat(ins.cantidad) || '',
+          costo_unitario: cu,
+        };
+      }),
+    };
+    setPreparaciones((prev) => [...prev, newPrep]);
   };
 
   const removePreparacion = (prepId) => {
@@ -240,6 +269,7 @@ export default function CotizadorPage() {
   // --- Reset ---
   const handleReset = () => {
     setNombre('');
+    setImagenUrl('');
     setPreparaciones([emptyPreparacion()]);
     setMateriales([]);
     setMargen(50);
@@ -255,6 +285,7 @@ export default function CotizadorPage() {
     try {
       const payload = {
         nombre: nombre.trim(),
+        imagen_url: imagenUrl.trim() || null,
         margen,          // backend normalizes integer% → decimal
         igv_rate: igvRate / 100,
         preparaciones: preparaciones.map((p) => ({
@@ -339,16 +370,31 @@ export default function CotizadorPage() {
         {/* Left column: main form */}
         <div className="xl:col-span-2 space-y-6">
           {/* Product name */}
-          <div className={`${cx.card} p-5`}>
-            <label className={cx.label}>Nombre del producto</label>
-            <input
-              type="text"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value)}
-              className={cx.input + ' text-lg'}
-              placeholder="Ej: Cheesecake de fresa 8 porciones"
-              autoFocus
-            />
+          <div className={`${cx.card} p-5 space-y-3`}>
+            <div>
+              <label className={cx.label}>Nombre del producto</label>
+              <input
+                type="text"
+                value={nombre}
+                onChange={(e) => setNombre(e.target.value)}
+                className={cx.input + ' text-lg'}
+                placeholder="Ej: Cheesecake de fresa 8 porciones"
+                autoFocus
+              />
+            </div>
+            <div>
+              <label className={cx.label + ' flex items-center gap-1.5'}>
+                <ImageIcon size={14} className="text-zinc-500" />
+                Imagen del producto (URL)
+              </label>
+              <input
+                type="url"
+                value={imagenUrl}
+                onChange={(e) => setImagenUrl(e.target.value)}
+                className={cx.input}
+                placeholder="https://ejemplo.com/imagen.jpg"
+              />
+            </div>
           </div>
 
           {/* Preparaciones */}
@@ -357,9 +403,23 @@ export default function CotizadorPage() {
               <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">
                 Preparaciones
               </h3>
-              <button onClick={addPreparacion} className={cx.btnGhost + ' flex items-center gap-1'}>
-                <Plus size={14} /> Agregar Preparacion
-              </button>
+              <div className="flex items-center gap-2">
+                {catalogPreps.length > 0 && (
+                  <div className="w-56">
+                    <SearchableSelect
+                      options={catalogPreps}
+                      value={null}
+                      onChange={(pred) => loadPredeterminada(pred)}
+                      placeholder="Usar predeterminada"
+                      displayKey="nombre"
+                      valueKey="id"
+                    />
+                  </div>
+                )}
+                <button onClick={addPreparacion} className={cx.btnGhost + ' flex items-center gap-1'}>
+                  <Plus size={14} /> Agregar Preparacion
+                </button>
+              </div>
             </div>
 
             <div className="space-y-4">

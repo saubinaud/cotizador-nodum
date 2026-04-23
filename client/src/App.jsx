@@ -15,6 +15,7 @@ import EmpaquePredPage from './pages/EmpaquePredPage';
 import PerfilPage from './pages/PerfilPage';
 import AdminUsuariosPage from './pages/AdminUsuariosPage';
 import AdminActividadPage from './pages/AdminActividadPage';
+import ProyeccionPage from './pages/ProyeccionPage';
 
 export default function App() {
   return (
@@ -41,6 +42,7 @@ export default function App() {
               <Route path="/materiales" element={<MaterialesPage />} />
               <Route path="/preparaciones-predeterminadas" element={<PrepPredPage />} />
               <Route path="/empaques-predeterminados" element={<EmpaquePredPage />} />
+              <Route path="/proyeccion" element={<ProyeccionPage />} />
               <Route path="/perfil" element={<PerfilPage />} />
             </Route>
 

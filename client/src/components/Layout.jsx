@@ -11,6 +11,7 @@ import {
   User,
   Users,
   Activity,
+  TrendingUp,
   Menu,
   X,
   LogOut,
@@ -23,6 +24,7 @@ const allLinks = [
   { to: '/materiales', label: 'Materiales', icon: Package, perm: 'materiales' },
   { to: '/preparaciones-predeterminadas', label: 'Prep. Predet.', icon: ChefHat, perm: 'preparaciones' },
   { to: '/empaques-predeterminados', label: 'Empaques Pred.', icon: BoxSelect, perm: 'empaques' },
+  { to: '/proyeccion', label: 'Proyección', icon: TrendingUp, perm: 'cotizador' },
   { to: '/perfil', label: 'Perfil', icon: User },
 ];
 

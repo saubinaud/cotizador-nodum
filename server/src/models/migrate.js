@@ -27,6 +27,12 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS permisos JSONB NOT NULL DEFAULT '["dashboard","cotizador","insumos","materiales","preparaciones","empaques"]'::jsonb
     `);
 
+    // productos — add imagen_url column if missing
+    await client.query(`
+      ALTER TABLE productos
+        ADD COLUMN IF NOT EXISTS imagen_url TEXT
+    `);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);
