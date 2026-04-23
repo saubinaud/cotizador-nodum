@@ -13,7 +13,7 @@ export default function AdminUsuariosPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({ email: '', temp_password: '' });
+  const [createForm, setCreateForm] = useState({ email: '', nombre: '', rol: 'cliente', empresa: '' });
   const [onboardingLink, setOnboardingLink] = useState('');
 
   useEffect(() => {
@@ -33,8 +33,8 @@ export default function AdminUsuariosPage() {
 
   const handleCreate = async (e) => {
     e.preventDefault();
-    if (!createForm.email) {
-      toast.error('Email requerido');
+    if (!createForm.email || !createForm.nombre) {
+      toast.error('Email y nombre son requeridos');
       return;
     }
     setCreating(true);
@@ -103,32 +103,55 @@ export default function AdminUsuariosPage() {
                   <Copy size={14} /> Copiar
                 </button>
               </div>
-              <button onClick={() => { setShowCreate(false); setOnboardingLink(''); setCreateForm({ email: '', temp_password: '' }); }} className={cx.btnGhost}>
+              <button onClick={() => { setShowCreate(false); setOnboardingLink(''); setCreateForm({ email: '', nombre: '', rol: 'cliente', empresa: '' }); }} className={cx.btnGhost}>
                 Cerrar
               </button>
             </div>
           ) : (
             <form onSubmit={handleCreate} className="space-y-4">
-              <div>
-                <label className={cx.label}>Email</label>
-                <input
-                  type="email"
-                  value={createForm.email}
-                  onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                  className={cx.input}
-                  required
-                  autoFocus
-                />
-              </div>
-              <div>
-                <label className={cx.label}>Contrasena temporal (opcional)</label>
-                <input
-                  type="text"
-                  value={createForm.temp_password}
-                  onChange={(e) => setCreateForm({ ...createForm, temp_password: e.target.value })}
-                  className={cx.input}
-                  placeholder="Se genera automaticamente si se deja vacio"
-                />
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={cx.label}>Nombre</label>
+                  <input
+                    type="text"
+                    value={createForm.nombre}
+                    onChange={(e) => setCreateForm({ ...createForm, nombre: e.target.value })}
+                    className={cx.input}
+                    required
+                    autoFocus
+                  />
+                </div>
+                <div>
+                  <label className={cx.label}>Email</label>
+                  <input
+                    type="email"
+                    value={createForm.email}
+                    onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
+                    className={cx.input}
+                    required
+                  />
+                </div>
+                <div>
+                  <label className={cx.label}>Nombre comercial (opcional)</label>
+                  <input
+                    type="text"
+                    value={createForm.empresa}
+                    onChange={(e) => setCreateForm({ ...createForm, empresa: e.target.value })}
+                    className={cx.input}
+                    placeholder="Nombre del negocio"
+                  />
+                </div>
+                <div>
+                  <label className={cx.label}>Rol</label>
+                  <select
+                    value={createForm.rol}
+                    onChange={(e) => setCreateForm({ ...createForm, rol: e.target.value })}
+                    className={cx.select}
+                  >
+                    <option value="cliente">Cliente</option>
+                    <option value="admin">Administrador</option>
+                  </select>
+                </div>
               </div>
               <div className="flex gap-2">
                 <button type="submit" disabled={creating} className={cx.btnPrimary + ' flex items-center gap-2'}>
@@ -153,6 +176,7 @@ export default function AdminUsuariosPage() {
                 <p className="text-zinc-600 text-xs mt-1">{u.nombre_comercial || '-'}</p>
               </div>
               <div className="flex items-center gap-2">
+                {u.rol === 'admin' && <span className={cx.badge('bg-purple-500/10 text-purple-400')}>admin</span>}
                 <span className={cx.badge(u.estado === 'activo' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400')}>
                   {u.estado}
                 </span>
@@ -178,6 +202,7 @@ export default function AdminUsuariosPage() {
               <th className={cx.th}>Nombre</th>
               <th className={cx.th}>Email</th>
               <th className={cx.th}>Negocio</th>
+              <th className={cx.th}>Rol</th>
               <th className={cx.th}>Registro</th>
               <th className={cx.th}>Estado</th>
               <th className={cx.th + ' text-right'}>Acciones</th>
@@ -188,7 +213,12 @@ export default function AdminUsuariosPage() {
               <tr key={u.id} className={cx.tr}>
                 <td className={cx.td + ' text-white font-medium'}>{u.nombre || '-'}</td>
                 <td className={cx.td + ' text-zinc-300'}>{u.email}</td>
-                <td className={cx.td + ' text-zinc-400'}>{u.nombre_comercial || '-'}</td>
+                <td className={cx.td + ' text-zinc-400'}>{u.nombre_comercial || u.empresa || '-'}</td>
+                <td className={cx.td}>
+                  <span className={cx.badge(u.rol === 'admin' ? 'bg-purple-500/10 text-purple-400' : 'bg-zinc-800 text-zinc-400')}>
+                    {u.rol}
+                  </span>
+                </td>
                 <td className={cx.td + ' text-zinc-500'}>{formatDate(u.created_at)}</td>
                 <td className={cx.td}>
                   <span className={cx.badge(u.estado === 'activo' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400')}>

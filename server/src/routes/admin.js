@@ -12,7 +12,8 @@ router.use(requireRole('admin'));
 // POST /api/admin/usuarios — create client with onboarding token
 router.post('/usuarios', async (req, res) => {
   try {
-    const { email, nombre, empresa: nombre_comercial } = req.body;
+    const { email, nombre, empresa: nombre_comercial, rol } = req.body;
+    const validRol = ['cliente', 'admin'].includes(rol) ? rol : 'cliente';
 
     if (!email || !nombre) {
       return res.status(400).json({ success: false, error: 'Email y nombre son requeridos' });
@@ -31,10 +32,10 @@ router.post('/usuarios', async (req, res) => {
     const onboarding_expira = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
 
     const result = await pool.query(
-      `INSERT INTO usuarios (email, nombre, nombre_comercial, rol, estado, onboarding_token, onboarding_token_expires)
-       VALUES ($1, $2, $3, 'cliente', 'pendiente', $4, $5)
+      `INSERT INTO usuarios (email, nombre, nombre_comercial, rol, estado, onboarding_token, onboarding_token_expires, password_hash)
+       VALUES ($1, $2, $3, $4, 'pendiente', $5, $6, '')
        RETURNING id, email, nombre, nombre_comercial AS empresa, rol, estado, onboarding_token, onboarding_token_expires, created_at`,
-      [email.toLowerCase().trim(), nombre, nombre_comercial || null, onboarding_token, onboarding_expira]
+      [email.toLowerCase().trim(), nombre, nombre_comercial || null, validRol, onboarding_token, onboarding_expira]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });
