@@ -3,7 +3,8 @@ import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatDate } from '../utils/format';
-import { Plus, UserPlus, Ban, CheckCircle, Copy, X, Settings } from 'lucide-react';
+import { Plus, UserPlus, Ban, CheckCircle, Copy, X, Settings, Trash2 } from 'lucide-react';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 const ALL_MODULES = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -27,7 +28,8 @@ export default function AdminUsuariosPage() {
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState({ email: '', nombre: '', rol: 'cliente', empresa: '', permisos: [...DEFAULT_PERMISOS] });
   const [onboardingLink, setOnboardingLink] = useState('');
-  const [editPermisos, setEditPermisos] = useState(null); // { userId, permisos: [] }
+  const [editPermisos, setEditPermisos] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
 
   useEffect(() => {
     loadUsers();
@@ -111,6 +113,19 @@ export default function AdminUsuariosPage() {
       loadUsers();
     } catch {
       toast.error('Error actualizando permisos');
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!deleteTarget) return;
+    try {
+      await api.del(`/admin/usuarios/${deleteTarget.id}`);
+      toast.success('Usuario eliminado');
+      setUsers((prev) => prev.filter((u) => u.id !== deleteTarget.id));
+    } catch (err) {
+      toast.error(err.message || 'Error eliminando usuario');
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -276,6 +291,9 @@ export default function AdminUsuariosPage() {
               >
                 {u.estado === 'activo' ? <><Ban size={13} /> Suspender</> : <><CheckCircle size={13} /> Reactivar</>}
               </button>
+              <button onClick={() => setDeleteTarget(u)} className={cx.btnDanger + ' flex items-center justify-center gap-1'}>
+                <Trash2 size={13} />
+              </button>
             </div>
           </div>
         ))}
@@ -333,6 +351,9 @@ export default function AdminUsuariosPage() {
                     >
                       {u.estado === 'activo' ? 'Suspender' : 'Reactivar'}
                     </button>
+                    <button onClick={() => setDeleteTarget(u)} className={cx.btnIcon + ' hover:text-red-400'} title="Eliminar">
+                      <Trash2 size={15} />
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -367,6 +388,14 @@ export default function AdminUsuariosPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={!!deleteTarget}
+        title="Eliminar usuario"
+        message={`Estas seguro de eliminar "${deleteTarget?.nombre || deleteTarget?.email}"? Se eliminaran todos sus datos.`}
+        onConfirm={handleDeleteUser}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }

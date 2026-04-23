@@ -90,6 +90,26 @@ router.patch('/usuarios/:id/estado', async (req, res) => {
   }
 });
 
+// DELETE /api/admin/usuarios/:id — delete user
+router.delete('/usuarios/:id', async (req, res) => {
+  try {
+    if (parseInt(req.params.id) === req.user.id) {
+      return res.status(400).json({ success: false, error: 'No puedes eliminarte a ti mismo' });
+    }
+    const result = await pool.query(
+      'DELETE FROM usuarios WHERE id = $1 RETURNING id, email',
+      [req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    }
+    return res.json({ success: true, data: { message: 'Usuario eliminado' } });
+  } catch (err) {
+    console.error('Delete user error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
 // PATCH /api/admin/usuarios/:id/permisos — update user permissions
 router.patch('/usuarios/:id/permisos', async (req, res) => {
   try {
