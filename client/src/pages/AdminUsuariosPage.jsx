@@ -56,7 +56,8 @@ export default function AdminUsuariosPage() {
       toast.success('Usuario creado');
       const d = data.data || data;
       if (d.onboarding_token) {
-        const link = `${window.location.origin}/#/onboarding?token=${d.onboarding_token}`;
+        const base = window.location.href.split('#')[0];
+        const link = `${base}#/onboarding?token=${d.onboarding_token}`;
         setOnboardingLink(link);
       }
       loadUsers();
