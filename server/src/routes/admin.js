@@ -51,7 +51,7 @@ router.post('/usuarios', async (req, res) => {
 router.get('/usuarios', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, email, nombre, nombre_comercial AS empresa, rol, estado, ruc, igv_rate, permisos, created_at, updated_at
+      `SELECT id, email, nombre, nombre_comercial AS empresa, rol, estado, ruc, igv_rate, permisos, onboarding_token, created_at, updated_at
        FROM usuarios
        ORDER BY created_at DESC`
     );

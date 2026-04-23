@@ -247,6 +247,22 @@ export default function AdminUsuariosPage() {
                 <span key={p} className="text-[10px] px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded">{p}</span>
               ))}
             </div>
+            {u.estado === 'pendiente' && u.onboarding_token && (
+              <div className="mt-2 flex gap-2 items-center">
+                <input
+                  type="text"
+                  readOnly
+                  value={`${window.location.href.split('#')[0]}#/onboarding?token=${u.onboarding_token}`}
+                  className={cx.input + ' text-[10px] flex-1'}
+                />
+                <button
+                  onClick={() => { navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#/onboarding?token=${u.onboarding_token}`); toast.success('Link copiado'); }}
+                  className={cx.btnSecondary + ' text-xs flex items-center gap-1'}
+                >
+                  <Copy size={12} /> Copiar
+                </button>
+              </div>
+            )}
             <div className="flex gap-2 mt-3 border-t border-zinc-800 pt-3">
               <button
                 onClick={() => startEditPermisos(u)}
@@ -292,9 +308,19 @@ export default function AdminUsuariosPage() {
                 </td>
                 <td className={cx.td + ' text-zinc-500'}>{formatDate(u.created_at)}</td>
                 <td className={cx.td}>
-                  <span className={cx.badge(u.estado === 'activo' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400')}>
-                    {u.estado}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={cx.badge(u.estado === 'activo' ? 'bg-green-500/10 text-green-400' : u.estado === 'pendiente' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400')}>
+                      {u.estado}
+                    </span>
+                    {u.estado === 'pendiente' && u.onboarding_token && (
+                      <button
+                        onClick={() => { navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#/onboarding?token=${u.onboarding_token}`); toast.success('Link copiado'); }}
+                        className={cx.btnIcon + ' text-amber-400'} title="Copiar link onboarding"
+                      >
+                        <Copy size={13} />
+                      </button>
+                    )}
+                  </div>
                 </td>
                 <td className={cx.td + ' text-right'}>
                   <div className="flex justify-end gap-1">
