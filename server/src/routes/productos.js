@@ -18,6 +18,8 @@ router.post('/', async (req, res) => {
     }
 
     const igv_rate = req.user.igv_rate || 0.18;
+    // Frontend sends integer % (50 = 50%), DB stores decimal (0.5)
+    const margenDecimal = parseFloat(margen) > 1 ? parseFloat(margen) / 100 : parseFloat(margen) || 0;
 
     await client.query('BEGIN');
 
@@ -25,7 +27,7 @@ router.post('/', async (req, res) => {
       `INSERT INTO productos (usuario_id, nombre, margen, igv_rate)
        VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [req.user.id, nombre, margen || 0, igv_rate]
+      [req.user.id, nombre, margenDecimal, igv_rate]
     );
     const producto = prodRes.rows[0];
 
@@ -199,6 +201,9 @@ router.put('/:id', async (req, res) => {
     }
 
     const igv_rate = req.user.igv_rate || 0.18;
+    const margenDecimal = margen !== undefined
+      ? (parseFloat(margen) > 1 ? parseFloat(margen) / 100 : parseFloat(margen) || 0)
+      : undefined;
 
     await client.query('BEGIN');
 
@@ -209,7 +214,7 @@ router.put('/:id', async (req, res) => {
         igv_rate = $3,
         updated_at = NOW()
        WHERE id = $4`,
-      [nombre, margen, igv_rate, req.params.id]
+      [nombre, margenDecimal, igv_rate, req.params.id]
     );
 
     let allInsumos = [];
@@ -304,7 +309,7 @@ router.put('/:id', async (req, res) => {
       }
     }
 
-    const effectiveMargen = margen !== undefined ? parseFloat(margen) : parseFloat(existing.rows[0].margen) || 0;
+    const effectiveMargen = margenDecimal !== undefined ? margenDecimal : parseFloat(existing.rows[0].margen) || 0;
     const costos = calcularCostos({
       insumos: allInsumos,
       costo_empaque,

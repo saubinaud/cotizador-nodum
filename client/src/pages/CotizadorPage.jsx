@@ -56,7 +56,8 @@ export default function CotizadorPage() {
   const [preparaciones, setPreparaciones] = useState([emptyPreparacion()]);
   const [materiales, setMateriales] = useState([]);
   const [margen, setMargen] = useState(50);
-  const [igvRate, setIgvRate] = useState(user?.igv_rate || 18);
+  // igv_rate in DB is decimal (0.18), hook expects integer (18)
+  const [igvRate, setIgvRate] = useState(user?.igv_rate ? Math.round(user.igv_rate * 100) : 18);
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(!!id);
 
@@ -79,8 +80,9 @@ export default function CotizadorPage() {
       .then((data) => {
         const p = data.data || data;
         setNombre(p.nombre || '');
-        setMargen(p.margen || 50);
-        setIgvRate(p.igv_rate || user?.igv_rate || 18);
+        // DB stores decimals (0.5, 0.18), UI uses integers (50, 18)
+        setMargen(p.margen ? Math.round(p.margen * 100) : 50);
+        setIgvRate(p.igv_rate ? Math.round(p.igv_rate * 100) : (user?.igv_rate ? Math.round(user.igv_rate * 100) : 18));
 
         if (p.preparaciones?.length) {
           setPreparaciones(
@@ -239,8 +241,8 @@ export default function CotizadorPage() {
     try {
       const payload = {
         nombre: nombre.trim(),
-        margen,
-        igv_rate: igvRate,
+        margen,          // backend normalizes integer% → decimal
+        igv_rate: igvRate / 100,
         preparaciones: preparaciones.map((p) => ({
           id: p.id,
           nombre: p.nombre,
