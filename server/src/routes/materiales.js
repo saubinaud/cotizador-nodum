@@ -11,7 +11,7 @@ router.use(auth);
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM materiales_empaque WHERE usuario_id = $1 ORDER BY nombre ASC',
+      'SELECT * FROM materiales WHERE usuario_id = $1 ORDER BY nombre ASC',
       [req.user.id]
     );
     return res.json({ success: true, data: result.rows });
@@ -25,7 +25,7 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM materiales_empaque WHERE id = $1 AND usuario_id = $2',
+      'SELECT * FROM materiales WHERE id = $1 AND usuario_id = $2',
       [req.params.id, req.user.id]
     );
     if (result.rows.length === 0) {
@@ -41,17 +41,17 @@ router.get('/:id', async (req, res) => {
 // POST /api/materiales
 router.post('/', async (req, res) => {
   try {
-    const { nombre, categoria, unidad_medida, cantidad_presentacion, precio_presentacion, proveedor } = req.body;
+    const { nombre, proveedor, detalle, unidad_medida, cantidad_presentacion, precio_presentacion } = req.body;
 
     if (!nombre || !cantidad_presentacion || !precio_presentacion) {
       return res.status(400).json({ success: false, error: 'Nombre, cantidad_presentacion y precio_presentacion son requeridos' });
     }
 
     const result = await pool.query(
-      `INSERT INTO materiales_empaque (usuario_id, nombre, categoria, unidad_medida, cantidad_presentacion, precio_presentacion, proveedor)
+      `INSERT INTO materiales (usuario_id, nombre, proveedor, detalle, unidad_medida, cantidad_presentacion, precio_presentacion)
        VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [req.user.id, nombre, categoria || null, unidad_medida || null, cantidad_presentacion, precio_presentacion, proveedor || null]
+      [req.user.id, nombre, proveedor || null, detalle || null, unidad_medida || 'uni', cantidad_presentacion, precio_presentacion]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -64,10 +64,10 @@ router.post('/', async (req, res) => {
 // PUT /api/materiales/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { nombre, categoria, unidad_medida, cantidad_presentacion, precio_presentacion, proveedor } = req.body;
+    const { nombre, proveedor, detalle, unidad_medida, cantidad_presentacion, precio_presentacion } = req.body;
 
     const existing = await pool.query(
-      'SELECT precio_presentacion, cantidad_presentacion FROM materiales_empaque WHERE id = $1 AND usuario_id = $2',
+      'SELECT precio_presentacion, cantidad_presentacion FROM materiales WHERE id = $1 AND usuario_id = $2',
       [req.params.id, req.user.id]
     );
 
@@ -76,17 +76,17 @@ router.put('/:id', async (req, res) => {
     }
 
     const result = await pool.query(
-      `UPDATE materiales_empaque SET
+      `UPDATE materiales SET
         nombre = COALESCE($1, nombre),
-        categoria = COALESCE($2, categoria),
-        unidad_medida = COALESCE($3, unidad_medida),
-        cantidad_presentacion = COALESCE($4, cantidad_presentacion),
-        precio_presentacion = COALESCE($5, precio_presentacion),
-        proveedor = COALESCE($6, proveedor),
+        proveedor = COALESCE($2, proveedor),
+        detalle = COALESCE($3, detalle),
+        unidad_medida = COALESCE($4, unidad_medida),
+        cantidad_presentacion = COALESCE($5, cantidad_presentacion),
+        precio_presentacion = COALESCE($6, precio_presentacion),
         updated_at = NOW()
        WHERE id = $7 AND usuario_id = $8
        RETURNING *`,
-      [nombre, categoria, unidad_medida, cantidad_presentacion, precio_presentacion, proveedor, req.params.id, req.user.id]
+      [nombre, proveedor, detalle, unidad_medida, cantidad_presentacion, precio_presentacion, req.params.id, req.user.id]
     );
 
     const old = existing.rows[0];
@@ -127,7 +127,7 @@ router.delete('/:id', async (req, res) => {
     }
 
     const result = await pool.query(
-      'DELETE FROM materiales_empaque WHERE id = $1 AND usuario_id = $2 RETURNING id',
+      'DELETE FROM materiales WHERE id = $1 AND usuario_id = $2 RETURNING id',
       [req.params.id, req.user.id]
     );
 

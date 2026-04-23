@@ -13,14 +13,6 @@ function round4(n) {
   return Math.round(n * 10000) / 10000;
 }
 
-/**
- * Calculate costs from a product detail object.
- * @param {object} detalle
- * @param {Array} detalle.insumos - [{ precio_presentacion, cantidad_presentacion, cantidad_usada }]
- * @param {number} detalle.costo_empaque
- * @param {number} detalle.margen - e.g. 0.30 for 30%
- * @param {number} detalle.igv_rate - e.g. 0.18 for 18%
- */
 function calcularCostos(detalle) {
   const { insumos = [], costo_empaque = 0, margen = 0, igv_rate = 0 } = detalle;
 
@@ -30,11 +22,7 @@ function calcularCostos(detalle) {
     const costo_unitario = round4(ins.precio_presentacion / ins.cantidad_presentacion);
     const costo_linea = round4(ins.cantidad_usada * costo_unitario);
     costo_insumos += costo_linea;
-    return {
-      ...ins,
-      costo_unitario,
-      costo_linea,
-    };
+    return { ...ins, costo_unitario, costo_linea };
   });
 
   costo_insumos = round4(costo_insumos);
@@ -42,59 +30,42 @@ function calcularCostos(detalle) {
   const precio_venta = margen < 1 ? round4(costo_neto / (1 - margen)) : costo_neto;
   const precio_final = round4(precio_venta * (1 + igv_rate));
 
-  return {
-    costo_insumos,
-    costo_empaque: round4(costo_empaque),
-    costo_neto,
-    precio_venta,
-    precio_final,
-    insumos_detalle,
-  };
+  return { costo_insumos, costo_empaque: round4(costo_empaque), costo_neto, precio_venta, precio_final, insumos_detalle };
 }
 
-/**
- * Recalculate a single product by its ID and persist the new values.
- */
 async function recalcularProducto(pool, productoId, motivo) {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
 
-    const prodRes = await client.query(
-      'SELECT * FROM productos WHERE id = $1',
-      [productoId]
-    );
+    const prodRes = await client.query('SELECT * FROM productos WHERE id = $1', [productoId]);
     if (prodRes.rows.length === 0) {
       await client.query('ROLLBACK');
       return null;
     }
     const producto = prodRes.rows[0];
 
-    // Fetch insumos linked to this product through preparaciones
     const insumosRes = await client.query(
-      `SELECT pi.id, pi.cantidad_usada, i.precio_presentacion, i.cantidad_presentacion, i.nombre,
-              pi.preparacion_id
-       FROM preparacion_insumos pi
-       JOIN insumos i ON i.id = pi.insumo_id
-       JOIN preparaciones p ON p.id = pi.preparacion_id
-       WHERE p.producto_id = $1`,
+      `SELECT ppi.cantidad AS cantidad_usada, i.precio_presentacion, i.cantidad_presentacion
+       FROM producto_prep_insumos ppi
+       JOIN insumos i ON i.id = ppi.insumo_id
+       JOIN producto_preparaciones pp ON pp.id = ppi.producto_preparacion_id
+       WHERE pp.producto_id = $1`,
       [productoId]
     );
 
-    // Fetch materiales linked to this product
     const materialesRes = await client.query(
-      `SELECT pm.id, pm.cantidad, m.precio_presentacion, m.cantidad_presentacion, m.nombre
+      `SELECT pm.cantidad, m.precio_presentacion, m.cantidad_presentacion
        FROM producto_materiales pm
-       JOIN materiales_empaque m ON m.id = pm.material_id
+       JOIN materiales m ON m.id = pm.material_id
        WHERE pm.producto_id = $1`,
       [productoId]
     );
 
-    // Calculate costo_empaque from materials
     let costo_empaque = 0;
     for (const mat of materialesRes.rows) {
-      const cu = round4(mat.precio_presentacion / mat.cantidad_presentacion);
-      costo_empaque += round4(mat.cantidad * cu);
+      const cu = round4(parseFloat(mat.precio_presentacion) / parseFloat(mat.cantidad_presentacion));
+      costo_empaque += round4(parseFloat(mat.cantidad) * cu);
     }
     costo_empaque = round4(costo_empaque);
 
@@ -113,39 +84,21 @@ async function recalcularProducto(pool, productoId, motivo) {
 
     await client.query(
       `UPDATE productos SET
-        costo_insumos = $1,
-        costo_empaque = $2,
-        costo_neto = $3,
-        precio_venta = $4,
-        precio_final = $5,
-        updated_at = NOW()
+        costo_insumos = $1, costo_empaque = $2, costo_neto = $3,
+        precio_venta = $4, precio_final = $5, updated_at = NOW()
        WHERE id = $6`,
-      [
-        costos.costo_insumos,
-        costos.costo_empaque,
-        costos.costo_neto,
-        costos.precio_venta,
-        costos.precio_final,
-        productoId,
-      ]
+      [costos.costo_insumos, costos.costo_empaque, costos.costo_neto, costos.precio_venta, costos.precio_final, productoId]
     );
 
-    // Save version snapshot
     const versionRes = await client.query(
       'SELECT COALESCE(MAX(version), 0) + 1 AS next FROM producto_versiones WHERE producto_id = $1',
       [productoId]
     );
-    const nextVersion = versionRes.rows[0].next;
 
     await client.query(
-      `INSERT INTO producto_versiones (producto_id, version, snapshot, motivo)
-       VALUES ($1, $2, $3, $4)`,
-      [
-        productoId,
-        nextVersion,
-        JSON.stringify({ ...producto, ...costos }),
-        motivo || 'Recalculo automatico',
-      ]
+      `INSERT INTO producto_versiones (producto_id, version, snapshot_json, motivo, costo_neto, precio_final)
+       VALUES ($1, $2, $3, $4, $5, $6)`,
+      [productoId, versionRes.rows[0].next, JSON.stringify({ ...producto, ...costos }), motivo || 'Recalculo automatico', costos.costo_neto, costos.precio_final]
     );
 
     await client.query('COMMIT');
@@ -158,16 +111,13 @@ async function recalcularProducto(pool, productoId, motivo) {
   }
 }
 
-/**
- * Find all products that use a given insumo and recalculate them.
- */
 async function recalcularProductosPorInsumo(pool, insumoId, usuarioId) {
   const res = await pool.query(
     `SELECT DISTINCT p.id
      FROM productos p
-     JOIN preparaciones prep ON prep.producto_id = p.id
-     JOIN preparacion_insumos pi ON pi.preparacion_id = prep.id
-     WHERE pi.insumo_id = $1 AND p.usuario_id = $2`,
+     JOIN producto_preparaciones pp ON pp.producto_id = p.id
+     JOIN producto_prep_insumos ppi ON ppi.producto_preparacion_id = pp.id
+     WHERE ppi.insumo_id = $1 AND p.usuario_id = $2`,
     [insumoId, usuarioId]
   );
 
@@ -179,9 +129,6 @@ async function recalcularProductosPorInsumo(pool, insumoId, usuarioId) {
   return results;
 }
 
-/**
- * Find all products that use a given material and recalculate them.
- */
 async function recalcularProductosPorMaterial(pool, materialId, usuarioId) {
   const res = await pool.query(
     `SELECT DISTINCT p.id
@@ -199,10 +146,4 @@ async function recalcularProductosPorMaterial(pool, materialId, usuarioId) {
   return results;
 }
 
-module.exports = {
-  calcularCostos,
-  recalcularProducto,
-  recalcularProductosPorInsumo,
-  recalcularProductosPorMaterial,
-  round4,
-};
+module.exports = { calcularCostos, recalcularProducto, recalcularProductosPorInsumo, recalcularProductosPorMaterial, round4 };

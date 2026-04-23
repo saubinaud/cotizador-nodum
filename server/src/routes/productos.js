@@ -7,14 +7,11 @@ const router = express.Router();
 
 router.use(auth);
 
-// POST /api/productos — create product with preparations, insumos, materials in transaction
+// POST /api/productos
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
-    const {
-      nombre, categoria, descripcion, rendimiento, margen,
-      preparaciones, materiales,
-    } = req.body;
+    const { nombre, margen, preparaciones, materiales } = req.body;
 
     if (!nombre) {
       return res.status(400).json({ success: false, error: 'Nombre es requerido' });
@@ -24,21 +21,19 @@ router.post('/', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // 1. Insert product
     const prodRes = await client.query(
-      `INSERT INTO productos (usuario_id, nombre, categoria, descripcion, rendimiento, margen, igv_rate)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO productos (usuario_id, nombre, margen, igv_rate)
+       VALUES ($1, $2, $3, $4)
        RETURNING *`,
-      [req.user.id, nombre, categoria || null, descripcion || null, rendimiento || 1, margen || 0, igv_rate]
+      [req.user.id, nombre, margen || 0, igv_rate]
     );
     const producto = prodRes.rows[0];
 
-    // 2. Insert preparaciones and their insumos
     let allInsumos = [];
     if (preparaciones && preparaciones.length > 0) {
       for (const prep of preparaciones) {
         const prepRes = await client.query(
-          `INSERT INTO preparaciones (producto_id, nombre, orden)
+          `INSERT INTO producto_preparaciones (producto_id, nombre, orden)
            VALUES ($1, $2, $3) RETURNING id`,
           [producto.id, prep.nombre, prep.orden || 0]
         );
@@ -47,12 +42,11 @@ router.post('/', async (req, res) => {
         if (prep.insumos && prep.insumos.length > 0) {
           for (const ins of prep.insumos) {
             await client.query(
-              `INSERT INTO preparacion_insumos (preparacion_id, insumo_id, cantidad_usada)
+              `INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad)
                VALUES ($1, $2, $3)`,
-              [prepId, ins.insumo_id, ins.cantidad_usada]
+              [prepId, ins.insumo_id, ins.cantidad_usada || ins.cantidad]
             );
 
-            // Fetch insumo prices for calculation
             const insumoData = await client.query(
               'SELECT precio_presentacion, cantidad_presentacion FROM insumos WHERE id = $1',
               [ins.insumo_id]
@@ -61,7 +55,7 @@ router.post('/', async (req, res) => {
               allInsumos.push({
                 precio_presentacion: parseFloat(insumoData.rows[0].precio_presentacion),
                 cantidad_presentacion: parseFloat(insumoData.rows[0].cantidad_presentacion),
-                cantidad_usada: parseFloat(ins.cantidad_usada),
+                cantidad_usada: parseFloat(ins.cantidad_usada || ins.cantidad),
               });
             }
           }
@@ -69,7 +63,6 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 3. Insert materiales
     let costo_empaque = 0;
     if (materiales && materiales.length > 0) {
       for (const mat of materiales) {
@@ -80,7 +73,7 @@ router.post('/', async (req, res) => {
         );
 
         const matData = await client.query(
-          'SELECT precio_presentacion, cantidad_presentacion FROM materiales_empaque WHERE id = $1',
+          'SELECT precio_presentacion, cantidad_presentacion FROM materiales WHERE id = $1',
           [mat.material_id]
         );
         if (matData.rows.length > 0) {
@@ -90,7 +83,6 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 4. Calculate costs
     const costos = calcularCostos({
       insumos: allInsumos,
       costo_empaque,
@@ -98,7 +90,6 @@ router.post('/', async (req, res) => {
       igv_rate,
     });
 
-    // 5. Update product with calculated costs
     await client.query(
       `UPDATE productos SET
         costo_insumos = $1, costo_empaque = $2, costo_neto = $3,
@@ -107,19 +98,15 @@ router.post('/', async (req, res) => {
       [costos.costo_insumos, costos.costo_empaque, costos.costo_neto, costos.precio_venta, costos.precio_final, producto.id]
     );
 
-    // 6. Save version 1
     await client.query(
-      `INSERT INTO producto_versiones (producto_id, version, snapshot, motivo)
-       VALUES ($1, 1, $2, $3)`,
-      [producto.id, JSON.stringify({ ...producto, ...costos }), 'Creacion inicial']
+      `INSERT INTO producto_versiones (producto_id, version, snapshot_json, motivo, costo_neto, precio_final)
+       VALUES ($1, 1, $2, $3, $4, $5)`,
+      [producto.id, JSON.stringify({ ...producto, ...costos }), 'Creacion inicial', costos.costo_neto, costos.precio_final]
     );
 
     await client.query('COMMIT');
 
-    return res.status(201).json({
-      success: true,
-      data: { ...producto, ...costos },
-    });
+    return res.status(201).json({ success: true, data: { ...producto, ...costos } });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Create product error:', err);
@@ -129,11 +116,11 @@ router.post('/', async (req, res) => {
   }
 });
 
-// GET /api/productos — list user's products
+// GET /api/productos
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT id, nombre, categoria, rendimiento, margen, igv_rate,
+      `SELECT id, nombre, margen, igv_rate,
               costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final,
               created_at, updated_at
        FROM productos
@@ -148,7 +135,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// GET /api/productos/:id — product detail with preparations, insumos, materials
+// GET /api/productos/:id
 router.get('/:id', async (req, res) => {
   try {
     const prodRes = await pool.query(
@@ -160,31 +147,29 @@ router.get('/:id', async (req, res) => {
     }
     const producto = prodRes.rows[0];
 
-    // Preparaciones with insumos
     const prepsRes = await pool.query(
-      'SELECT * FROM preparaciones WHERE producto_id = $1 ORDER BY orden ASC',
+      'SELECT * FROM producto_preparaciones WHERE producto_id = $1 ORDER BY orden ASC',
       [producto.id]
     );
 
     const preparaciones = [];
     for (const prep of prepsRes.rows) {
       const insRes = await pool.query(
-        `SELECT pi.id, pi.insumo_id, pi.cantidad_usada,
+        `SELECT ppi.id, ppi.insumo_id, ppi.cantidad AS cantidad_usada,
                 i.nombre, i.unidad_medida, i.precio_presentacion, i.cantidad_presentacion
-         FROM preparacion_insumos pi
-         JOIN insumos i ON i.id = pi.insumo_id
-         WHERE pi.preparacion_id = $1`,
+         FROM producto_prep_insumos ppi
+         JOIN insumos i ON i.id = ppi.insumo_id
+         WHERE ppi.producto_preparacion_id = $1`,
         [prep.id]
       );
       preparaciones.push({ ...prep, insumos: insRes.rows });
     }
 
-    // Materiales
     const matsRes = await pool.query(
       `SELECT pm.id, pm.material_id, pm.cantidad,
               m.nombre, m.unidad_medida, m.precio_presentacion, m.cantidad_presentacion
        FROM producto_materiales pm
-       JOIN materiales_empaque m ON m.id = pm.material_id
+       JOIN materiales m ON m.id = pm.material_id
        WHERE pm.producto_id = $1`,
       [producto.id]
     );
@@ -199,16 +184,12 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// PUT /api/productos/:id — edit product (full replace of preparations and materials)
+// PUT /api/productos/:id
 router.put('/:id', async (req, res) => {
   const client = await pool.connect();
   try {
-    const {
-      nombre, categoria, descripcion, rendimiento, margen,
-      preparaciones, materiales,
-    } = req.body;
+    const { nombre, margen, preparaciones, materiales } = req.body;
 
-    // Verify ownership
     const existing = await client.query(
       'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
       [req.params.id, req.user.id]
@@ -221,38 +202,31 @@ router.put('/:id', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Update product base fields
     await client.query(
       `UPDATE productos SET
         nombre = COALESCE($1, nombre),
-        categoria = COALESCE($2, categoria),
-        descripcion = COALESCE($3, descripcion),
-        rendimiento = COALESCE($4, rendimiento),
-        margen = COALESCE($5, margen),
-        igv_rate = $6,
+        margen = COALESCE($2, margen),
+        igv_rate = $3,
         updated_at = NOW()
-       WHERE id = $7`,
-      [nombre, categoria, descripcion, rendimiento, margen, igv_rate, req.params.id]
+       WHERE id = $4`,
+      [nombre, margen, igv_rate, req.params.id]
     );
 
-    // Delete old preparations and materials, then re-insert
     let allInsumos = [];
     if (preparaciones !== undefined) {
-      // Delete old
       const oldPreps = await client.query(
-        'SELECT id FROM preparaciones WHERE producto_id = $1',
+        'SELECT id FROM producto_preparaciones WHERE producto_id = $1',
         [req.params.id]
       );
       for (const op of oldPreps.rows) {
-        await client.query('DELETE FROM preparacion_insumos WHERE preparacion_id = $1', [op.id]);
+        await client.query('DELETE FROM producto_prep_insumos WHERE producto_preparacion_id = $1', [op.id]);
       }
-      await client.query('DELETE FROM preparaciones WHERE producto_id = $1', [req.params.id]);
+      await client.query('DELETE FROM producto_preparaciones WHERE producto_id = $1', [req.params.id]);
 
-      // Insert new
       if (preparaciones && preparaciones.length > 0) {
         for (const prep of preparaciones) {
           const prepRes = await client.query(
-            'INSERT INTO preparaciones (producto_id, nombre, orden) VALUES ($1, $2, $3) RETURNING id',
+            'INSERT INTO producto_preparaciones (producto_id, nombre, orden) VALUES ($1, $2, $3) RETURNING id',
             [req.params.id, prep.nombre, prep.orden || 0]
           );
           const prepId = prepRes.rows[0].id;
@@ -260,8 +234,8 @@ router.put('/:id', async (req, res) => {
           if (prep.insumos && prep.insumos.length > 0) {
             for (const ins of prep.insumos) {
               await client.query(
-                'INSERT INTO preparacion_insumos (preparacion_id, insumo_id, cantidad_usada) VALUES ($1, $2, $3)',
-                [prepId, ins.insumo_id, ins.cantidad_usada]
+                'INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad) VALUES ($1, $2, $3)',
+                [prepId, ins.insumo_id, ins.cantidad_usada || ins.cantidad]
               );
 
               const insumoData = await client.query(
@@ -272,7 +246,7 @@ router.put('/:id', async (req, res) => {
                 allInsumos.push({
                   precio_presentacion: parseFloat(insumoData.rows[0].precio_presentacion),
                   cantidad_presentacion: parseFloat(insumoData.rows[0].cantidad_presentacion),
-                  cantidad_usada: parseFloat(ins.cantidad_usada),
+                  cantidad_usada: parseFloat(ins.cantidad_usada || ins.cantidad),
                 });
               }
             }
@@ -280,13 +254,12 @@ router.put('/:id', async (req, res) => {
         }
       }
     } else {
-      // If preparaciones not sent, fetch existing for recalculation
       const insumosRes = await client.query(
-        `SELECT pi.cantidad_usada, i.precio_presentacion, i.cantidad_presentacion
-         FROM preparacion_insumos pi
-         JOIN insumos i ON i.id = pi.insumo_id
-         JOIN preparaciones p ON p.id = pi.preparacion_id
-         WHERE p.producto_id = $1`,
+        `SELECT ppi.cantidad AS cantidad_usada, i.precio_presentacion, i.cantidad_presentacion
+         FROM producto_prep_insumos ppi
+         JOIN insumos i ON i.id = ppi.insumo_id
+         JOIN producto_preparaciones pp ON pp.id = ppi.producto_preparacion_id
+         WHERE pp.producto_id = $1`,
         [req.params.id]
       );
       allInsumos = insumosRes.rows.map((r) => ({
@@ -308,7 +281,7 @@ router.put('/:id', async (req, res) => {
           );
 
           const matData = await client.query(
-            'SELECT precio_presentacion, cantidad_presentacion FROM materiales_empaque WHERE id = $1',
+            'SELECT precio_presentacion, cantidad_presentacion FROM materiales WHERE id = $1',
             [mat.material_id]
           );
           if (matData.rows.length > 0) {
@@ -318,11 +291,10 @@ router.put('/:id', async (req, res) => {
         }
       }
     } else {
-      // Fetch existing materials for recalculation
       const matsRes = await client.query(
         `SELECT pm.cantidad, m.precio_presentacion, m.cantidad_presentacion
          FROM producto_materiales pm
-         JOIN materiales_empaque m ON m.id = pm.material_id
+         JOIN materiales m ON m.id = pm.material_id
          WHERE pm.producto_id = $1`,
         [req.params.id]
       );
@@ -348,7 +320,6 @@ router.put('/:id', async (req, res) => {
       [costos.costo_insumos, costos.costo_empaque, costos.costo_neto, costos.precio_venta, costos.precio_final, req.params.id]
     );
 
-    // Save new version
     const versionRes = await client.query(
       'SELECT COALESCE(MAX(version), 0) + 1 AS next FROM producto_versiones WHERE producto_id = $1',
       [req.params.id]
@@ -357,8 +328,8 @@ router.put('/:id', async (req, res) => {
     const updatedProd = await client.query('SELECT * FROM productos WHERE id = $1', [req.params.id]);
 
     await client.query(
-      'INSERT INTO producto_versiones (producto_id, version, snapshot, motivo) VALUES ($1, $2, $3, $4)',
-      [req.params.id, versionRes.rows[0].next, JSON.stringify(updatedProd.rows[0]), 'Edicion de producto']
+      'INSERT INTO producto_versiones (producto_id, version, snapshot_json, motivo, costo_neto, precio_final) VALUES ($1, $2, $3, $4, $5, $6)',
+      [req.params.id, versionRes.rows[0].next, JSON.stringify(updatedProd.rows[0]), 'Edicion de producto', costos.costo_neto, costos.precio_final]
     );
 
     await client.query('COMMIT');
@@ -387,12 +358,11 @@ router.delete('/:id', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Delete child records
-    const preps = await client.query('SELECT id FROM preparaciones WHERE producto_id = $1', [req.params.id]);
+    const preps = await client.query('SELECT id FROM producto_preparaciones WHERE producto_id = $1', [req.params.id]);
     for (const p of preps.rows) {
-      await client.query('DELETE FROM preparacion_insumos WHERE preparacion_id = $1', [p.id]);
+      await client.query('DELETE FROM producto_prep_insumos WHERE producto_preparacion_id = $1', [p.id]);
     }
-    await client.query('DELETE FROM preparaciones WHERE producto_id = $1', [req.params.id]);
+    await client.query('DELETE FROM producto_preparaciones WHERE producto_id = $1', [req.params.id]);
     await client.query('DELETE FROM producto_materiales WHERE producto_id = $1', [req.params.id]);
     await client.query('DELETE FROM producto_versiones WHERE producto_id = $1', [req.params.id]);
     await client.query('DELETE FROM productos WHERE id = $1', [req.params.id]);
@@ -409,11 +379,10 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-// POST /api/productos/:id/duplicar — duplicate a product
+// POST /api/productos/:id/duplicar
 router.post('/:id/duplicar', async (req, res) => {
   const client = await pool.connect();
   try {
-    // Fetch original
     const original = await client.query(
       'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
       [req.params.id, req.user.id]
@@ -425,43 +394,37 @@ router.post('/:id/duplicar', async (req, res) => {
 
     await client.query('BEGIN');
 
-    // Create copy
     const newProd = await client.query(
-      `INSERT INTO productos (usuario_id, nombre, categoria, descripcion, rendimiento, margen, igv_rate,
+      `INSERT INTO productos (usuario_id, nombre, margen, igv_rate,
         costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [
-        req.user.id, prod.nombre + ' (copia)', prod.categoria, prod.descripcion,
-        prod.rendimiento, prod.margen, prod.igv_rate,
-        prod.costo_insumos, prod.costo_empaque, prod.costo_neto, prod.precio_venta, prod.precio_final,
-      ]
+      [req.user.id, prod.nombre + ' (copia)', prod.margen, prod.igv_rate,
+        prod.costo_insumos, prod.costo_empaque, prod.costo_neto, prod.precio_venta, prod.precio_final]
     );
     const newId = newProd.rows[0].id;
 
-    // Copy preparaciones and insumos
     const preps = await client.query(
-      'SELECT * FROM preparaciones WHERE producto_id = $1 ORDER BY orden',
+      'SELECT * FROM producto_preparaciones WHERE producto_id = $1 ORDER BY orden',
       [req.params.id]
     );
     for (const prep of preps.rows) {
       const newPrep = await client.query(
-        'INSERT INTO preparaciones (producto_id, nombre, orden) VALUES ($1, $2, $3) RETURNING id',
+        'INSERT INTO producto_preparaciones (producto_id, nombre, orden) VALUES ($1, $2, $3) RETURNING id',
         [newId, prep.nombre, prep.orden]
       );
       const insRes = await client.query(
-        'SELECT * FROM preparacion_insumos WHERE preparacion_id = $1',
+        'SELECT * FROM producto_prep_insumos WHERE producto_preparacion_id = $1',
         [prep.id]
       );
       for (const ins of insRes.rows) {
         await client.query(
-          'INSERT INTO preparacion_insumos (preparacion_id, insumo_id, cantidad_usada) VALUES ($1, $2, $3)',
-          [newPrep.rows[0].id, ins.insumo_id, ins.cantidad_usada]
+          'INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad) VALUES ($1, $2, $3)',
+          [newPrep.rows[0].id, ins.insumo_id, ins.cantidad]
         );
       }
     }
 
-    // Copy materiales
     const mats = await client.query(
       'SELECT * FROM producto_materiales WHERE producto_id = $1',
       [req.params.id]
@@ -473,10 +436,9 @@ router.post('/:id/duplicar', async (req, res) => {
       );
     }
 
-    // Version 1 for the copy
     await client.query(
-      'INSERT INTO producto_versiones (producto_id, version, snapshot, motivo) VALUES ($1, 1, $2, $3)',
-      [newId, JSON.stringify(newProd.rows[0]), 'Duplicado de producto #' + req.params.id]
+      'INSERT INTO producto_versiones (producto_id, version, snapshot_json, motivo, costo_neto, precio_final) VALUES ($1, 1, $2, $3, $4, $5)',
+      [newId, JSON.stringify(newProd.rows[0]), 'Duplicado de producto #' + req.params.id, prod.costo_neto, prod.precio_final]
     );
 
     await client.query('COMMIT');
