@@ -23,13 +23,13 @@ export default function EmpaquePredPage() {
 
   useEffect(() => {
     loadEmpaques();
-    api.get('/materiales').then((d) => setCatalogMateriales(d.materiales || d || [])).catch(() => {});
+    api.get('/materiales').then((d) => setCatalogMateriales(d.data || [])).catch(() => {});
   }, []);
 
   const loadEmpaques = async () => {
     try {
-      const data = await api.get('/empaques-predeterminados');
-      setEmpaques(data.empaques || data || []);
+      const data = await api.get('/predeterminados/empaques');
+      setEmpaques(data.data || []);
     } catch {
       toast.error('Error cargando empaques');
     } finally {
@@ -73,7 +73,7 @@ export default function EmpaquePredPage() {
     setEditData((prev) => ({
       ...prev,
       materiales: prev.materiales.map((m) =>
-        m._id === mid ? { ...m, material_id: cat.id, nombre: cat.nombre, precio: Number(cat.precio) || 0 } : m
+        m._id === mid ? { ...m, material_id: cat.id, nombre: cat.nombre, precio: Number(cat.cantidad_presentacion) > 0 ? Number(cat.precio_presentacion) / Number(cat.cantidad_presentacion) : Number(cat.precio_presentacion) || 0 } : m
       ),
     }));
   };
@@ -96,10 +96,10 @@ export default function EmpaquePredPage() {
     };
     try {
       if (editingId === 'new') {
-        await api.post('/empaques-predeterminados', payload);
+        await api.post('/predeterminados/empaques', payload);
         toast.success('Empaque creado');
       } else {
-        await api.put(`/empaques-predeterminados/${editingId}`, payload);
+        await api.put(`/predeterminados/empaques/${editingId}`, payload);
         toast.success('Empaque actualizado');
       }
       cancelEdit();
@@ -112,7 +112,7 @@ export default function EmpaquePredPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await api.del(`/empaques-predeterminados/${deleteTarget.id}`);
+      await api.del(`/predeterminados/empaques/${deleteTarget.id}`);
       toast.success('Empaque eliminado');
       setEmpaques((prev) => prev.filter((e) => e.id !== deleteTarget.id));
     } catch {

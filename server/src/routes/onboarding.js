@@ -14,7 +14,7 @@ router.get('/validar', async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT id, email, nombre, empresa, onboarding_expira
+      `SELECT id, email, nombre, nombre_comercial, onboarding_token_expires
        FROM usuarios
        WHERE onboarding_token = $1 AND estado = 'pendiente'`,
       [token]
@@ -26,7 +26,7 @@ router.get('/validar', async (req, res) => {
 
     const user = result.rows[0];
 
-    if (new Date(user.onboarding_expira) < new Date()) {
+    if (new Date(user.onboarding_token_expires) < new Date()) {
       return res.status(410).json({ success: false, error: 'Token expirado' });
     }
 
@@ -36,7 +36,7 @@ router.get('/validar', async (req, res) => {
         id: user.id,
         email: user.email,
         nombre: user.nombre,
-        empresa: user.empresa,
+        empresa: user.nombre_comercial,
       },
     });
   } catch (err) {
@@ -86,7 +86,7 @@ router.post('/completar', async (req, res) => {
     }
 
     const result = await pool.query(
-      `SELECT id, onboarding_expira FROM usuarios
+      `SELECT id, onboarding_token_expires FROM usuarios
        WHERE onboarding_token = $1 AND estado = 'pendiente'`,
       [token]
     );
@@ -97,7 +97,7 @@ router.post('/completar', async (req, res) => {
 
     const user = result.rows[0];
 
-    if (new Date(user.onboarding_expira) < new Date()) {
+    if (new Date(user.onboarding_token_expires) < new Date()) {
       return res.status(410).json({ success: false, error: 'Token expirado' });
     }
 
@@ -108,18 +108,17 @@ router.post('/completar', async (req, res) => {
         password_hash = $1,
         ruc = $2,
         razon_social = $3,
-        direccion = $4,
-        igv_rate = $5,
+        igv_rate = $4,
         estado = 'activo',
         onboarding_token = NULL,
-        onboarding_expira = NULL,
+        onboarding_token_expires = NULL,
+        onboarding_completed_at = NOW(),
         updated_at = NOW()
-       WHERE id = $6`,
+       WHERE id = $5`,
       [
         password_hash,
         ruc || null,
         razon_social || null,
-        direccion || null,
         igv_rate || 0.18,
         user.id,
       ]

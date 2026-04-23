@@ -87,4 +87,27 @@ router.patch('/usuarios/:id/estado', async (req, res) => {
   }
 });
 
+// GET /api/admin/actividad — activity log
+router.get('/actividad', async (req, res) => {
+  try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = Math.min(parseInt(req.query.limit) || 50, 200);
+    const offset = (page - 1) * limit;
+
+    const result = await pool.query(
+      `SELECT al.*, u.nombre AS usuario_nombre, u.email AS usuario_email
+       FROM actividad_log al
+       LEFT JOIN usuarios u ON u.id = al.usuario_id
+       ORDER BY al.created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Activity log error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
 module.exports = router;

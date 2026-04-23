@@ -23,7 +23,7 @@ export default function AdminUsuariosPage() {
   const loadUsers = async () => {
     try {
       const data = await api.get('/admin/usuarios');
-      setUsers(data.usuarios || data || []);
+      setUsers(data.data || []);
     } catch {
       toast.error('Error cargando usuarios');
     } finally {
@@ -41,8 +41,9 @@ export default function AdminUsuariosPage() {
     try {
       const data = await api.post('/admin/usuarios', createForm);
       toast.success('Usuario creado');
-      if (data.onboarding_link || data.token) {
-        const link = data.onboarding_link || `${window.location.origin}/#/onboarding?token=${data.token}`;
+      const d = data.data || data;
+      if (d.onboarding_token) {
+        const link = `${window.location.origin}/#/onboarding?token=${d.onboarding_token}`;
         setOnboardingLink(link);
       }
       loadUsers();
@@ -54,10 +55,10 @@ export default function AdminUsuariosPage() {
   };
 
   const toggleStatus = async (user) => {
-    const action = user.estado === 'activo' ? 'suspender' : 'reactivar';
+    const newEstado = user.estado === 'activo' ? 'inactivo' : 'activo';
     try {
-      await api.put(`/admin/usuarios/${user.id}/${action}`);
-      toast.success(`Usuario ${action === 'suspender' ? 'suspendido' : 'reactivado'}`);
+      await api.patch(`/admin/usuarios/${user.id}/estado`, { estado: newEstado });
+      toast.success(`Usuario ${newEstado === 'activo' ? 'reactivado' : 'suspendido'}`);
       loadUsers();
     } catch {
       toast.error('Error cambiando estado');

@@ -29,9 +29,9 @@ export default function PerfilPage() {
     }
     setSaving(true);
     try {
-      await api.put('/auth/cambiar-password', {
-        current_password: pwForm.current_password,
-        new_password: pwForm.new_password,
+      await api.post('/auth/cambiar-password', {
+        password_actual: pwForm.current_password,
+        password_nueva: pwForm.new_password,
       });
       toast.success('Contrasena actualizada');
       setPwForm({ current_password: '', new_password: '', confirm_password: '' });

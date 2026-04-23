@@ -5,7 +5,10 @@ export function formatCurrency(n) {
 
 export function formatPercent(n) {
   if (n == null || isNaN(n)) return '0%';
-  return `${Number(n).toFixed(1)}%`;
+  // DB stores decimal (0.5 = 50%), display as integer %
+  const val = Number(n);
+  const pct = val < 1 ? val * 100 : val;
+  return `${pct.toFixed(1)}%`;
 }
 
 export function formatDate(d) {

@@ -23,13 +23,13 @@ export default function PrepPredPage() {
 
   useEffect(() => {
     loadPreps();
-    api.get('/insumos').then((d) => setCatalogInsumos(d.insumos || d || [])).catch(() => {});
+    api.get('/insumos').then((d) => setCatalogInsumos(d.data || [])).catch(() => {});
   }, []);
 
   const loadPreps = async () => {
     try {
-      const data = await api.get('/preparaciones-predeterminadas');
-      setPreps(data.preparaciones || data || []);
+      const data = await api.get('/predeterminados/preparaciones');
+      setPreps(data.data || []);
     } catch {
       toast.error('Error cargando preparaciones');
     } finally {
@@ -69,7 +69,7 @@ export default function PrepPredPage() {
   };
 
   const selectInsumo = (iid, cat) => {
-    const costoUnit = Number(cat.presentacion) > 0 ? Number(cat.precio) / Number(cat.presentacion) : Number(cat.precio);
+    const costoUnit = Number(cat.cantidad_presentacion) > 0 ? Number(cat.precio_presentacion) / Number(cat.cantidad_presentacion) : Number(cat.precio_presentacion);
     setEditData((prev) => ({
       ...prev,
       insumos: prev.insumos.map((i) =>
@@ -98,10 +98,10 @@ export default function PrepPredPage() {
     };
     try {
       if (editingId === 'new') {
-        await api.post('/preparaciones-predeterminadas', payload);
+        await api.post('/predeterminados/preparaciones', payload);
         toast.success('Preparacion creada');
       } else {
-        await api.put(`/preparaciones-predeterminadas/${editingId}`, payload);
+        await api.put(`/predeterminados/preparaciones/${editingId}`, payload);
         toast.success('Preparacion actualizada');
       }
       cancelEdit();
@@ -114,7 +114,7 @@ export default function PrepPredPage() {
   const handleDelete = async () => {
     if (!deleteTarget) return;
     try {
-      await api.del(`/preparaciones-predeterminadas/${deleteTarget.id}`);
+      await api.del(`/predeterminados/preparaciones/${deleteTarget.id}`);
       toast.success('Preparacion eliminada');
       setPreps((prev) => prev.filter((p) => p.id !== deleteTarget.id));
     } catch {

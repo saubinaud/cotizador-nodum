@@ -45,7 +45,7 @@ export default function AdminActividadPage() {
     try {
       setLoading(true);
       const data = await api.get(`/admin/actividad?page=${p}&limit=50`);
-      const items = data.actividad || data.logs || data || [];
+      const items = data.data || [];
       if (p === 1) {
         setLogs(items);
       } else {
