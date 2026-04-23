@@ -12,6 +12,7 @@ export default function ProyeccionPage() {
   const [loading, setLoading] = useState(true);
   const [metaGanancia, setMetaGanancia] = useState('');
   const [cantidades, setCantidades] = useState({});
+  const [pesos, setPesos] = useState({}); // % peso por producto
 
   useEffect(() => {
     loadProducts();
@@ -30,6 +31,21 @@ export default function ProyeccionPage() {
 
   const gananciaUni = (p) => Number(p.precio_final) - Number(p.costo_neto);
 
+  const updatePeso = (id, value) => {
+    setPesos((prev) => ({ ...prev, [id]: Math.max(0, Math.min(100, Number(value) || 0)) }));
+  };
+
+  const distribuirIgual = () => {
+    const activos = products.filter((p) => gananciaUni(p) > 0);
+    if (activos.length === 0) return;
+    const pesoIgual = Math.round(100 / activos.length);
+    const nuevos = {};
+    activos.forEach((p, i) => {
+      nuevos[p.id] = i === activos.length - 1 ? 100 - pesoIgual * (activos.length - 1) : pesoIgual;
+    });
+    setPesos(nuevos);
+  };
+
   const calcularDesdeMetaGanancia = () => {
     const meta = Number(metaGanancia);
     if (!meta || products.length === 0) return;
@@ -38,9 +54,16 @@ export default function ProyeccionPage() {
       toast.error('No hay productos con margen positivo');
       return;
     }
+    // Si no hay pesos configurados, distribuir igual
+    const totalPeso = productosConMargen.reduce((s, p) => s + (pesos[p.id] || 0), 0);
+    const usarPesos = totalPeso > 0;
+
     const nuevas = {};
     productosConMargen.forEach((p) => {
-      nuevas[p.id] = Math.ceil(meta / productosConMargen.length / gananciaUni(p));
+      const peso = usarPesos ? (pesos[p.id] || 0) / totalPeso : 1 / productosConMargen.length;
+      const metaProducto = meta * peso;
+      const gUni = gananciaUni(p);
+      nuevas[p.id] = gUni > 0 ? Math.ceil(metaProducto / gUni) : 0;
     });
     setCantidades(nuevas);
   };
@@ -97,14 +120,21 @@ export default function ProyeccionPage() {
               className={cx.input}
             />
           </div>
-          <div className="flex items-end">
+          <div className="flex items-end gap-2">
+            <button
+              onClick={distribuirIgual}
+              disabled={products.length === 0}
+              className={cx.btnSecondary + ' whitespace-nowrap text-xs'}
+            >
+              Peso igual
+            </button>
             <button
               onClick={calcularDesdeMetaGanancia}
               disabled={!metaGanancia || products.length === 0}
               className={cx.btnPrimary + ' flex items-center gap-2 whitespace-nowrap'}
             >
               <Calculator size={15} />
-              Calcular cantidades
+              Calcular
             </button>
           </div>
         </div>
@@ -146,16 +176,30 @@ export default function ProyeccionPage() {
                     <div>Costo neto: <span className="text-white">{formatCurrency(p.costo_neto)}</span></div>
                     <div>Precio final: <span className="text-white">{formatCurrency(p.precio_final)}</span></div>
                   </div>
-                  <div>
-                    <label className={cx.label}>Cantidad</label>
-                    <input
-                      type="number"
-                      min="0"
-                      value={cant || ''}
-                      onChange={(e) => updateCantidad(p.id, e.target.value)}
-                      placeholder="0"
-                      className={cx.input}
-                    />
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className={cx.label}>Peso %</label>
+                      <input
+                        type="number"
+                        min="0"
+                        max="100"
+                        value={pesos[p.id] || ''}
+                        onChange={(e) => updatePeso(p.id, e.target.value)}
+                        placeholder="—"
+                        className={cx.input}
+                      />
+                    </div>
+                    <div>
+                      <label className={cx.label}>Cantidad</label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={cant || ''}
+                        onChange={(e) => updateCantidad(p.id, e.target.value)}
+                        placeholder="0"
+                        className={cx.input}
+                      />
+                    </div>
                   </div>
                   {cant > 0 && (
                     <div className="grid grid-cols-2 gap-2 text-xs border-t border-zinc-800 pt-2">
@@ -177,7 +221,8 @@ export default function ProyeccionPage() {
                   <th className={cx.th}>Costo Neto</th>
                   <th className={cx.th}>Precio Final</th>
                   <th className={cx.th}>Ganancia/uni</th>
-                  <th className={cx.th + ' w-28'}>Cantidad</th>
+                  <th className={cx.th + ' w-20'}>Peso %</th>
+                  <th className={cx.th + ' w-24'}>Cantidad</th>
                   <th className={cx.th + ' text-right'}>Ingreso</th>
                   <th className={cx.th + ' text-right'}>Ganancia</th>
                 </tr>
@@ -197,6 +242,17 @@ export default function ProyeccionPage() {
                         <span className={gUni > 0 ? 'text-green-400' : 'text-red-400'}>
                           {formatCurrency(gUni)}
                         </span>
+                      </td>
+                      <td className={cx.td}>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={pesos[p.id] || ''}
+                          onChange={(e) => updatePeso(p.id, e.target.value)}
+                          placeholder="—"
+                          className={cx.input + ' w-16 text-center'}
+                        />
                       </td>
                       <td className={cx.td}>
                         <input
