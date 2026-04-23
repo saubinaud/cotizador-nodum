@@ -35,7 +35,11 @@ export default function InsumosPage() {
   const loadInsumos = async () => {
     try {
       const data = await api.get('/insumos');
-      setInsumos(data.data || []);
+      setInsumos((data.data || []).map((i) => ({
+        ...i,
+        cantidad_presentacion: parseFloat(i.cantidad_presentacion) || 0,
+        precio_presentacion: parseFloat(i.precio_presentacion) || 0,
+      })));
     } catch {
       toast.error('Error cargando insumos');
     } finally {

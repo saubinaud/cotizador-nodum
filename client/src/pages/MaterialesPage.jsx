@@ -36,7 +36,11 @@ export default function MaterialesPage() {
   const loadMateriales = async () => {
     try {
       const data = await api.get('/materiales');
-      setMateriales(data.data || []);
+      setMateriales((data.data || []).map((m) => ({
+        ...m,
+        cantidad_presentacion: parseFloat(m.cantidad_presentacion) || 0,
+        precio_presentacion: parseFloat(m.precio_presentacion) || 0,
+      })));
     } catch {
       toast.error('Error cargando materiales');
     } finally {
