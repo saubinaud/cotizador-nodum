@@ -3,12 +3,13 @@ import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatDate } from '../utils/format';
-import { Activity, User, Package, Salad, LogIn, RefreshCw } from 'lucide-react';
+import { Activity, User, Package, Salad, LogIn, RefreshCw, Box } from 'lucide-react';
 
 const iconMap = {
   login: LogIn,
   producto: Package,
   insumo: Salad,
+  material: Box,
   default: Activity,
 };
 
@@ -89,7 +90,7 @@ export default function AdminActividadPage() {
         <div className={`${cx.card} overflow-hidden`}>
           <div className="divide-y divide-zinc-800">
             {logs.map((log, i) => {
-              const Icon = getIcon(log.tipo);
+              const Icon = getIcon(log.entidad);
               const color = getColor(log.accion);
               return (
                 <div key={log.id || i} className="flex items-start gap-4 p-4 hover:bg-zinc-800/50 transition-colors">
@@ -97,7 +98,7 @@ export default function AdminActividadPage() {
                     <Icon size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm">{log.descripcion || log.mensaje || `${log.accion} ${log.tipo}`}</p>
+                    <p className="text-white text-sm">{`${log.accion} ${log.entidad} #${log.entidad_id}`}</p>
                     <div className="flex flex-wrap gap-3 mt-1">
                       {log.usuario_nombre && (
                         <span className="text-zinc-500 text-xs flex items-center gap-1">

@@ -35,9 +35,9 @@ router.post('/', async (req, res) => {
     if (preparaciones && preparaciones.length > 0) {
       for (const prep of preparaciones) {
         const prepRes = await client.query(
-          `INSERT INTO producto_preparaciones (producto_id, nombre, orden)
-           VALUES ($1, $2, $3) RETURNING id`,
-          [producto.id, prep.nombre, prep.orden || 0]
+          `INSERT INTO producto_preparaciones (producto_id, nombre, orden, capacidad, unidad_capacidad)
+           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+          [producto.id, prep.nombre, prep.orden || 0, prep.capacidad || null, prep.unidad || null]
         );
         const prepId = prepRes.rows[0].id;
 
@@ -107,6 +107,8 @@ router.post('/', async (req, res) => {
     );
 
     await client.query('COMMIT');
+
+    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'producto', producto.id, 'crear', JSON.stringify({ nombre })]); } catch (_) {}
 
     return res.status(201).json({ success: true, data: { ...producto, ...costos } });
   } catch (err) {
@@ -231,8 +233,8 @@ router.put('/:id', async (req, res) => {
       if (preparaciones && preparaciones.length > 0) {
         for (const prep of preparaciones) {
           const prepRes = await client.query(
-            'INSERT INTO producto_preparaciones (producto_id, nombre, orden) VALUES ($1, $2, $3) RETURNING id',
-            [req.params.id, prep.nombre, prep.orden || 0]
+            'INSERT INTO producto_preparaciones (producto_id, nombre, orden, capacidad, unidad_capacidad) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+            [req.params.id, prep.nombre, prep.orden || 0, prep.capacidad || null, prep.unidad || null]
           );
           const prepId = prepRes.rows[0].id;
 
@@ -339,6 +341,8 @@ router.put('/:id', async (req, res) => {
 
     await client.query('COMMIT');
 
+    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'producto', req.params.id, 'actualizar', JSON.stringify({ nombre })]); } catch (_) {}
+
     return res.json({ success: true, data: { ...updatedProd.rows[0], ...costos } });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -373,6 +377,8 @@ router.delete('/:id', async (req, res) => {
     await client.query('DELETE FROM productos WHERE id = $1', [req.params.id]);
 
     await client.query('COMMIT');
+
+    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'producto', req.params.id, 'eliminar', null]); } catch (_) {}
 
     return res.json({ success: true, data: { message: 'Producto eliminado' } });
   } catch (err) {
@@ -415,8 +421,8 @@ router.post('/:id/duplicar', async (req, res) => {
     );
     for (const prep of preps.rows) {
       const newPrep = await client.query(
-        'INSERT INTO producto_preparaciones (producto_id, nombre, orden) VALUES ($1, $2, $3) RETURNING id',
-        [newId, prep.nombre, prep.orden]
+        'INSERT INTO producto_preparaciones (producto_id, nombre, orden, capacidad, unidad_capacidad) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+        [newId, prep.nombre, prep.orden, prep.capacidad, prep.unidad_capacidad]
       );
       const insRes = await client.query(
         'SELECT * FROM producto_prep_insumos WHERE producto_preparacion_id = $1',

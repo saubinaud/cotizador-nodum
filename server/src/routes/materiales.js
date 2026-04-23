@@ -54,6 +54,8 @@ router.post('/', async (req, res) => {
       [req.user.id, nombre, proveedor || null, detalle || null, unidad_medida || 'uni', cantidad_presentacion, precio_presentacion]
     );
 
+    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'material', result.rows[0].id, 'crear', JSON.stringify({ nombre })]); } catch (_) {}
+
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('Create material error:', err);
@@ -98,6 +100,8 @@ router.put('/:id', async (req, res) => {
       recalculated = await recalcularProductosPorMaterial(pool, req.params.id, req.user.id);
     }
 
+    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'material', req.params.id, 'actualizar', JSON.stringify({ nombre, proveedor, detalle, unidad_medida, cantidad_presentacion, precio_presentacion })]); } catch (_) {}
+
     return res.json({
       success: true,
       data: result.rows[0],
@@ -134,6 +138,8 @@ router.delete('/:id', async (req, res) => {
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Material no encontrado' });
     }
+
+    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'material', req.params.id, 'eliminar', null]); } catch (_) {}
 
     return res.json({ success: true, data: { message: 'Material eliminado' } });
   } catch (err) {

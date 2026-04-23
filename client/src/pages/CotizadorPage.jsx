@@ -90,31 +90,43 @@ export default function CotizadorPage() {
               _id: newTempId(),
               id: prep.id,
               nombre: prep.nombre || '',
-              capacidad: prep.capacidad || '',
-              unidad: prep.unidad || '',
+              capacidad: parseFloat(prep.capacidad) || '',
+              unidad: prep.unidad_capacidad || prep.unidad || '',
               collapsed: false,
-              insumos: (prep.insumos || []).map((ins) => ({
-                _id: newTempId(),
-                id: ins.id,
-                insumo_id: ins.insumo_id,
-                nombre: ins.nombre || '',
-                cantidad: ins.cantidad_usada || ins.cantidad || '',
-                costo_unitario: ins.costo_unitario || 0,
-              })),
+              insumos: (prep.insumos || []).map((ins) => {
+                const cu = Number(ins.cantidad_presentacion) > 0
+                  ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion)
+                  : Number(ins.precio_presentacion) || 0;
+                return {
+                  _id: newTempId(),
+                  id: ins.id,
+                  insumo_id: ins.insumo_id,
+                  nombre: ins.nombre || '',
+                  unidad_medida: ins.unidad_medida || '',
+                  cantidad: parseFloat(ins.cantidad_usada || ins.cantidad) || '',
+                  costo_unitario: cu,
+                };
+              }),
             }))
           );
         }
 
         if (p.materiales?.length) {
           setMateriales(
-            p.materiales.map((mat) => ({
-              _id: newTempId(),
-              id: mat.id,
-              material_id: mat.material_id,
-              nombre: mat.nombre || '',
-              cantidad: mat.cantidad || 1,
-              precio: mat.precio || 0,
-            }))
+            p.materiales.map((mat) => {
+              const precio = Number(mat.cantidad_presentacion) > 0
+                ? Number(mat.precio_presentacion) / Number(mat.cantidad_presentacion)
+                : Number(mat.precio_presentacion) || 0;
+              return {
+                _id: newTempId(),
+                id: mat.id,
+                material_id: mat.material_id,
+                nombre: mat.nombre || '',
+                unidad_medida: mat.unidad_medida || '',
+                cantidad: parseFloat(mat.cantidad) || 1,
+                precio,
+              };
+            })
           );
         }
       })
