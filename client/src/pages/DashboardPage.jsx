@@ -499,13 +499,36 @@ export default function DashboardPage() {
                             const currVal = current[f.key];
                             const changed = String(snapVal) !== String(currVal);
                             const display = f.fmt || ((v) => v ?? '-');
+                            // Variación: actual vs esta versión
+                            let variacion = null;
+                            if (f.key !== 'nombre' && changed) {
+                              const sv = Number(snapVal) || 0;
+                              const cv = Number(currVal) || 0;
+                              const diff = cv - sv;
+                              if (f.key === 'margen') {
+                                const svPct = sv < 1 ? sv * 100 : sv;
+                                const cvPct = cv < 1 ? cv * 100 : cv;
+                                const d = cvPct - svPct;
+                                variacion = { value: d, text: `${d > 0 ? '+' : ''}${d.toFixed(1)}pp` };
+                              } else {
+                                variacion = { value: diff, text: `${diff > 0 ? '+' : ''}${formatCurrency(diff)}` };
+                              }
+                            }
                             return (
                               <tr key={f.key} className="border-t border-zinc-700/50">
                                 <td className="px-3 py-2 text-zinc-400">{f.label}</td>
                                 <td className="px-3 py-2 text-center text-white font-medium">{display(snapVal)}</td>
                                 <td className="px-3 py-2 text-center text-zinc-400">{display(currVal)}</td>
                                 <td className="px-3 py-2 text-center">
-                                  {changed ? <span className="text-amber-400 text-xs">Diferente</span> : <span className="text-zinc-600 text-xs">—</span>}
+                                  {variacion ? (
+                                    <span className={`text-xs font-medium ${variacion.value > 0 ? 'text-green-400' : variacion.value < 0 ? 'text-red-400' : 'text-zinc-600'}`}>
+                                      {variacion.text}
+                                    </span>
+                                  ) : changed ? (
+                                    <span className="text-amber-400 text-xs">Cambio</span>
+                                  ) : (
+                                    <span className="text-zinc-600 text-xs">—</span>
+                                  )}
                                 </td>
                               </tr>
                             );
