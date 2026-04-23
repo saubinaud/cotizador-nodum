@@ -22,7 +22,7 @@ export function useApi() {
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        throw new Error(err.message || `Error ${res.status}`);
+        throw new Error(err.error || err.message || `Error ${res.status}`);
       }
 
       if (res.status === 204) return null;

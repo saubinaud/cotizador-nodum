@@ -7,7 +7,8 @@ export function AuthProvider({ children }) {
   const [token, setToken] = useState(() => localStorage.getItem('nodum_token'));
   const [user, setUser] = useState(() => {
     const saved = localStorage.getItem('nodum_user');
-    return saved ? JSON.parse(saved) : null;
+    if (!saved || saved === 'undefined') return null;
+    try { return JSON.parse(saved); } catch { return null; }
   });
   const [loading, setLoading] = useState(true);
 
@@ -21,8 +22,9 @@ export function AuthProvider({ children }) {
           return r.json();
         })
         .then((data) => {
-          setUser(data.user || data);
-          localStorage.setItem('nodum_user', JSON.stringify(data.user || data));
+          const u = data.data?.user || data.data || data;
+          setUser(u);
+          localStorage.setItem('nodum_user', JSON.stringify(u));
         })
         .catch(() => {
           logout();
@@ -44,8 +46,8 @@ export function AuthProvider({ children }) {
       throw new Error(err.message || 'Credenciales incorrectas');
     }
     const data = await res.json();
-    const t = data.token;
-    const u = data.user;
+    const t = data.data?.token || data.token;
+    const u = data.data?.user || data.user;
     setToken(t);
     setUser(u);
     localStorage.setItem('nodum_token', t);

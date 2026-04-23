@@ -11,9 +11,9 @@ const UNIDADES = ['g', 'ml', 'uni', 'oz', 'kg', 'l'];
 const emptyRow = () => ({
   id: null,
   nombre: '',
-  presentacion: '',
-  unidad: 'g',
-  precio: '',
+  cantidad_presentacion: '',
+  unidad_medida: 'g',
+  precio_presentacion: '',
   _editing: true,
   _new: true,
 });
@@ -35,7 +35,7 @@ export default function InsumosPage() {
   const loadInsumos = async () => {
     try {
       const data = await api.get('/insumos');
-      setInsumos(data.insumos || data || []);
+      setInsumos(data.data || []);
     } catch {
       toast.error('Error cargando insumos');
     } finally {
@@ -64,26 +64,35 @@ export default function InsumosPage() {
   };
 
   const saveEdit = async () => {
-    const { nombre, presentacion, unidad, precio } = editData;
-    if (!nombre || !presentacion || !precio) {
+    const { nombre, cantidad_presentacion, unidad_medida, precio_presentacion } = editData;
+    if (!nombre || !cantidad_presentacion || !precio_presentacion) {
       toast.error('Completa todos los campos');
       return;
     }
 
     try {
       if (editingId === 'new') {
-        const data = await api.post('/insumos', { nombre, presentacion, unidad, precio: Number(precio) });
+        const data = await api.post('/insumos', {
+          nombre,
+          cantidad_presentacion: Number(cantidad_presentacion),
+          unidad_medida,
+          precio_presentacion: Number(precio_presentacion),
+        });
         toast.success('Insumo creado');
-        setInsumos((prev) => prev.map((i) => (i._new ? { ...(data.insumo || data), _editing: false } : i)));
+        setInsumos((prev) => prev.map((i) => (i._new ? { ...(data.data), _editing: false } : i)));
       } else {
-        const data = await api.put(`/insumos/${editingId}`, { nombre, presentacion, unidad, precio: Number(precio) });
-        const updated = data.insumo || data;
-        if (data.productos_afectados) {
-          toast.success(`Insumo actualizado. ${data.productos_afectados} productos recalculados`);
+        const data = await api.put(`/insumos/${editingId}`, {
+          nombre,
+          cantidad_presentacion: Number(cantidad_presentacion),
+          unidad_medida,
+          precio_presentacion: Number(precio_presentacion),
+        });
+        if (data.recalculated?.length) {
+          toast.success(`Insumo actualizado. ${data.recalculated.length} productos recalculados`);
         } else {
           toast.success('Insumo actualizado');
         }
-        setInsumos((prev) => prev.map((i) => (i.id === editingId ? updated : i)));
+        setInsumos((prev) => prev.map((i) => (i.id === editingId ? data.data : i)));
       }
       setEditingId(null);
       setEditData({});
@@ -107,8 +116,8 @@ export default function InsumosPage() {
   };
 
   const costoUnitario = (ins) => {
-    const pres = Number(ins.presentacion) || 0;
-    const precio = Number(ins.precio) || 0;
+    const pres = Number(ins.cantidad_presentacion) || 0;
+    const precio = Number(ins.precio_presentacion) || 0;
     if (pres === 0) return 0;
     return precio / pres;
   };
@@ -164,11 +173,11 @@ export default function InsumosPage() {
               <div key={ins.id || `new-${idx}`} className={`${cx.card} p-4 border-[#FA7B21] space-y-3`}>
                 <input type="text" value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} placeholder="Nombre" className={cx.input} autoFocus />
                 <div className="grid grid-cols-3 gap-2">
-                  <input type="number" value={editData.presentacion} onChange={(e) => setEditData({ ...editData, presentacion: e.target.value })} placeholder="Presentacion" className={cx.input} />
-                  <select value={editData.unidad} onChange={(e) => setEditData({ ...editData, unidad: e.target.value })} className={cx.select}>
+                  <input type="number" value={editData.cantidad_presentacion} onChange={(e) => setEditData({ ...editData, cantidad_presentacion: e.target.value })} placeholder="Cantidad" className={cx.input} />
+                  <select value={editData.unidad_medida} onChange={(e) => setEditData({ ...editData, unidad_medida: e.target.value })} className={cx.select}>
                     {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
-                  <input type="number" step="0.01" value={editData.precio} onChange={(e) => setEditData({ ...editData, precio: e.target.value })} placeholder="Precio" className={cx.input} />
+                  <input type="number" step="0.01" value={editData.precio_presentacion} onChange={(e) => setEditData({ ...editData, precio_presentacion: e.target.value })} placeholder="Precio" className={cx.input} />
                 </div>
                 <div className="flex gap-2">
                   <button onClick={saveEdit} className={cx.btnPrimary + ' flex-1 flex items-center justify-center gap-1'}><Save size={14} /> Guardar</button>
@@ -182,9 +191,9 @@ export default function InsumosPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-white font-medium text-sm">{ins.nombre}</h3>
-                  <p className="text-zinc-500 text-xs mt-1">{ins.presentacion} {ins.unidad} - {formatCurrency(ins.precio)}</p>
+                  <p className="text-zinc-500 text-xs mt-1">{ins.cantidad_presentacion} {ins.unidad_medida} - {formatCurrency(ins.precio_presentacion)}</p>
                 </div>
-                <span className="text-[#FA7B21] text-sm font-semibold">{formatCurrency(costoUnitario(ins))}/{ins.unidad}</span>
+                <span className="text-[#FA7B21] text-sm font-semibold">{formatCurrency(costoUnitario(ins))}/{ins.unidad_medida}</span>
               </div>
               <div className="flex gap-2 mt-3 border-t border-zinc-800 pt-3">
                 <button onClick={() => startEdit(ins)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}><Pencil size={13} /> Editar</button>
@@ -215,13 +224,13 @@ export default function InsumosPage() {
                 return (
                   <tr key={ins.id || `new-${idx}`} className="border-b border-[#FA7B21]/30">
                     <td className={cx.td}><input type="text" value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} className={cx.input} autoFocus /></td>
-                    <td className={cx.td}><input type="number" value={editData.presentacion} onChange={(e) => setEditData({ ...editData, presentacion: e.target.value })} className={cx.input} /></td>
+                    <td className={cx.td}><input type="number" value={editData.cantidad_presentacion} onChange={(e) => setEditData({ ...editData, cantidad_presentacion: e.target.value })} className={cx.input} /></td>
                     <td className={cx.td}>
-                      <select value={editData.unidad} onChange={(e) => setEditData({ ...editData, unidad: e.target.value })} className={cx.select}>
+                      <select value={editData.unidad_medida} onChange={(e) => setEditData({ ...editData, unidad_medida: e.target.value })} className={cx.select}>
                         {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </td>
-                    <td className={cx.td}><input type="number" step="0.01" value={editData.precio} onChange={(e) => setEditData({ ...editData, precio: e.target.value })} className={cx.input} /></td>
+                    <td className={cx.td}><input type="number" step="0.01" value={editData.precio_presentacion} onChange={(e) => setEditData({ ...editData, precio_presentacion: e.target.value })} className={cx.input} /></td>
                     <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(costoUnitario(editData))}</td>
                     <td className={cx.td + ' text-right'}>
                       <div className="flex justify-end gap-1">
@@ -235,10 +244,10 @@ export default function InsumosPage() {
               return (
                 <tr key={ins.id} className={cx.tr}>
                   <td className={cx.td + ' text-white font-medium'}>{ins.nombre}</td>
-                  <td className={cx.td + ' text-zinc-300'}>{ins.presentacion}</td>
-                  <td className={cx.td + ' text-zinc-300'}>{ins.unidad}</td>
-                  <td className={cx.td + ' text-zinc-300'}>{formatCurrency(ins.precio)}</td>
-                  <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(costoUnitario(ins))}/{ins.unidad}</td>
+                  <td className={cx.td + ' text-zinc-300'}>{ins.cantidad_presentacion}</td>
+                  <td className={cx.td + ' text-zinc-300'}>{ins.unidad_medida}</td>
+                  <td className={cx.td + ' text-zinc-300'}>{formatCurrency(ins.precio_presentacion)}</td>
+                  <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(costoUnitario(ins))}/{ins.unidad_medida}</td>
                   <td className={cx.td + ' text-right'}>
                     <div className="flex justify-end gap-1">
                       <button onClick={() => startEdit(ins)} className={cx.btnIcon}><Pencil size={15} /></button>

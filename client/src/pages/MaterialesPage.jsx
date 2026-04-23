@@ -12,10 +12,9 @@ const emptyRow = () => ({
   id: null,
   nombre: '',
   proveedor: '',
-  detalle: '',
-  presentacion: '',
-  unidad: 'uni',
-  precio: '',
+  cantidad_presentacion: '',
+  unidad_medida: 'uni',
+  precio_presentacion: '',
   _editing: true,
   _new: true,
 });
@@ -37,7 +36,7 @@ export default function MaterialesPage() {
   const loadMateriales = async () => {
     try {
       const data = await api.get('/materiales');
-      setMateriales(data.materiales || data || []);
+      setMateriales(data.data || []);
     } catch {
       toast.error('Error cargando materiales');
     } finally {
@@ -66,22 +65,36 @@ export default function MaterialesPage() {
   };
 
   const saveEdit = async () => {
-    const { nombre, proveedor, detalle, presentacion, unidad, precio } = editData;
-    if (!nombre || !precio) {
+    const { nombre, proveedor, cantidad_presentacion, unidad_medida, precio_presentacion } = editData;
+    if (!nombre || !precio_presentacion) {
       toast.error('Nombre y precio son obligatorios');
       return;
     }
     try {
       if (editingId === 'new') {
-        await api.post('/materiales', { nombre, proveedor, detalle, presentacion, unidad, precio: Number(precio) });
+        const data = await api.post('/materiales', {
+          nombre,
+          proveedor,
+          cantidad_presentacion: Number(cantidad_presentacion) || 1,
+          unidad_medida,
+          precio_presentacion: Number(precio_presentacion),
+        });
         toast.success('Material creado');
+        setMateriales((prev) => prev.map((i) => (i._new ? { ...(data.data), _editing: false } : i)));
       } else {
-        const data = await api.put(`/materiales/${editingId}`, { nombre, proveedor, detalle, presentacion, unidad, precio: Number(precio) });
-        if (data.productos_afectados) {
-          toast.success(`Material actualizado. ${data.productos_afectados} productos recalculados`);
+        const data = await api.put(`/materiales/${editingId}`, {
+          nombre,
+          proveedor,
+          cantidad_presentacion: Number(cantidad_presentacion) || 1,
+          unidad_medida,
+          precio_presentacion: Number(precio_presentacion),
+        });
+        if (data.recalculated?.length) {
+          toast.success(`Material actualizado. ${data.recalculated.length} productos recalculados`);
         } else {
           toast.success('Material actualizado');
         }
+        setMateriales((prev) => prev.map((i) => (i.id === editingId ? data.data : i)));
       }
       setEditingId(null);
       setEditData({});
@@ -105,8 +118,8 @@ export default function MaterialesPage() {
   };
 
   const costoUnitario = (m) => {
-    const pres = Number(m.presentacion) || 1;
-    const precio = Number(m.precio) || 0;
+    const pres = Number(m.cantidad_presentacion) || 1;
+    const precio = Number(m.precio_presentacion) || 0;
     return precio / pres;
   };
 
@@ -149,16 +162,13 @@ export default function MaterialesPage() {
             return (
               <div key={mat.id || `new-${idx}`} className={`${cx.card} p-4 border-[#FA7B21] space-y-3`}>
                 <input type="text" value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} placeholder="Nombre" className={cx.input} autoFocus />
-                <div className="grid grid-cols-2 gap-2">
-                  <input type="text" value={editData.proveedor || ''} onChange={(e) => setEditData({ ...editData, proveedor: e.target.value })} placeholder="Proveedor" className={cx.input} />
-                  <input type="text" value={editData.detalle || ''} onChange={(e) => setEditData({ ...editData, detalle: e.target.value })} placeholder="Detalle" className={cx.input} />
-                </div>
+                <input type="text" value={editData.proveedor || ''} onChange={(e) => setEditData({ ...editData, proveedor: e.target.value })} placeholder="Proveedor (opcional)" className={cx.input} />
                 <div className="grid grid-cols-3 gap-2">
-                  <input type="number" value={editData.presentacion} onChange={(e) => setEditData({ ...editData, presentacion: e.target.value })} placeholder="Presentacion" className={cx.input} />
-                  <select value={editData.unidad} onChange={(e) => setEditData({ ...editData, unidad: e.target.value })} className={cx.select}>
+                  <input type="number" value={editData.cantidad_presentacion} onChange={(e) => setEditData({ ...editData, cantidad_presentacion: e.target.value })} placeholder="Cantidad" className={cx.input} />
+                  <select value={editData.unidad_medida} onChange={(e) => setEditData({ ...editData, unidad_medida: e.target.value })} className={cx.select}>
                     {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
                   </select>
-                  <input type="number" step="0.01" value={editData.precio} onChange={(e) => setEditData({ ...editData, precio: e.target.value })} placeholder="Precio" className={cx.input} />
+                  <input type="number" step="0.01" value={editData.precio_presentacion} onChange={(e) => setEditData({ ...editData, precio_presentacion: e.target.value })} placeholder="Precio" className={cx.input} />
                 </div>
                 <div className="flex gap-2">
                   <button onClick={saveEdit} className={cx.btnPrimary + ' flex-1 flex items-center justify-center gap-1'}><Save size={14} /> Guardar</button>
@@ -174,11 +184,10 @@ export default function MaterialesPage() {
                   <h3 className="text-white font-medium text-sm">{mat.nombre}</h3>
                   <p className="text-zinc-500 text-xs mt-1">
                     {mat.proveedor && <span>{mat.proveedor} - </span>}
-                    {mat.presentacion} {mat.unidad} - {formatCurrency(mat.precio)}
+                    {mat.cantidad_presentacion} {mat.unidad_medida} - {formatCurrency(mat.precio_presentacion)}
                   </p>
-                  {mat.detalle && <p className="text-zinc-600 text-xs mt-0.5">{mat.detalle}</p>}
                 </div>
-                <span className="text-[#FA7B21] text-sm font-semibold">{formatCurrency(costoUnitario(mat))}/{mat.unidad}</span>
+                <span className="text-[#FA7B21] text-sm font-semibold">{formatCurrency(costoUnitario(mat))}/{mat.unidad_medida}</span>
               </div>
               <div className="flex gap-2 mt-3 border-t border-zinc-800 pt-3">
                 <button onClick={() => startEdit(mat)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}><Pencil size={13} /> Editar</button>
@@ -196,7 +205,6 @@ export default function MaterialesPage() {
             <tr className="border-b border-zinc-800">
               <th className={cx.th}>Nombre</th>
               <th className={cx.th}>Proveedor</th>
-              <th className={cx.th}>Detalle</th>
               <th className={cx.th}>Presentacion</th>
               <th className={cx.th}>Unidad</th>
               <th className={cx.th}>Precio</th>
@@ -212,14 +220,13 @@ export default function MaterialesPage() {
                   <tr key={mat.id || `new-${idx}`} className="border-b border-[#FA7B21]/30">
                     <td className={cx.td}><input type="text" value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} className={cx.input} autoFocus /></td>
                     <td className={cx.td}><input type="text" value={editData.proveedor || ''} onChange={(e) => setEditData({ ...editData, proveedor: e.target.value })} className={cx.input} /></td>
-                    <td className={cx.td}><input type="text" value={editData.detalle || ''} onChange={(e) => setEditData({ ...editData, detalle: e.target.value })} className={cx.input} /></td>
-                    <td className={cx.td}><input type="number" value={editData.presentacion} onChange={(e) => setEditData({ ...editData, presentacion: e.target.value })} className={cx.input} /></td>
+                    <td className={cx.td}><input type="number" value={editData.cantidad_presentacion} onChange={(e) => setEditData({ ...editData, cantidad_presentacion: e.target.value })} className={cx.input} /></td>
                     <td className={cx.td}>
-                      <select value={editData.unidad} onChange={(e) => setEditData({ ...editData, unidad: e.target.value })} className={cx.select}>
+                      <select value={editData.unidad_medida} onChange={(e) => setEditData({ ...editData, unidad_medida: e.target.value })} className={cx.select}>
                         {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
                       </select>
                     </td>
-                    <td className={cx.td}><input type="number" step="0.01" value={editData.precio} onChange={(e) => setEditData({ ...editData, precio: e.target.value })} className={cx.input} /></td>
+                    <td className={cx.td}><input type="number" step="0.01" value={editData.precio_presentacion} onChange={(e) => setEditData({ ...editData, precio_presentacion: e.target.value })} className={cx.input} /></td>
                     <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(costoUnitario(editData))}</td>
                     <td className={cx.td + ' text-right'}>
                       <div className="flex justify-end gap-1">
@@ -234,11 +241,10 @@ export default function MaterialesPage() {
                 <tr key={mat.id} className={cx.tr}>
                   <td className={cx.td + ' text-white font-medium'}>{mat.nombre}</td>
                   <td className={cx.td + ' text-zinc-400'}>{mat.proveedor || '-'}</td>
-                  <td className={cx.td + ' text-zinc-400'}>{mat.detalle || '-'}</td>
-                  <td className={cx.td + ' text-zinc-300'}>{mat.presentacion}</td>
-                  <td className={cx.td + ' text-zinc-300'}>{mat.unidad}</td>
-                  <td className={cx.td + ' text-zinc-300'}>{formatCurrency(mat.precio)}</td>
-                  <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(costoUnitario(mat))}/{mat.unidad}</td>
+                  <td className={cx.td + ' text-zinc-300'}>{mat.cantidad_presentacion}</td>
+                  <td className={cx.td + ' text-zinc-300'}>{mat.unidad_medida}</td>
+                  <td className={cx.td + ' text-zinc-300'}>{formatCurrency(mat.precio_presentacion)}</td>
+                  <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(costoUnitario(mat))}/{mat.unidad_medida}</td>
                   <td className={cx.td + ' text-right'}>
                     <div className="flex justify-end gap-1">
                       <button onClick={() => startEdit(mat)} className={cx.btnIcon}><Pencil size={15} /></button>

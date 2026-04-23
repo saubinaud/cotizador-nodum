@@ -34,7 +34,7 @@ export default function DashboardPage() {
   const loadProducts = async () => {
     try {
       const data = await api.get('/productos');
-      setProducts(data.productos || data || []);
+      setProducts(data.data || []);
     } catch (err) {
       toast.error('Error cargando productos');
     } finally {
@@ -68,8 +68,8 @@ export default function DashboardPage() {
   const handleHistory = async (product) => {
     setHistoryModal(product);
     try {
-      const data = await api.get(`/productos/${product.id}/historial`);
-      setHistory(data.historial || data || []);
+      const data = await api.get(`/historial/productos/${product.id}/versiones`);
+      setHistory(data.data || []);
     } catch {
       setHistory([]);
     }
@@ -229,8 +229,8 @@ export default function DashboardPage() {
               <div className="space-y-3">
                 {history.map((h, i) => (
                   <div key={i} className="border-l-2 border-zinc-700 pl-3 py-1">
-                    <p className="text-sm text-white">{formatCurrency(h.precio_final)}</p>
-                    <p className="text-xs text-zinc-500">{formatDate(h.created_at)} - Margen: {formatPercent(h.margen)}</p>
+                    <p className="text-sm text-white">Version {h.version} — {h.motivo}</p>
+                    <p className="text-xs text-zinc-500">{formatDate(h.created_at)}</p>
                   </div>
                 ))}
               </div>

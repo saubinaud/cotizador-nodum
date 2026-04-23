@@ -66,6 +66,23 @@ router.post('/login', async (req, res) => {
   }
 });
 
+// GET /api/auth/me
+router.get('/me', auth, async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT id, email, nombre, rol, empresa, igv_rate FROM usuarios WHERE id = $1',
+      [req.user.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    }
+    return res.json({ success: true, data: { user: result.rows[0] } });
+  } catch (err) {
+    console.error('Auth me error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
 // POST /api/auth/cambiar-password
 router.post('/cambiar-password', auth, async (req, res) => {
   try {
