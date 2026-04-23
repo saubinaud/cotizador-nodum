@@ -442,13 +442,19 @@ export default function CotizadorPage() {
                       placeholder="Capacidad"
                       className="w-20 bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
                     />
-                    <input
-                      type="text"
+                    <select
                       value={prep.unidad}
                       onChange={(e) => updatePreparacion(prep._id, 'unidad', e.target.value)}
-                      placeholder="Unidad"
-                      className="w-16 bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
-                    />
+                      className="w-16 bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30 appearance-none"
+                    >
+                      <option value="">—</option>
+                      <option value="g">g</option>
+                      <option value="kg">kg</option>
+                      <option value="ml">ml</option>
+                      <option value="l">l</option>
+                      <option value="uni">uni</option>
+                      <option value="oz">oz</option>
+                    </select>
                     <span className="text-[#FA7B21] font-semibold text-sm min-w-[80px] text-right">
                       {formatCurrency(prepSubtotal(prep))}
                     </span>
