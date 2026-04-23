@@ -67,8 +67,8 @@ export default function CotizadorPage() {
 
   // Load catalogs
   useEffect(() => {
-    api.get('/insumos').then((d) => setCatalogInsumos(d.insumos || d || [])).catch(() => {});
-    api.get('/materiales').then((d) => setCatalogMateriales(d.materiales || d || [])).catch(() => {});
+    api.get('/insumos').then((d) => setCatalogInsumos(d.data || [])).catch(() => {});
+    api.get('/materiales').then((d) => setCatalogMateriales(d.data || [])).catch(() => {});
   }, []);
 
   // Load product for edit mode
@@ -77,7 +77,7 @@ export default function CotizadorPage() {
     setLoadingProduct(true);
     api.get(`/productos/${id}`)
       .then((data) => {
-        const p = data.producto || data;
+        const p = data.data || data;
         setNombre(p.nombre || '');
         setMargen(p.margen || 50);
         setIgvRate(p.igv_rate || user?.igv_rate || 18);
@@ -96,7 +96,7 @@ export default function CotizadorPage() {
                 id: ins.id,
                 insumo_id: ins.insumo_id,
                 nombre: ins.nombre || '',
-                cantidad: ins.cantidad || '',
+                cantidad: ins.cantidad_usada || ins.cantidad || '',
                 costo_unitario: ins.costo_unitario || 0,
               })),
             }))
@@ -179,9 +179,9 @@ export default function CotizadorPage() {
 
   const selectInsumo = (prepId, insId, catalogItem) => {
     const costoUnit =
-      Number(catalogItem.presentacion) > 0
-        ? Number(catalogItem.precio) / Number(catalogItem.presentacion)
-        : Number(catalogItem.precio);
+      Number(catalogItem.cantidad_presentacion) > 0
+        ? Number(catalogItem.precio_presentacion) / Number(catalogItem.cantidad_presentacion)
+        : Number(catalogItem.precio_presentacion);
     updateInsumo(prepId, insId, {
       insumo_id: catalogItem.id,
       nombre: catalogItem.nombre,
@@ -206,7 +206,9 @@ export default function CotizadorPage() {
               ...m,
               material_id: catalogItem.id,
               nombre: catalogItem.nombre,
-              precio: Number(catalogItem.precio) || 0,
+              precio: Number(catalogItem.cantidad_presentacion) > 0
+              ? Number(catalogItem.precio_presentacion) / Number(catalogItem.cantidad_presentacion)
+              : Number(catalogItem.precio_presentacion) || 0,
             }
           : m
       )
@@ -268,7 +270,7 @@ export default function CotizadorPage() {
       } else {
         const data = await api.post('/productos', payload);
         toast.success('Producto creado');
-        const newId = data?.producto?.id || data?.id;
+        const newId = data?.data?.id;
         if (newId) navigate(`/cotizador/${newId}`, { replace: true });
       }
     } catch (err) {
