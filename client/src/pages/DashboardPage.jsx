@@ -425,9 +425,29 @@ export default function DashboardPage() {
             ) : (
               <div className="space-y-3">
                 {history.map((h, i) => (
-                  <div key={i} className="border-l-2 border-zinc-700 pl-3 py-1">
-                    <p className="text-sm text-white">Version {h.version} — {h.motivo}</p>
-                    <p className="text-xs text-zinc-500">{formatDate(h.created_at)}</p>
+                  <div key={i} className="border-l-2 border-zinc-700 pl-3 py-2 flex items-start justify-between gap-2">
+                    <div>
+                      <p className="text-sm text-white">Version {h.version} — {h.motivo}</p>
+                      <p className="text-xs text-zinc-500">{formatDate(h.created_at)}</p>
+                      {h.costo_neto && <p className="text-xs text-zinc-400 mt-0.5">Costo: {formatCurrency(h.costo_neto)} → Final: {formatCurrency(h.precio_final)}</p>}
+                    </div>
+                    {i > 0 && (
+                      <button
+                        onClick={async () => {
+                          try {
+                            await api.post(`/productos/${historyModal.id}/restaurar/${h.version}`);
+                            toast.success(`Restaurado a version ${h.version}`);
+                            setHistoryModal(null);
+                            loadProducts();
+                          } catch {
+                            toast.error('Error restaurando version');
+                          }
+                        }}
+                        className="text-xs text-amber-400 hover:text-amber-300 whitespace-nowrap px-2 py-1 rounded-lg hover:bg-amber-500/10 transition-colors"
+                      >
+                        Restaurar
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>

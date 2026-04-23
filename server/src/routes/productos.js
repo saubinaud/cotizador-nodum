@@ -465,4 +465,74 @@ router.post('/:id/duplicar', async (req, res) => {
   }
 });
 
+// POST /api/productos/:id/restaurar/:version — restore a previous version
+router.post('/:id/restaurar/:version', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    // Verify ownership
+    const existing = await client.query(
+      'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+    }
+
+    // Get the version snapshot
+    const versionRes = await client.query(
+      'SELECT * FROM producto_versiones WHERE producto_id = $1 AND version = $2',
+      [req.params.id, req.params.version]
+    );
+    if (versionRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Version no encontrada' });
+    }
+
+    const snapshot = versionRes.rows[0].snapshot_json;
+
+    await client.query('BEGIN');
+
+    // Update the product with snapshot values
+    await client.query(
+      `UPDATE productos SET
+        nombre = COALESCE($1, nombre),
+        margen = COALESCE($2, margen),
+        igv_rate = COALESCE($3, igv_rate),
+        costo_insumos = COALESCE($4, costo_insumos),
+        costo_empaque = COALESCE($5, costo_empaque),
+        costo_neto = COALESCE($6, costo_neto),
+        precio_venta = COALESCE($7, precio_venta),
+        precio_final = COALESCE($8, precio_final),
+        updated_at = NOW()
+       WHERE id = $9`,
+      [
+        snapshot.nombre, snapshot.margen, snapshot.igv_rate,
+        snapshot.costo_insumos, snapshot.costo_empaque, snapshot.costo_neto,
+        snapshot.precio_venta, snapshot.precio_final,
+        req.params.id
+      ]
+    );
+
+    // Create a new version entry for the restoration
+    const nextVersion = await client.query(
+      'SELECT COALESCE(MAX(version), 0) + 1 AS next FROM producto_versiones WHERE producto_id = $1',
+      [req.params.id]
+    );
+
+    await client.query(
+      'INSERT INTO producto_versiones (producto_id, version, snapshot_json, motivo, costo_neto, precio_final) VALUES ($1, $2, $3, $4, $5, $6)',
+      [req.params.id, nextVersion.rows[0].next, JSON.stringify(snapshot), `Restaurado a version ${req.params.version}`, snapshot.costo_neto || 0, snapshot.precio_final || 0]
+    );
+
+    await client.query('COMMIT');
+
+    return res.json({ success: true, data: { message: `Restaurado a version ${req.params.version}` } });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Restore version error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;
