@@ -75,7 +75,9 @@ router.get('/consulta-ruc/:ruc', async (req, res) => {
 // POST /api/onboarding/completar — complete onboarding (set password, RUC, etc.)
 router.post('/completar', async (req, res) => {
   try {
-    const { token, password, ruc, razon_social, direccion, igv_rate } = req.body;
+    const { token, password, ruc, razon_social, direccion, igv_rate: rawIgv } = req.body;
+    // Frontend may send 18 (integer %) or 0.18 (decimal). DB needs decimal.
+    const igv_rate = rawIgv ? (Number(rawIgv) > 1 ? Number(rawIgv) / 100 : Number(rawIgv)) : 0.18;
 
     if (!token || !password) {
       return res.status(400).json({ success: false, error: 'Token y password son requeridos' });
