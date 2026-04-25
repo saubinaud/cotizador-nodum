@@ -130,6 +130,7 @@ export default function CotizadorPage() {
   const [catalogInsumos, setCatalogInsumos] = useState([]);
   const [catalogMateriales, setCatalogMateriales] = useState([]);
   const [catalogPreps, setCatalogPreps] = useState([]);
+  const [catalogEmpaques, setCatalogEmpaques] = useState([]);
 
   const costos = useCalculadorCostos(preparaciones, materiales, margen, igvRate, tipoPresentacion, unidadesPorProducto, margenPorcion);
 
@@ -190,6 +191,7 @@ export default function CotizadorPage() {
     api.get('/insumos').then((d) => setCatalogInsumos(d.data || [])).catch(() => {});
     api.get('/materiales').then((d) => setCatalogMateriales(d.data || [])).catch(() => {});
     api.get('/predeterminados/preparaciones').then((d) => setCatalogPreps(d.data || [])).catch(() => {});
+    api.get('/predeterminados/empaques').then((d) => setCatalogEmpaques(d.data || [])).catch(() => {});
   }, []);
 
   // Load product for edit mode
@@ -382,6 +384,24 @@ export default function CotizadorPage() {
   // --- Material handlers ---
   const addMaterial = (tipo = 'entero') => {
     setMateriales((prev) => [...prev, emptyMaterial(tipo)]);
+  };
+
+  const loadEmpaquePred = (pred, tipo = 'entero') => {
+    const newMats = (pred.materiales || []).map((mat) => {
+      const precio = Number(mat.cantidad_presentacion) > 0
+        ? Number(mat.precio_presentacion) / Number(mat.cantidad_presentacion)
+        : 0;
+      return {
+        _id: newTempId(),
+        material_id: mat.material_id,
+        nombre: mat.nombre || '',
+        unidad_medida: mat.unidad_medida || '',
+        cantidad: parseFloat(mat.cantidad) || 1,
+        precio,
+        empaque_tipo: tipo,
+      };
+    });
+    setMateriales((prev) => [...prev, ...newMats]);
   };
 
   const removeMaterial = (matId) => {
@@ -982,9 +1002,16 @@ export default function CotizadorPage() {
                 <div className="mb-4">
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-xs font-semibold text-zinc-400">Producto entero</h4>
-                    <button onClick={() => addMaterial('entero')} className={cx.btnGhost + ' flex items-center gap-1 text-xs'}>
-                      <Plus size={13} /> Agregar
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {catalogEmpaques.length > 0 && (
+                        <div className="w-40">
+                          <SearchableSelect options={catalogEmpaques} value={null} onChange={(pred) => loadEmpaquePred(pred, 'entero')} placeholder="Plantilla..." />
+                        </div>
+                      )}
+                      <button onClick={() => addMaterial('entero')} className={cx.btnGhost + ' flex items-center gap-1 text-xs'}>
+                        <Plus size={13} /> Agregar
+                      </button>
+                    </div>
                   </div>
                   {renderMaterialsList(materiales.filter(m => (m.empaque_tipo || 'entero') === 'entero'))}
                 </div>
@@ -993,9 +1020,16 @@ export default function CotizadorPage() {
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="text-xs font-semibold text-zinc-400">Por unidad ({unidadesPorProducto} uni)</h4>
-                    <button onClick={() => addMaterial('unidad')} className={cx.btnGhost + ' flex items-center gap-1 text-xs'}>
-                      <Plus size={13} /> Agregar
-                    </button>
+                    <div className="flex items-center gap-2">
+                      {catalogEmpaques.length > 0 && (
+                        <div className="w-40">
+                          <SearchableSelect options={catalogEmpaques} value={null} onChange={(pred) => loadEmpaquePred(pred, 'unidad')} placeholder="Plantilla..." />
+                        </div>
+                      )}
+                      <button onClick={() => addMaterial('unidad')} className={cx.btnGhost + ' flex items-center gap-1 text-xs'}>
+                        <Plus size={13} /> Agregar
+                      </button>
+                    </div>
                   </div>
                   {renderMaterialsList(materiales.filter(m => m.empaque_tipo === 'unidad'))}
                 </div>
@@ -1004,9 +1038,16 @@ export default function CotizadorPage() {
               <>
                 <div className="flex items-center justify-between mb-3">
                   <span />
-                  <button onClick={() => addMaterial('entero')} className={cx.btnGhost + ' flex items-center gap-1'}>
-                    <Plus size={14} /> Agregar Material
-                  </button>
+                  <div className="flex items-center gap-2">
+                    {catalogEmpaques.length > 0 && (
+                      <div className="w-44">
+                        <SearchableSelect options={catalogEmpaques} value={null} onChange={(pred) => loadEmpaquePred(pred, 'entero')} placeholder="Cargar plantilla..." />
+                      </div>
+                    )}
+                    <button onClick={() => addMaterial('entero')} className={cx.btnGhost + ' flex items-center gap-1'}>
+                      <Plus size={14} /> Agregar
+                    </button>
+                  </div>
                 </div>
                 {materiales.length > 0 ? (
                   renderMaterialsList(materiales)
