@@ -5,6 +5,118 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 router.use(auth);
 
+// ==================== P&L RESUMEN ====================
+
+// GET /api/pl/resumen?periodo_id=X — full P&L calculation
+router.get('/resumen', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+
+    const periodo = await pool.query('SELECT * FROM periodos WHERE id = $1 AND usuario_id = $2', [periodo_id, req.user.id]);
+    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+
+    // Revenue
+    const ventasRes = await pool.query(
+      `SELECT
+        COALESCE(SUM(v.total), 0) AS ingresos_brutos,
+        COALESCE(SUM(v.descuento), 0) AS descuentos,
+        COALESCE(SUM(v.cantidad), 0) AS unidades_vendidas,
+        COUNT(*) AS num_ventas
+       FROM ventas v WHERE v.periodo_id = $1`,
+      [periodo_id]
+    );
+
+    // COGS from sales x product costs
+    const cogsRes = await pool.query(
+      `SELECT
+        COALESCE(SUM(v.cantidad * p.costo_insumos), 0) AS cogs_insumos,
+        COALESCE(SUM(v.cantidad * p.costo_empaque), 0) AS cogs_empaque
+       FROM ventas v JOIN productos p ON p.id = v.producto_id
+       WHERE v.periodo_id = $1`,
+      [periodo_id]
+    );
+
+    // Expenses
+    const gastosRes = await pool.query(
+      `SELECT
+        COALESCE(SUM(CASE WHEN cg.tipo = 'fijo' THEN g.monto ELSE 0 END), 0) AS gastos_fijos,
+        COALESCE(SUM(CASE WHEN cg.tipo = 'variable' THEN g.monto ELSE 0 END), 0) AS gastos_variables
+       FROM gastos g JOIN categorias_gasto cg ON cg.id = g.categoria_id
+       WHERE g.periodo_id = $1`,
+      [periodo_id]
+    );
+
+    // Top products
+    const topProductos = await pool.query(
+      `SELECT p.id, p.nombre, p.imagen_url,
+              SUM(v.cantidad) AS unidades, SUM(v.total) AS ingresos,
+              SUM(v.cantidad * p.costo_neto) AS costo_total,
+              SUM(v.total) - SUM(v.cantidad * p.costo_neto) AS utilidad
+       FROM ventas v JOIN productos p ON p.id = v.producto_id
+       WHERE v.periodo_id = $1
+       GROUP BY p.id, p.nombre, p.imagen_url
+       ORDER BY ingresos DESC LIMIT 10`,
+      [periodo_id]
+    );
+
+    const v = ventasRes.rows[0];
+    const c = cogsRes.rows[0];
+    const g = gastosRes.rows[0];
+
+    const ingresos_brutos = parseFloat(v.ingresos_brutos);
+    const descuentos_val = parseFloat(v.descuentos);
+    const ingresos_netos = ingresos_brutos - descuentos_val;
+    const cogs_insumos = parseFloat(c.cogs_insumos);
+    const cogs_empaque = parseFloat(c.cogs_empaque);
+    const cogs_total = cogs_insumos + cogs_empaque;
+    const utilidad_bruta = ingresos_netos - cogs_total;
+    const gastos_fijos = parseFloat(g.gastos_fijos);
+    const gastos_variables = parseFloat(g.gastos_variables);
+    const gastos_total = gastos_fijos + gastos_variables;
+    const utilidad_operativa = utilidad_bruta - gastos_total;
+
+    // IGV calculation
+    const user = await pool.query('SELECT igv_rate, tipo_negocio FROM usuarios WHERE id = $1', [req.user.id]);
+    const igvRate = user.rows[0]?.tipo_negocio === 'informal' ? 0 : parseFloat(user.rows[0]?.igv_rate || 0);
+    const impuestos = utilidad_operativa > 0 ? utilidad_operativa * igvRate : 0;
+    const utilidad_neta = utilidad_operativa - impuestos;
+
+    const food_cost_pct = ingresos_netos > 0 ? (cogs_insumos / ingresos_netos) * 100 : 0;
+    const margen_bruto_pct = ingresos_netos > 0 ? (utilidad_bruta / ingresos_netos) * 100 : 0;
+    const margen_neto_pct = ingresos_netos > 0 ? (utilidad_neta / ingresos_netos) * 100 : 0;
+    const ticket_promedio = parseInt(v.num_ventas) > 0 ? ingresos_brutos / parseInt(v.num_ventas) : 0;
+    const punto_equilibrio = margen_bruto_pct > 0 ? gastos_fijos / (margen_bruto_pct / 100) : 0;
+
+    return res.json({
+      success: true,
+      data: {
+        periodo: periodo.rows[0],
+        ingresos: { brutos: ingresos_brutos, descuentos: descuentos_val, netos: ingresos_netos },
+        cogs: { insumos: cogs_insumos, empaque: cogs_empaque, total: cogs_total },
+        utilidad_bruta,
+        gastos: { fijos: gastos_fijos, variables: gastos_variables, total: gastos_total },
+        utilidad_operativa,
+        impuestos,
+        utilidad_neta,
+        kpis: {
+          food_cost_pct: Math.round(food_cost_pct * 10) / 10,
+          margen_bruto_pct: Math.round(margen_bruto_pct * 10) / 10,
+          margen_neto_pct: Math.round(margen_neto_pct * 10) / 10,
+          ticket_promedio: Math.round(ticket_promedio * 100) / 100,
+          punto_equilibrio: Math.round(punto_equilibrio * 100) / 100,
+          unidades_vendidas: parseInt(v.unidades_vendidas),
+          num_ventas: parseInt(v.num_ventas),
+        },
+        top_productos: topProductos.rows,
+      },
+    });
+  } catch (err) {
+    console.error('PL resumen error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
 // ==================== PERIODOS ====================
 
 // GET /api/pl/periodos
