@@ -15,6 +15,8 @@ import {
   Menu,
   X,
   LogOut,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react';
 
 const allLinks = [
@@ -34,13 +36,14 @@ const adminLinks = [
   { to: '/admin/actividad', label: 'Actividad', icon: Activity },
 ];
 
-function SidebarLink({ to, label, icon: Icon, onClick }) {
+function SidebarLink({ to, label, icon: Icon, onClick, collapsed }) {
   return (
     <NavLink
       to={to}
       onClick={onClick}
+      title={collapsed ? label : undefined}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
+        `flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0 py-3' : 'px-4 py-3'} rounded-xl text-sm font-semibold transition-all duration-200 ${
           isActive
             ? 'bg-[var(--accent-light)] text-[var(--accent)]'
             : 'text-stone-500 hover:text-stone-800 hover:bg-stone-50'
@@ -48,7 +51,7 @@ function SidebarLink({ to, label, icon: Icon, onClick }) {
       }
     >
       <Icon size={18} />
-      <span>{label}</span>
+      {!collapsed && <span>{label}</span>}
     </NavLink>
   );
 }
@@ -57,6 +60,13 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(() => localStorage.getItem('nodum_sidebar_collapsed') === 'true');
+
+  const toggleCollapsed = () => {
+    const next = !collapsed;
+    setCollapsed(next);
+    localStorage.setItem('nodum_sidebar_collapsed', String(next));
+  };
   const isAdmin = user?.rol === 'admin';
   const permisos = Array.isArray(user?.permisos) ? user.permisos : ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion'];
   const links = isAdmin ? allLinks : allLinks.filter((l) => !l.perm || permisos.includes(l.perm));
@@ -68,10 +78,10 @@ export default function Layout() {
 
   const closeSidebar = () => setOpen(false);
 
-  const sidebarContent = (
+  const renderSidebarContent = (isCollapsed) => (
     <>
-      <div className="p-5 border-b border-stone-200">
-        <div className="flex items-center gap-2.5">
+      <div className={`${isCollapsed ? 'p-3' : 'p-5'} border-b border-stone-200`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'}`}>
           {user?.logo_url ? (
             <img src={user.logo_url} alt="Logo" className="w-9 h-9 rounded-xl object-cover" />
           ) : (
@@ -79,43 +89,75 @@ export default function Layout() {
               <Calculator size={18} className="text-white" />
             </div>
           )}
-          <div>
-            <h1 className="text-base font-bold text-stone-800 tracking-wide">NODUM</h1>
-            <p className="text-[10px] text-stone-400 uppercase tracking-widest">Cotizador</p>
-          </div>
+          {!isCollapsed && (
+            <div>
+              <h1 className="text-base font-bold text-stone-800 tracking-wide">NODUM</h1>
+              <p className="text-[10px] text-stone-400 uppercase tracking-widest">Cotizador</p>
+            </div>
+          )}
         </div>
       </div>
 
-      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
+      <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-4'} py-4 space-y-1 overflow-y-auto`}>
         {links.map((l) => (
-          <SidebarLink key={l.to} {...l} onClick={closeSidebar} />
+          <SidebarLink key={l.to} {...l} onClick={closeSidebar} collapsed={isCollapsed} />
         ))}
         {isAdmin && (
           <>
-            <div className="mt-4 mb-2 px-3">
-              <p className="text-[10px] text-stone-400 uppercase tracking-widest font-semibold">
-                Admin
-              </p>
-            </div>
+            {!isCollapsed && (
+              <div className="mt-4 mb-2 px-3">
+                <p className="text-[10px] text-stone-400 uppercase tracking-widest font-semibold">
+                  Admin
+                </p>
+              </div>
+            )}
+            {isCollapsed && <div className="mt-4 mb-2 border-t border-stone-200" />}
             {adminLinks.map((l) => (
-              <SidebarLink key={l.to} {...l} onClick={closeSidebar} />
+              <SidebarLink key={l.to} {...l} onClick={closeSidebar} collapsed={isCollapsed} />
             ))}
           </>
         )}
       </nav>
 
-      <div className="p-3 border-t border-stone-200">
-        <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-xs font-bold text-stone-500">
+      {isCollapsed && (
+        <div className="flex justify-center py-2 border-t border-stone-200">
+          <button
+            onClick={toggleCollapsed}
+            className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+            title="Expandir menu"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
+      )}
+      {!isCollapsed && (
+        <div className="flex justify-center py-2 border-t border-stone-200">
+          <button
+            onClick={toggleCollapsed}
+            className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+            title="Contraer menu"
+          >
+            <ChevronLeft size={16} />
+          </button>
+        </div>
+      )}
+
+      <div className={`p-3 border-t border-stone-200`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2`}>
+          <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-xs font-bold text-stone-500 shrink-0">
             {user?.nombre?.charAt(0)?.toUpperCase() || 'U'}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm text-stone-800 truncate">{user?.nombre || 'Usuario'}</p>
-            <p className="text-[10px] text-stone-400 truncate">{user?.email}</p>
-          </div>
-          <button onClick={handleLogout} className="p-2 text-stone-400 hover:text-rose-500 transition-colors rounded-lg">
-            <LogOut size={16} />
-          </button>
+          {!isCollapsed && (
+            <>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm text-stone-800 truncate">{user?.nombre || 'Usuario'}</p>
+                <p className="text-[10px] text-stone-400 truncate">{user?.email}</p>
+              </div>
+              <button onClick={handleLogout} className="p-2 text-stone-400 hover:text-rose-500 transition-colors rounded-lg">
+                <LogOut size={16} />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </>
@@ -124,8 +166,8 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-stone-50 flex">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-64 flex-col bg-white border-r border-stone-100 fixed inset-y-0 left-0 z-30">
-        {sidebarContent}
+      <aside className={`hidden lg:flex ${collapsed ? 'w-16' : 'w-64'} flex-col bg-white border-r border-stone-100 fixed inset-y-0 left-0 z-30 transition-all duration-200`}>
+        {renderSidebarContent(collapsed)}
       </aside>
 
       {/* Mobile overlay */}
@@ -139,13 +181,13 @@ export default function Layout() {
             >
               <X size={20} />
             </button>
-            {sidebarContent}
+            {renderSidebarContent(false)}
           </aside>
         </div>
       )}
 
       {/* Main content */}
-      <div className="flex-1 lg:ml-64">
+      <div className={`flex-1 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} transition-all duration-200`}>
         {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-stone-200 sticky top-0 z-20">
           <button onClick={() => setOpen(true)} className="p-2 text-stone-400 hover:text-stone-800">

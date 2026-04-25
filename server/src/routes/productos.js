@@ -130,11 +130,35 @@ router.post('/', async (req, res) => {
       [producto.id, JSON.stringify({ ...producto, ...costos }), 'Creacion inicial', costos.costo_neto, costos.precio_final]
     );
 
+    // If producto entero, auto-create unit version
+    let productoUnidad = null;
+    if (tipo_presentacion === 'entero' && parseInt(unidades_por_producto) > 1) {
+      const uniPorciones = parseInt(unidades_por_producto);
+      const costoPorcion = round4(costos.costo_insumos / uniPorciones);
+      const empaqueUnidad = round4(parseFloat(req.body.costoEmpaqueUnidad) || 0);
+      const costoNetoPorcion = round4(costoPorcion + empaqueUnidad);
+      const margenPorcionVal = req.body.margen_porcion != null
+        ? (parseFloat(req.body.margen_porcion) > 1 ? parseFloat(req.body.margen_porcion) / 100 : parseFloat(req.body.margen_porcion))
+        : margenDecimal;
+      const precioVentaPorcion = margenPorcionVal < 1 ? round4(costoNetoPorcion / (1 - margenPorcionVal)) : costoNetoPorcion;
+      const precioFinalPorcion = round4(precioVentaPorcion * (1 + igv_rate));
+
+      const uniRes = await client.query(
+        `INSERT INTO productos (usuario_id, nombre, margen, margen_porcion, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto, producto_padre_id,
+          costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final)
+         VALUES ($1, $2, $3, $4, $5, $6, 'unidad', 1, $7, $8, $9, $10, $11, $12)
+         RETURNING *`,
+        [req.user.id, nombre + ' (porcion)', margenPorcionVal, null, igv_rate, imagen_url || null, producto.id,
+          costoPorcion, empaqueUnidad, costoNetoPorcion, precioVentaPorcion, precioFinalPorcion]
+      );
+      productoUnidad = uniRes.rows[0];
+    }
+
     await client.query('COMMIT');
 
     try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'producto', producto.id, 'crear', JSON.stringify({ nombre })]); } catch (_) {}
 
-    return res.status(201).json({ success: true, data: { ...producto, ...costos } });
+    return res.status(201).json({ success: true, data: { ...producto, ...costos, productoUnidad } });
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('Create product error:', err);
@@ -150,7 +174,7 @@ router.get('/', async (req, res) => {
     const result = await pool.query(
       `SELECT id, nombre, margen, igv_rate,
               costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final,
-              imagen_url, tipo_presentacion, unidades_por_producto, margen_porcion, created_at, updated_at
+              imagen_url, tipo_presentacion, unidades_por_producto, margen_porcion, producto_padre_id, created_at, updated_at
        FROM productos
        WHERE usuario_id = $1
        ORDER BY nombre ASC`,
@@ -394,6 +418,36 @@ router.put('/:id', async (req, res) => {
       'INSERT INTO producto_versiones (producto_id, version, snapshot_json, motivo, costo_neto, precio_final) VALUES ($1, $2, $3, $4, $5, $6)',
       [req.params.id, versionRes.rows[0].next, JSON.stringify(updatedProd.rows[0]), 'Edicion de producto', costos.costo_neto, costos.precio_final]
     );
+
+    // Auto-update or create child unit product
+    if (tipo_presentacion === 'entero' && parseInt(unidades_por_producto) > 1) {
+      const uniPorciones = parseInt(unidades_por_producto);
+      const costoPorcion = round4(costos.costo_insumos / uniPorciones);
+      const empaqueUnidad = round4(parseFloat(req.body.costoEmpaqueUnidad) || 0);
+      const costoNetoPorcion = round4(costoPorcion + empaqueUnidad);
+      const margenPorcionVal = margen_porcion != null
+        ? (parseFloat(margen_porcion) > 1 ? parseFloat(margen_porcion) / 100 : parseFloat(margen_porcion))
+        : effectiveMargen;
+      const pvPorcion = margenPorcionVal < 1 ? round4(costoNetoPorcion / (1 - margenPorcionVal)) : costoNetoPorcion;
+      const pfPorcion = round4(pvPorcion * (1 + igv_rate));
+
+      const existingChild = await client.query('SELECT id FROM productos WHERE producto_padre_id = $1', [req.params.id]);
+      if (existingChild.rows.length > 0) {
+        await client.query(
+          `UPDATE productos SET nombre = $1, margen = $2, igv_rate = $3, imagen_url = $4,
+            costo_insumos = $5, costo_empaque = $6, costo_neto = $7, precio_venta = $8, precio_final = $9, updated_at = NOW()
+           WHERE id = $10`,
+          [nombre + ' (porcion)', margenPorcionVal, igv_rate, imagen_url, costoPorcion, empaqueUnidad, costoNetoPorcion, pvPorcion, pfPorcion, existingChild.rows[0].id]
+        );
+      } else {
+        await client.query(
+          `INSERT INTO productos (usuario_id, nombre, margen, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto, producto_padre_id,
+            costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final)
+           VALUES ($1, $2, $3, $4, $5, 'unidad', 1, $6, $7, $8, $9, $10, $11)`,
+          [req.user.id, nombre + ' (porcion)', margenPorcionVal, igv_rate, imagen_url, req.params.id, costoPorcion, empaqueUnidad, costoNetoPorcion, pvPorcion, pfPorcion]
+        );
+      }
+    }
 
     await client.query('COMMIT');
 

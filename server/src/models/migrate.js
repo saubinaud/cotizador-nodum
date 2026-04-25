@@ -58,6 +58,9 @@ async function runMigrations() {
     await client.query(`ALTER TABLE prep_pred_insumos ADD COLUMN IF NOT EXISTS cantidad_base NUMERIC(12,4)`);
     await client.query(`ALTER TABLE prep_pred_insumos ADD COLUMN IF NOT EXISTS costo_linea NUMERIC(12,4)`);
 
+    // producto_padre_id for auto-generated unit products
+    await client.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS producto_padre_id INTEGER REFERENCES productos(id) ON DELETE SET NULL`);
+
     // paises table
     await client.query(`
       CREATE TABLE IF NOT EXISTS paises (
