@@ -26,3 +26,4 @@
 10. [09-DESIGN-SYSTEM.md](09-DESIGN-SYSTEM.md) — UX/UI: colores, tipografia, componentes, anti-patrones
 11. [10-PLAN-PL.md](10-PLAN-PL.md) — Plan maestro P&L: 6 fases, tablas, endpoints, UI
 12. [11-SISTEMA-FINANCIERO.md](11-SISTEMA-FINANCIERO.md) — Arquitectura financiera actual: transacciones, APIs, cashflow
+13. [12-PLAN-MERMAS-FICHA.md](12-PLAN-MERMAS-FICHA.md) — Mermas (5 tipos) + Ficha Técnica (10 secciones) + Ajustes globales
