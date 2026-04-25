@@ -7,45 +7,53 @@ import SearchableSelect from '../components/SearchableSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { Plus, Save, X, Trash2, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 
-const CONVERSIONES = {
-  g: { kg: 1000, g: 1, mg: 0.001, oz: 28.3495 },
-  kg: { g: 0.001, kg: 1, oz: 0.0283495 },
-  ml: { L: 1000, ml: 1, l: 1000 },
-  L: { ml: 0.001, L: 1, l: 1 },
-  l: { ml: 0.001, L: 1, l: 1 },
-  uni: { uni: 1 },
-  oz: { g: 0.0352739, kg: 35.274, oz: 1 },
+// Normalize unit: l → L, handle case variations
+function normU(u) {
+  if (!u) return '';
+  if (u === 'l') return 'L';
+  return u;
+}
+
+// Factor to convert 1 unit of 'de' into 'a'
+// Ej: factorConversion('g', 'kg') = 0.001 (1g = 0.001kg)
+const FACTORES = {
+  'g→kg': 0.001, 'kg→g': 1000,
+  'g→oz': 0.03527, 'oz→g': 28.3495,
+  'kg→oz': 35.274, 'oz→kg': 0.02835,
+  'ml→L': 0.001, 'L→ml': 1000,
 };
 
 function convertirUnidad(valor, deUnidad, aUnidad) {
-  if (!deUnidad || !aUnidad || deUnidad === aUnidad) return valor;
-  const grupo = CONVERSIONES[aUnidad];
-  if (grupo && grupo[deUnidad]) return valor * grupo[deUnidad];
-  const grupoRev = CONVERSIONES[deUnidad];
-  if (grupoRev && grupoRev[aUnidad]) return valor / grupoRev[aUnidad];
+  const de = normU(deUnidad);
+  const a = normU(aUnidad);
+  if (!de || !a || de === a) return valor;
+  const key = `${de}→${a}`;
+  if (FACTORES[key]) return valor * FACTORES[key];
   return valor;
 }
 
 function getUnidadesCompatibles(unidadBase) {
   if (!unidadBase) return ['g', 'kg', 'ml', 'L', 'uni', 'oz'];
+  const u = normU(unidadBase);
   const grupos = [
     ['g', 'kg', 'oz'],
     ['ml', 'L'],
     ['uni'],
   ];
   for (const grupo of grupos) {
-    if (grupo.includes(unidadBase) || grupo.includes(unidadBase.toLowerCase())) {
-      return grupo;
-    }
+    if (grupo.includes(u)) return grupo;
   }
-  return [unidadBase];
+  return [u];
 }
 
 function costoEnUsoUnidad(ins) {
-  const factor = (ins.uso_unidad && ins.uso_unidad !== ins.unidad_medida)
-    ? convertirUnidad(1, ins.unidad_medida, ins.uso_unidad)
-    : 1;
-  return factor > 0 ? (Number(ins.costo_unitario) || 0) / factor : (Number(ins.costo_unitario) || 0);
+  const original = normU(ins.unidad_medida);
+  const uso = normU(ins.uso_unidad);
+  if (!uso || !original || uso === original) return Number(ins.costo_unitario) || 0;
+  // costo_unitario es por unidad original (ej: S/10 por kg)
+  // Si uso_unidad = g: costo_por_g = costo_por_kg × convertir(1g → kg) = 10 × 0.001 = 0.01
+  const factor = convertirUnidad(1, uso, original);
+  return factor > 0 ? (Number(ins.costo_unitario) || 0) * factor : (Number(ins.costo_unitario) || 0);
 }
 
 let tmpId = 0;
@@ -402,8 +410,7 @@ export default function PrepPredPage() {
         {preps.map((prep) => {
           const totalCosto = (prep.insumos || []).reduce((s, ins) => {
             const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
-            const factor = (ins.uso_unidad && ins.uso_unidad !== ins.unidad_medida) ? convertirUnidad(1, ins.unidad_medida || '', ins.uso_unidad || '') : 1;
-            const cu = factor > 0 ? cuBase / factor : cuBase;
+            const cu = costoEnUsoUnidad({ ...ins, costo_unitario: cuBase });
             return s + cu * (parseFloat(ins.cantidad) || 0);
           }, 0);
           return (
@@ -426,10 +433,9 @@ export default function PrepPredPage() {
                 <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
                   {prep.insumos.map((ins, i) => {
                     const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
-                    const factor = (ins.uso_unidad && ins.uso_unidad !== ins.unidad_medida) ? convertirUnidad(1, ins.unidad_medida || '', ins.uso_unidad || '') : 1;
-                    const cu = factor > 0 ? cuBase / factor : cuBase;
+                    const cu = costoEnUsoUnidad({ ...ins, costo_unitario: cuBase });
                     const cant = parseFloat(ins.cantidad) || 0;
-                    const unidadMostrar = ins.uso_unidad || ins.unidad_medida || '';
+                    const unidadMostrar = normU(ins.uso_unidad) || normU(ins.unidad_medida) || '';
                     return (
                       <div key={i} className="flex justify-between text-xs">
                         <span className="text-zinc-400">{ins.nombre || `Insumo #${ins.insumo_id}`}</span>

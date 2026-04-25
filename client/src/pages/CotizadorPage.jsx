@@ -19,45 +19,48 @@ import {
   BookmarkPlus,
 } from 'lucide-react';
 
-const CONVERSIONES = {
-  g: { kg: 1000, g: 1, mg: 0.001, oz: 28.3495 },
-  kg: { g: 0.001, kg: 1, oz: 0.0283495 },
-  ml: { L: 1000, ml: 1, l: 1000 },
-  L: { ml: 0.001, L: 1, l: 1 },
-  l: { ml: 0.001, L: 1, l: 1 },
-  uni: { uni: 1 },
-  oz: { g: 0.0352739, kg: 35.274, oz: 1 },
+function normU(u) {
+  if (!u) return '';
+  if (u === 'l') return 'L';
+  return u;
+}
+
+const FACTORES = {
+  'g→kg': 0.001, 'kg→g': 1000,
+  'g→oz': 0.03527, 'oz→g': 28.3495,
+  'kg→oz': 35.274, 'oz→kg': 0.02835,
+  'ml→L': 0.001, 'L→ml': 1000,
 };
 
 function convertirUnidad(valor, deUnidad, aUnidad) {
-  if (!deUnidad || !aUnidad || deUnidad === aUnidad) return valor;
-  const grupo = CONVERSIONES[aUnidad];
-  if (grupo && grupo[deUnidad]) return valor * grupo[deUnidad];
-  const grupoRev = CONVERSIONES[deUnidad];
-  if (grupoRev && grupoRev[aUnidad]) return valor / grupoRev[aUnidad];
+  const de = normU(deUnidad);
+  const a = normU(aUnidad);
+  if (!de || !a || de === a) return valor;
+  const key = `${de}→${a}`;
+  if (FACTORES[key]) return valor * FACTORES[key];
   return valor;
 }
 
 function getUnidadesCompatibles(unidadBase) {
   if (!unidadBase) return ['g', 'kg', 'ml', 'L', 'uni', 'oz'];
+  const u = normU(unidadBase);
   const grupos = [
     ['g', 'kg', 'oz'],
     ['ml', 'L'],
     ['uni'],
   ];
   for (const grupo of grupos) {
-    if (grupo.includes(unidadBase) || grupo.includes(unidadBase.toLowerCase())) {
-      return grupo;
-    }
+    if (grupo.includes(u)) return grupo;
   }
-  return [unidadBase];
+  return [u];
 }
 
 function costoEnUsoUnidad(ins) {
-  const factor = (ins.uso_unidad && ins.uso_unidad !== ins.unidad_medida)
-    ? convertirUnidad(1, ins.unidad_medida, ins.uso_unidad)
-    : 1;
-  return factor > 0 ? (Number(ins.costo_unitario) || 0) / factor : (Number(ins.costo_unitario) || 0);
+  const original = normU(ins.unidad_medida);
+  const uso = normU(ins.uso_unidad);
+  if (!uso || !original || uso === original) return Number(ins.costo_unitario) || 0;
+  const factor = convertirUnidad(1, uso, original);
+  return factor > 0 ? (Number(ins.costo_unitario) || 0) * factor : (Number(ins.costo_unitario) || 0);
 }
 
 function InfoTip({ text }) {

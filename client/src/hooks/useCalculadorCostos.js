@@ -1,21 +1,24 @@
 import { useMemo } from 'react';
 
-const CONVERSIONES = {
-  g: { kg: 1000, g: 1, mg: 0.001, oz: 28.3495 },
-  kg: { g: 0.001, kg: 1, oz: 0.0283495 },
-  ml: { L: 1000, ml: 1, l: 1000 },
-  L: { ml: 0.001, L: 1, l: 1 },
-  l: { ml: 0.001, L: 1, l: 1 },
-  uni: { uni: 1 },
-  oz: { g: 0.0352739, kg: 35.274, oz: 1 },
+function normU(u) {
+  if (!u) return '';
+  if (u === 'l') return 'L';
+  return u;
+}
+
+const FACTORES = {
+  'g→kg': 0.001, 'kg→g': 1000,
+  'g→oz': 0.03527, 'oz→g': 28.3495,
+  'kg→oz': 35.274, 'oz→kg': 0.02835,
+  'ml→L': 0.001, 'L→ml': 1000,
 };
 
 function convertirUnidad(valor, deUnidad, aUnidad) {
-  if (!deUnidad || !aUnidad || deUnidad === aUnidad) return valor;
-  const grupo = CONVERSIONES[aUnidad];
-  if (grupo && grupo[deUnidad]) return valor * grupo[deUnidad];
-  const grupoRev = CONVERSIONES[deUnidad];
-  if (grupoRev && grupoRev[aUnidad]) return valor / grupoRev[aUnidad];
+  const de = normU(deUnidad);
+  const a = normU(aUnidad);
+  if (!de || !a || de === a) return valor;
+  const key = `${de}→${a}`;
+  if (FACTORES[key]) return valor * FACTORES[key];
   return valor;
 }
 
@@ -24,16 +27,16 @@ export function useCalculadorCostos(preparaciones = [], materiales = [], margen 
     // Cost for THE WHOLE PRODUCT from preparations
     const costoInsumosProducto = preparaciones.reduce((sum, prep) => {
       const prepCost = (prep.insumos || []).reduce((s, ins) => {
-        const factor = (ins.uso_unidad && ins.uso_unidad !== ins.unidad_medida)
-          ? convertirUnidad(1, ins.unidad_medida || '', ins.uso_unidad || '')
-          : 1;
-        const cu = factor > 0 ? (Number(ins.costo_unitario) || 0) / factor : (Number(ins.costo_unitario) || 0);
+        const original = normU(ins.unidad_medida);
+        const uso = normU(ins.uso_unidad);
+        const factor = (uso && original && uso !== original) ? convertirUnidad(1, uso, original) : 1;
+        const cu = factor > 0 ? (Number(ins.costo_unitario) || 0) * factor : (Number(ins.costo_unitario) || 0);
         return s + cu * (Number(ins.cantidad) || 0);
       }, 0);
 
       const rendimiento = Number(prep.capacidad) || 0;
       const cantParaProducto = Number(prep.cantidad_por_unidad) || 0;
-      const cantEnUnidadPrep = convertirUnidad(cantParaProducto, prep.porcion_unidad || prep.unidad || '', prep.unidad || '');
+      const cantEnUnidadPrep = convertirUnidad(cantParaProducto, normU(prep.porcion_unidad || prep.unidad || ''), normU(prep.unidad || ''));
 
       if (rendimiento > 0 && cantEnUnidadPrep > 0) {
         return sum + (prepCost / rendimiento) * cantEnUnidadPrep;
