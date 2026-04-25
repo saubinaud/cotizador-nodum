@@ -31,7 +31,7 @@ export default function CustomSelect({ options = [], value, onChange, placeholde
       </button>
 
       {open && (
-        <div className={`absolute z-50 mt-1 bg-white border border-stone-200 rounded-lg shadow-lg overflow-hidden ${compact ? 'min-w-[80px]' : 'w-full'}`}>
+        <div className={`absolute z-[60] mt-1 bg-white border border-stone-200 rounded-lg shadow-lg overflow-hidden ${compact ? 'min-w-[80px]' : 'w-full'}`}>
           <div className="max-h-48 overflow-y-auto py-1">
             {options.map((o) => (
               <button

@@ -35,7 +35,7 @@ export default function SearchableSelect({ options = [], value, onChange, placeh
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-2 left-0 w-full min-w-0 bg-white border border-stone-100 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] overflow-hidden">
+        <div className="absolute z-[60] mt-2 left-0 w-full min-w-0 bg-white border border-stone-100 rounded-2xl shadow-[0_8px_30px_rgba(0,0,0,0.08)] overflow-hidden">
           <div className="p-2">
             <input
               type="text"
