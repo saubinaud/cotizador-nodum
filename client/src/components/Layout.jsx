@@ -206,7 +206,7 @@ export default function Layout() {
           <div className="w-9" />
         </header>
 
-        <main className="p-5 lg:p-8">
+        <main className="p-5 pb-16 lg:p-8 lg:pb-20">
           <Outlet />
         </main>
       </div>

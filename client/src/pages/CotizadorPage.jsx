@@ -65,11 +65,11 @@ function costoEnUsoUnidad(ins) {
 
 function InfoTip({ text }) {
   return (
-    <span className="relative group inline-flex ml-1 cursor-help">
-      <span className="w-4 h-4 rounded-full bg-stone-100 text-stone-400 text-[10px] font-bold inline-flex items-center justify-center group-hover:bg-[var(--accent)] group-hover:text-white transition-colors">?</span>
-      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-800 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-56 text-center z-50 leading-relaxed">
+    <span className="relative group inline-flex ml-1.5 cursor-help" style={{ zIndex: 100 }}>
+      <span className="w-4 h-4 rounded-full bg-stone-200 text-stone-500 text-[10px] font-bold inline-flex items-center justify-center group-hover:bg-[var(--accent)] group-hover:text-white transition-colors">?</span>
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2.5 px-3.5 py-2.5 bg-stone-900 text-white text-xs rounded-xl shadow-2xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-60 text-center leading-relaxed" style={{ zIndex: 101 }}>
         {text}
-        <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-stone-800" />
+        <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-stone-900" />
       </span>
     </span>
   );
@@ -623,7 +623,7 @@ export default function CotizadorPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto overflow-x-hidden">
+    <div className="max-w-7xl mx-auto overflow-x-hidden pb-12">
       {/* Page header — clean, Apple-style */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-stone-900">
