@@ -491,8 +491,6 @@ export default function CotizadorPage() {
   };
 
   // --- Save ---
-  const precioConfig = user?.precio_decimales || 'variable';
-
   const handleSaveClick = () => {
     if (!nombre.trim()) {
       toast.error('Ingresa un nombre para el producto');
