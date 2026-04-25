@@ -44,9 +44,9 @@ router.post('/', async (req, res) => {
         if (prep.insumos && prep.insumos.length > 0) {
           for (const ins of prep.insumos) {
             await client.query(
-              `INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad)
-               VALUES ($1, $2, $3)`,
-              [prepId, ins.insumo_id, ins.cantidad_usada || ins.cantidad]
+              `INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad, uso_unidad)
+               VALUES ($1, $2, $3, $4)`,
+              [prepId, ins.insumo_id, ins.cantidad_usada || ins.cantidad, ins.uso_unidad || null]
             );
 
             const insumoData = await client.query(
@@ -159,7 +159,7 @@ router.get('/:id', async (req, res) => {
     const preparaciones = [];
     for (const prep of prepsRes.rows) {
       const insRes = await pool.query(
-        `SELECT ppi.id, ppi.insumo_id, ppi.cantidad AS cantidad_usada,
+        `SELECT ppi.id, ppi.insumo_id, ppi.cantidad AS cantidad_usada, ppi.uso_unidad,
                 i.nombre, i.unidad_medida, i.precio_presentacion, i.cantidad_presentacion
          FROM producto_prep_insumos ppi
          JOIN insumos i ON i.id = ppi.insumo_id
@@ -248,8 +248,8 @@ router.put('/:id', async (req, res) => {
           if (prep.insumos && prep.insumos.length > 0) {
             for (const ins of prep.insumos) {
               await client.query(
-                'INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad) VALUES ($1, $2, $3)',
-                [prepId, ins.insumo_id, ins.cantidad_usada || ins.cantidad]
+                'INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad, uso_unidad) VALUES ($1, $2, $3, $4)',
+                [prepId, ins.insumo_id, ins.cantidad_usada || ins.cantidad, ins.uso_unidad || null]
               );
 
               const insumoData = await client.query(
@@ -437,8 +437,8 @@ router.post('/:id/duplicar', async (req, res) => {
       );
       for (const ins of insRes.rows) {
         await client.query(
-          'INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad) VALUES ($1, $2, $3)',
-          [newPrep.rows[0].id, ins.insumo_id, ins.cantidad]
+          'INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad, uso_unidad) VALUES ($1, $2, $3, $4)',
+          [newPrep.rows[0].id, ins.insumo_id, ins.cantidad, ins.uso_unidad || null]
         );
       }
     }

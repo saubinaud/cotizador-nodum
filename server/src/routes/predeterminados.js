@@ -19,7 +19,7 @@ router.get('/preparaciones', async (req, res) => {
     const preps = [];
     for (const prep of prepsRes.rows) {
       const insRes = await pool.query(
-        `SELECT ppi.id, ppi.insumo_id, ppi.cantidad,
+        `SELECT ppi.id, ppi.insumo_id, ppi.cantidad, ppi.uso_unidad,
                 i.nombre, i.unidad_medida, i.precio_presentacion, i.cantidad_presentacion
          FROM prep_pred_insumos ppi
          JOIN insumos i ON i.id = ppi.insumo_id
@@ -57,8 +57,8 @@ router.post('/preparaciones', async (req, res) => {
     if (insumos && insumos.length > 0) {
       for (const ins of insumos) {
         await client.query(
-          'INSERT INTO prep_pred_insumos (preparacion_pred_id, insumo_id, cantidad) VALUES ($1, $2, $3)',
-          [prep.id, ins.insumo_id, ins.cantidad || 0]
+          'INSERT INTO prep_pred_insumos (preparacion_pred_id, insumo_id, cantidad, uso_unidad) VALUES ($1, $2, $3, $4)',
+          [prep.id, ins.insumo_id, ins.cantidad || 0, ins.uso_unidad || null]
         );
       }
     }
@@ -101,8 +101,8 @@ router.put('/preparaciones/:id', async (req, res) => {
       if (insumos && insumos.length > 0) {
         for (const ins of insumos) {
           await client.query(
-            'INSERT INTO prep_pred_insumos (preparacion_pred_id, insumo_id, cantidad) VALUES ($1, $2, $3)',
-            [req.params.id, ins.insumo_id, ins.cantidad || 0]
+            'INSERT INTO prep_pred_insumos (preparacion_pred_id, insumo_id, cantidad, uso_unidad) VALUES ($1, $2, $3, $4)',
+            [req.params.id, ins.insumo_id, ins.cantidad || 0, ins.uso_unidad || null]
           );
         }
       }

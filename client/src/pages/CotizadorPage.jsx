@@ -301,7 +301,7 @@ export default function CotizadorPage() {
         unidad: prep.unidad || null,
         insumos: (prep.insumos || [])
           .filter((i) => i.insumo_id)
-          .map((i) => ({ insumo_id: i.insumo_id, cantidad: Number(i.cantidad) || 0 })),
+          .map((i) => ({ insumo_id: i.insumo_id, cantidad: Number(i.cantidad) || 0, uso_unidad: i.uso_unidad || i.unidad_medida || null })),
       });
       toast.success(`"${prep.nombre}" guardada como predeterminada`);
       api.get('/predeterminados/preparaciones').then((d) => setCatalogPreps(d.data || [])).catch(() => {});
@@ -450,6 +450,7 @@ export default function CotizadorPage() {
               id: i.id,
               insumo_id: i.insumo_id,
               cantidad: Number(i.cantidad) || 0,
+              uso_unidad: i.uso_unidad || i.unidad_medida || null,
             })),
         })),
         materiales: materiales

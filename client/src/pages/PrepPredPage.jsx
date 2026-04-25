@@ -196,7 +196,7 @@ export default function PrepPredPage() {
       nombre: editData.nombre,
       capacidad: editData.capacidad,
       unidad: editData.unidad,
-      insumos: editData.insumos.filter((i) => i.insumo_id).map((i) => ({ insumo_id: i.insumo_id, cantidad: Number(i.cantidad) || 0 })),
+      insumos: editData.insumos.filter((i) => i.insumo_id).map((i) => ({ insumo_id: i.insumo_id, cantidad: Number(i.cantidad) || 0, uso_unidad: i.uso_unidad || i.unidad_medida || null })),
     };
     try {
       if (editingId === 'new') {

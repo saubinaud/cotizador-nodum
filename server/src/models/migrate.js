@@ -46,6 +46,10 @@ async function runMigrations() {
       ALTER TABLE productos ADD COLUMN IF NOT EXISTS margen_porcion NUMERIC(5,4)
     `);
 
+    // uso_unidad en insumos de preparaciones
+    await client.query(`ALTER TABLE prep_pred_insumos ADD COLUMN IF NOT EXISTS uso_unidad VARCHAR(10)`);
+    await client.query(`ALTER TABLE producto_prep_insumos ADD COLUMN IF NOT EXISTS uso_unidad VARCHAR(10)`);
+
     // preparaciones_predeterminadas — add capacidad/unidad_capacidad
     await client.query(`
       ALTER TABLE preparaciones_predeterminadas
