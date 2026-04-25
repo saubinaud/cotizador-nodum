@@ -539,14 +539,14 @@ export default function CotizadorPage() {
                       options={catalogPreps}
                       value={null}
                       onChange={(pred) => loadPredeterminada(pred)}
-                      placeholder="Usar predeterminada"
+                      placeholder="Predeterminada..."
                       displayKey="nombre"
                       valueKey="id"
                     />
                   </div>
                 )}
                 <button onClick={addPreparacion} className={cx.btnGhost + ' flex items-center gap-1'}>
-                  <Plus size={14} /> Agregar Preparacion
+                  <Plus size={14} /> Nueva
                 </button>
               </div>
             </div>
@@ -706,7 +706,7 @@ export default function CotizadorPage() {
           {/* Porciones */}
           <div>
             <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">
-              Porciones por unidad
+              Composicion del producto
             </h3>
             <div className={`${cx.card} p-4`}>
               {preparaciones.filter(p => p.nombre).length === 0 ? (
@@ -719,9 +719,9 @@ export default function CotizadorPage() {
                       <tr>
                         <th className={cx.th}>Preparacion</th>
                         <th className={cx.th}>Rendimiento</th>
-                        <th className={cx.th + ' w-32'}>Por unidad</th>
-                        <th className={cx.th}>Alcanza para</th>
-                        <th className={cx.th + ' text-right'}>Costo/uni</th>
+                        <th className={cx.th + ' w-32'}>Para el producto</th>
+                        <th className={cx.th}>Productos por tanda</th>
+                        <th className={cx.th + ' text-right'}>Costo prep.</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -741,7 +741,7 @@ export default function CotizadorPage() {
                                 <span className="text-zinc-500 text-xs">{prep.unidad || ''}</span>
                               </div>
                             </td>
-                            <td className={cx.td + ' text-zinc-300'}>{alcanzaPara > 0 ? `${alcanzaPara} uni` : '--'}</td>
+                            <td className={cx.td + ' text-zinc-300'}>{alcanzaPara > 0 ? `${alcanzaPara} productos` : '--'}</td>
                             <td className={cx.td + ' text-right text-[#FA7B21] font-semibold'}>{formatCurrency(costoPorUni)}</td>
                           </tr>
                         );
@@ -764,15 +764,15 @@ export default function CotizadorPage() {
                           </div>
                           <div className="flex gap-3 items-center">
                             <div>
-                              <label className={cx.label}>Por unidad</label>
+                              <label className={cx.label}>Para el producto</label>
                               <div className="flex items-center gap-1">
                                 <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30" placeholder="0" />
                                 <span className="text-zinc-500 text-xs">{prep.unidad || ''}</span>
                               </div>
                             </div>
                             <div className="text-xs text-zinc-400">
-                              {alcanzaPara > 0 && <p>Alcanza: {alcanzaPara} uni</p>}
-                              <p className="text-[#FA7B21] font-semibold">{formatCurrency(costoPorUni)}/uni</p>
+                              {alcanzaPara > 0 && <p>{alcanzaPara} productos/tanda</p>}
+                              <p className="text-[#FA7B21] font-semibold">{formatCurrency(costoPorUni)}</p>
                             </div>
                           </div>
                         </div>
@@ -841,109 +841,155 @@ export default function CotizadorPage() {
               Resumen de Costos
             </h3>
 
-            <div className="space-y-3">
-              {tipoPresentacion === 'entero' && (
-                <>
+            {tipoPresentacion === 'entero' ? (
+              <>
+                {/* Product costs */}
+                <div className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-400">Costo insumos/uni</span>
-                    <span className="text-white">{formatCurrency(costos.costoInsumosPorUnidad)}</span>
+                    <span className="text-zinc-400">Costo insumos (producto)</span>
+                    <span className="text-white">{formatCurrency(costos.costoInsumosProducto)}</span>
+                  </div>
+                  {costos.costoEmpaqueEntero > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-400">Empaque producto</span>
+                      <span className="text-white">{formatCurrency(costos.costoEmpaqueEntero)}</span>
+                    </div>
+                  )}
+                  {costos.costoEmpaqueUnidad > 0 && (
+                    <div className="flex justify-between text-sm">
+                      <span className="text-zinc-400">Empaque/porcion &times; {costos.unidades}</span>
+                      <span className="text-white">{formatCurrency(costos.costoEmpaqueUnidad * costos.unidades)}</span>
+                    </div>
+                  )}
+                  <div className="border-t border-zinc-800 pt-3 flex justify-between text-sm font-semibold">
+                    <span className="text-zinc-300">Costo neto (producto)</span>
+                    <span className="text-white">{formatCurrency(costos.costoNeto)}</span>
+                  </div>
+                </div>
+
+                {/* Margen slider */}
+                <div>
+                  <label className={cx.label}>Margen</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="0"
+                      max="90"
+                      step="1"
+                      value={margen}
+                      onChange={(e) => setMargen(Number(e.target.value))}
+                      className="flex-1 accent-[#FA7B21] h-1.5"
+                    />
+                    <input
+                      type="number"
+                      value={margen}
+                      onChange={(e) => setMargen(Math.min(90, Math.max(0, Number(e.target.value) || 0)))}
+                      className="w-16 bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                    />
+                    <span className="text-zinc-500 text-sm">%</span>
+                  </div>
+                </div>
+
+                {/* Pricing - Producto entero */}
+                <div className="space-y-2">
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Producto entero</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">Precio venta</span>
+                    <span className="text-white">{formatCurrency(costos.precioVenta)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-400">&times; {unidadesPorProducto} unidades</span>
+                    <span className="text-zinc-400">IGV ({costos.igvRate}%)</span>
+                    <span className="text-white">{formatCurrency(costos.igvMonto)}</span>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-zinc-300 font-semibold">Precio final</span>
+                    <span className="text-2xl font-bold text-[#FA7B21]">{formatCurrency(costos.precioFinal)}</span>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-zinc-500 text-xs">Sugerido</span>
+                    <span className="text-lg font-semibold text-green-400">{formatCurrency(precioComercial(costos.precioFinal))}</span>
+                  </div>
+                </div>
+
+                {/* Pricing - Por porcion */}
+                <div className="border-t border-zinc-800 pt-4 space-y-2">
+                  <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold">Por porcion (1/{costos.unidades})</p>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">Costo</span>
+                    <span className="text-white">{formatCurrency(costos.costoNetoPorcion)}</span>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-zinc-300 font-semibold">Precio final</span>
+                    <span className="text-lg font-bold text-[#FA7B21]">{formatCurrency(costos.precioFinalPorcion)}</span>
+                  </div>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-zinc-500 text-xs">Sugerido</span>
+                    <span className="text-sm font-semibold text-green-400">{formatCurrency(precioComercial(costos.precioFinalPorcion))}</span>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">Costo insumos</span>
                     <span className="text-white">{formatCurrency(costos.costoInsumos)}</span>
                   </div>
-                </>
-              )}
-              {tipoPresentacion !== 'entero' && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Costo insumos</span>
-                  <span className="text-white">{formatCurrency(costos.costoInsumos)}</span>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">Costo empaque</span>
+                    <span className="text-white">{formatCurrency(costos.costoEmpaque)}</span>
+                  </div>
+                  <div className="border-t border-zinc-800 pt-3 flex justify-between text-sm font-semibold">
+                    <span className="text-zinc-300">Costo neto</span>
+                    <span className="text-white">{formatCurrency(costos.costoNeto)}</span>
+                  </div>
                 </div>
-              )}
-              {costos.costoEmpaqueEntero > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Empaque {tipoPresentacion === 'entero' ? 'entero' : ''}</span>
-                  <span className="text-white">{formatCurrency(costos.costoEmpaqueEntero)}</span>
-                </div>
-              )}
-              {costos.costoEmpaqueUnidad > 0 && (
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Empaque/uni &times; {costos.multiplicador}</span>
-                  <span className="text-white">{formatCurrency(costos.costoEmpaqueUnidad * costos.multiplicador)}</span>
-                </div>
-              )}
-              <div className="border-t border-zinc-800 pt-3 flex justify-between text-sm font-semibold">
-                <span className="text-zinc-300">Costo neto</span>
-                <span className="text-white">{formatCurrency(costos.costoNeto)}</span>
-              </div>
-            </div>
 
-            {/* Margen slider */}
-            <div>
-              <label className={cx.label}>Margen</label>
-              <div className="flex items-center gap-3">
-                <input
-                  type="range"
-                  min="0"
-                  max="90"
-                  step="1"
-                  value={margen}
-                  onChange={(e) => setMargen(Number(e.target.value))}
-                  className="flex-1 accent-[#FA7B21] h-1.5"
-                />
-                <input
-                  type="number"
-                  value={margen}
-                  onChange={(e) => setMargen(Math.min(90, Math.max(0, Number(e.target.value) || 0)))}
-                  className="w-16 bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
-                />
-                <span className="text-zinc-500 text-sm">%</span>
-              </div>
-            </div>
-
-            <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Precio de venta</span>
-                <span className="text-white font-medium">{formatCurrency(costos.precioVenta)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">IGV ({costos.igvRate}%)</span>
-                <span className="text-white">{formatCurrency(costos.igvMonto)}</span>
-              </div>
-            </div>
-
-            <div className="border-t border-zinc-800 pt-4">
-              <div className="flex justify-between items-baseline">
-                <span className="text-zinc-300 font-semibold">Precio final</span>
-                <span className="text-2xl font-bold text-[#FA7B21]">
-                  {formatCurrency(costos.precioFinal)}
-                </span>
-              </div>
-              <div className="flex justify-between items-baseline mt-1">
-                <span className="text-zinc-500 text-xs">Precio sugerido</span>
-                <span className="text-lg font-semibold text-green-400">
-                  {formatCurrency(precioComercial(costos.precioFinal))}
-                </span>
-              </div>
-            </div>
-
-            {/* Dual pricing for entero */}
-            {tipoPresentacion === 'entero' && (
-              <div className="border-t border-zinc-800 pt-4 mt-2">
-                <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-2">Precio por unidad</p>
-                <div className="flex justify-between text-sm">
-                  <span className="text-zinc-400">Costo/uni</span>
-                  <span className="text-white">{formatCurrency(costos.costoNetoUnidad)}</span>
+                {/* Margen slider */}
+                <div>
+                  <label className={cx.label}>Margen</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="range"
+                      min="0"
+                      max="90"
+                      step="1"
+                      value={margen}
+                      onChange={(e) => setMargen(Number(e.target.value))}
+                      className="flex-1 accent-[#FA7B21] h-1.5"
+                    />
+                    <input
+                      type="number"
+                      value={margen}
+                      onChange={(e) => setMargen(Math.min(90, Math.max(0, Number(e.target.value) || 0)))}
+                      className="w-16 bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                    />
+                    <span className="text-zinc-500 text-sm">%</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-baseline mt-1">
-                  <span className="text-zinc-300 font-semibold">Precio/uni</span>
-                  <span className="text-lg font-bold text-[#FA7B21]">{formatCurrency(costos.precioFinalUnidad)}</span>
+
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">Precio de venta</span>
+                    <span className="text-white font-medium">{formatCurrency(costos.precioVenta)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">IGV ({costos.igvRate}%)</span>
+                    <span className="text-white">{formatCurrency(costos.igvMonto)}</span>
+                  </div>
                 </div>
-                <div className="flex justify-between items-baseline mt-1">
-                  <span className="text-zinc-500 text-xs">Sugerido/uni</span>
-                  <span className="text-sm font-semibold text-green-400">{formatCurrency(precioComercial(costos.precioFinalUnidad))}</span>
+
+                <div className="border-t border-zinc-800 pt-4">
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-zinc-300 font-semibold">Precio final</span>
+                    <span className="text-2xl font-bold text-[#FA7B21]">{formatCurrency(costos.precioFinal)}</span>
+                  </div>
+                  <div className="flex justify-between items-baseline mt-1">
+                    <span className="text-zinc-500 text-xs">Sugerido</span>
+                    <span className="text-lg font-semibold text-green-400">{formatCurrency(precioComercial(costos.precioFinal))}</span>
+                  </div>
                 </div>
-              </div>
+              </>
             )}
 
             <button
