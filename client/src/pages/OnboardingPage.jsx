@@ -119,18 +119,18 @@ export default function OnboardingPage() {
 
   if (validating) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-        <Loader2 className="animate-spin text-[#FA7B21]" size={32} />
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center">
+        <Loader2 className="animate-spin text-[var(--accent)]" size={32} />
       </div>
     );
   }
 
   if (!inviteToken || !valid) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
         <div className={`${cx.card} p-8 max-w-sm w-full text-center`}>
-          <h2 className="text-white text-lg font-semibold mb-2">Enlace invalido</h2>
-          <p className="text-zinc-400 text-sm">
+          <h2 className="text-stone-800 text-lg font-semibold mb-2">Enlace invalido</h2>
+          <p className="text-stone-500 text-sm">
             Este enlace de invitacion no es valido o ya fue utilizado.
           </p>
         </div>
@@ -140,28 +140,28 @@ export default function OnboardingPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+      <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
         <div className={`${cx.card} p-8 max-w-sm w-full text-center`}>
-          <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center mx-auto mb-4">
-            <span className="text-green-400 text-2xl">&#10003;</span>
+          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
+            <span className="text-emerald-600 text-2xl">&#10003;</span>
           </div>
-          <h2 className="text-white text-lg font-semibold mb-2">Registro completado</h2>
-          <p className="text-zinc-400 text-sm">Redirigiendo al login...</p>
+          <h2 className="text-stone-800 text-lg font-semibold mb-2">Registro completado</h2>
+          <p className="text-stone-500 text-sm">Redirigiendo al login...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
       <div className={`${cx.card} w-full max-w-lg p-8`}>
         <div className="flex flex-col items-center mb-6">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center mb-3">
+          <div className="w-12 h-12 rounded-2xl bg-[var(--accent)] flex items-center justify-center mb-3">
             <Calculator size={24} className="text-white" />
           </div>
-          <h1 className="text-xl font-bold text-white">Completa tu registro</h1>
+          <h1 className="text-xl font-bold text-stone-800">Completa tu registro</h1>
           {inviteData?.email && (
-            <p className="text-zinc-500 text-sm mt-1">{inviteData.email}</p>
+            <p className="text-stone-400 text-sm mt-1">{inviteData.email}</p>
           )}
         </div>
 
@@ -203,13 +203,13 @@ export default function OnboardingPage() {
           </div>
 
           {form.razon_social && (
-            <div className="bg-zinc-800 rounded-xl p-3 space-y-1">
-              <p className="text-xs text-zinc-500">Razon social</p>
-              <p className="text-sm text-white">{form.razon_social}</p>
+            <div className="bg-stone-100 rounded-xl p-3 space-y-1">
+              <p className="text-xs text-stone-400">Razon social</p>
+              <p className="text-sm text-stone-800">{form.razon_social}</p>
               {form.tipo_contribuyente && (
                 <>
-                  <p className="text-xs text-zinc-500 mt-2">Tipo contribuyente</p>
-                  <p className="text-sm text-white">{form.tipo_contribuyente}</p>
+                  <p className="text-xs text-stone-400 mt-2">Tipo contribuyente</p>
+                  <p className="text-sm text-stone-800">{form.tipo_contribuyente}</p>
                 </>
               )}
             </div>
@@ -266,25 +266,25 @@ export default function OnboardingPage() {
             <div>
               <label className={cx.label}>Tasa IGV</label>
               <div className="flex gap-4 mt-1">
-                <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer">
                   <input
                     type="radio"
                     name="igv_rate"
                     value="18"
                     checked={form.igv_rate === '18'}
                     onChange={handleChange('igv_rate')}
-                    className="accent-[#FA7B21]"
+                    className="accent-[var(--accent)]"
                   />
                   18%
                 </label>
-                <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+                <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer">
                   <input
                     type="radio"
                     name="igv_rate"
                     value="10.5"
                     checked={form.igv_rate === '10.5'}
                     onChange={handleChange('igv_rate')}
-                    className="accent-[#FA7B21]"
+                    className="accent-[var(--accent)]"
                   />
                   10.5%
                 </label>
@@ -317,7 +317,7 @@ export default function OnboardingPage() {
           </div>
 
           {error && (
-            <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+            <div className="text-rose-600 text-sm bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
               {error}
             </div>
           )}

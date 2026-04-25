@@ -243,8 +243,8 @@ export default function PrepPredPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-white">Preparaciones Predeterminadas</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">{preps.length} preparaciones</p>
+          <h2 className="text-xl font-bold text-stone-800">Preparaciones Predeterminadas</h2>
+          <p className="text-stone-400 text-sm mt-0.5">{preps.length} preparaciones</p>
         </div>
         <button onClick={startNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={16} /> Nueva Preparacion
@@ -253,7 +253,7 @@ export default function PrepPredPage() {
 
       {/* Edit/create form */}
       {editData && (
-        <div className={`${cx.card} p-5 mb-6 border-[#FA7B21]`}>
+        <div className={`${cx.card} p-5 mb-6 border-[var(--accent)]`}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div>
               <label className={cx.label}>Nombre</label>
@@ -277,7 +277,7 @@ export default function PrepPredPage() {
             </div>
           </div>
 
-          <h4 className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-3">Insumos</h4>
+          <h4 className="text-xs text-stone-400 uppercase tracking-wider font-semibold mb-3">Insumos</h4>
 
           {/* Desktop table */}
           <div className="hidden lg:block mb-3">
@@ -293,7 +293,7 @@ export default function PrepPredPage() {
               </thead>
               <tbody>
                 {editData.insumos.map((ins) => (
-                  <tr key={ins._id} className="border-b border-zinc-800/50 last:border-0">
+                  <tr key={ins._id} className="border-b border-stone-100 last:border-0">
                     <td className="py-2 pr-2">
                       <SearchableSelect
                         options={enrichedInsumos}
@@ -309,12 +309,12 @@ export default function PrepPredPage() {
                           value={ins.cantidad}
                           onChange={(e) => updateInsumo(ins._id, 'cantidad', e.target.value)}
                           placeholder="0"
-                          className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                          className="w-full bg-stone-100 rounded-lg px-3 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
                         />
                         <select
                           value={ins.uso_unidad || ins.unidad_medida || ''}
                           onChange={(e) => updateInsumo(ins._id, 'uso_unidad', e.target.value)}
-                          className="w-10 bg-transparent text-zinc-500 text-xs text-center focus:outline-none appearance-none cursor-pointer"
+                          className="w-10 bg-transparent text-stone-400 text-xs text-center focus:outline-none appearance-none cursor-pointer"
                         >
                           {getUnidadesCompatibles(ins.unidad_medida).map((u) => (
                             <option key={u} value={u}>{u}</option>
@@ -322,14 +322,14 @@ export default function PrepPredPage() {
                         </select>
                       </div>
                     </td>
-                    <td className="py-2 px-2 text-sm text-zinc-400 text-center">
+                    <td className="py-2 px-2 text-sm text-stone-500 text-center">
                       {formatCurrency(costoEnUsoUnidad(ins))}
                     </td>
-                    <td className="py-2 px-2 text-sm text-white font-medium text-right">
+                    <td className="py-2 px-2 text-sm text-stone-800 font-medium text-right">
                       {formatCurrency(costoEnUsoUnidad(ins) * (Number(ins.cantidad) || 0))}
                     </td>
                     <td className="py-2 pl-2">
-                      <button onClick={() => removeInsumo(ins._id)} className={cx.btnIcon + ' hover:text-red-400'}>
+                      <button onClick={() => removeInsumo(ins._id)} className={cx.btnIcon + ' hover:text-rose-600'}>
                         <Trash2 size={14} />
                       </button>
                     </td>
@@ -342,7 +342,7 @@ export default function PrepPredPage() {
           {/* Mobile cards */}
           <div className="space-y-3 lg:hidden mb-3">
             {editData.insumos.map((ins) => (
-              <div key={ins._id} className="bg-zinc-800 rounded-xl p-3 space-y-2">
+              <div key={ins._id} className="bg-stone-100 rounded-xl p-3 space-y-2">
                 <SearchableSelect
                   options={enrichedInsumos}
                   value={ins.insumo_id}
@@ -358,12 +358,12 @@ export default function PrepPredPage() {
                         value={ins.cantidad}
                         onChange={(e) => updateInsumo(ins._id, 'cantidad', e.target.value)}
                         placeholder="0"
-                        className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                        className="w-20 bg-white rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
                       />
                       <select
                         value={ins.uso_unidad || ins.unidad_medida || ''}
                         onChange={(e) => updateInsumo(ins._id, 'uso_unidad', e.target.value)}
-                        className="w-10 bg-transparent text-zinc-500 text-xs text-center focus:outline-none appearance-none cursor-pointer"
+                        className="w-10 bg-transparent text-stone-400 text-xs text-center focus:outline-none appearance-none cursor-pointer"
                       >
                         {getUnidadesCompatibles(ins.unidad_medida).map((u) => (
                           <option key={u} value={u}>{u}</option>
@@ -371,11 +371,11 @@ export default function PrepPredPage() {
                       </select>
                     </div>
                   </div>
-                  <div className="text-xs text-zinc-400 text-right flex-1">
+                  <div className="text-xs text-stone-500 text-right flex-1">
                     <p>Unit: {formatCurrency(costoEnUsoUnidad(ins))}</p>
-                    <p className="text-white font-medium">{formatCurrency(costoEnUsoUnidad(ins) * (Number(ins.cantidad) || 0))}</p>
+                    <p className="text-stone-800 font-medium">{formatCurrency(costoEnUsoUnidad(ins) * (Number(ins.cantidad) || 0))}</p>
                   </div>
-                  <button onClick={() => removeInsumo(ins._id)} className={cx.btnIcon + ' hover:text-red-400'}>
+                  <button onClick={() => removeInsumo(ins._id)} className={cx.btnIcon + ' hover:text-rose-600'}>
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -387,8 +387,8 @@ export default function PrepPredPage() {
           {editData.insumos.some(i => i.insumo_id) && (
             <div className="flex justify-end mb-3 pr-10">
               <div className="text-right">
-                <span className="text-zinc-500 text-xs">Costo total: </span>
-                <span className="text-[#FA7B21] font-semibold text-sm">
+                <span className="text-stone-400 text-xs">Costo total: </span>
+                <span className="text-[var(--accent)] font-semibold text-sm">
                   {formatCurrency(editData.insumos.reduce((s, i) => s + costoEnUsoUnidad(i) * (Number(i.cantidad) || 0), 0))}
                 </span>
               </div>
@@ -418,23 +418,23 @@ export default function PrepPredPage() {
             <div key={prep.id} className={`${cx.card} p-4`}>
               <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [prep.id]: prev[prep.id] === false ? true : false }))}>
                 <div className="flex items-center gap-2 flex-1">
-                  {collapsed[prep.id] === false ? <ChevronUp size={16} className="text-zinc-500 flex-shrink-0" /> : <ChevronDown size={16} className="text-zinc-500 flex-shrink-0" />}
+                  {collapsed[prep.id] === false ? <ChevronUp size={16} className="text-stone-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />}
                   <div>
-                    <h3 className="text-white font-medium text-sm">{prep.nombre}</h3>
-                    <p className="text-zinc-500 text-xs mt-0.5">
+                    <h3 className="text-stone-800 font-medium text-sm">{prep.nombre}</h3>
+                    <p className="text-stone-400 text-xs mt-0.5">
                       {prep.capacidad && `Rinde: ${parseFloat(prep.capacidad)} ${prep.unidad_capacidad || prep.unidad || ''} — `}
                       {(prep.insumos || []).length} insumos
-                      {totalCosto > 0 && <span className="text-[#FA7B21] ml-2 font-semibold">{formatCurrency(totalCosto)}</span>}
+                      {totalCosto > 0 && <span className="text-[var(--accent)] ml-2 font-semibold">{formatCurrency(totalCosto)}</span>}
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => startEdit(prep)} className={cx.btnIcon}><Pencil size={15} /></button>
-                  <button onClick={() => setDeleteTarget(prep)} className={cx.btnIcon + ' hover:text-red-400'}><Trash2 size={15} /></button>
+                  <button onClick={() => setDeleteTarget(prep)} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={15} /></button>
                 </div>
               </div>
               {collapsed[prep.id] === false && (prep.insumos || []).length > 0 && (
-                <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
+                <div className="mt-3 pt-3 border-t border-stone-200 space-y-1">
                   {prep.insumos.map((ins, i) => {
                     const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
                     const cu = costoEnUsoUnidad({ ...ins, costo_unitario: cuBase });
@@ -442,9 +442,9 @@ export default function PrepPredPage() {
                     const unidadMostrar = normU(ins.uso_unidad) || normU(ins.unidad_medida) || '';
                     return (
                       <div key={i} className="flex justify-between text-xs">
-                        <span className="text-zinc-400">{ins.nombre || `Insumo #${ins.insumo_id}`}</span>
-                        <span className="text-zinc-500">
-                          {cant} {unidadMostrar} × {formatCurrency(cu)} = <span className="text-white">{formatCurrency(cu * cant)}</span>
+                        <span className="text-stone-500">{ins.nombre || `Insumo #${ins.insumo_id}`}</span>
+                        <span className="text-stone-400">
+                          {cant} {unidadMostrar} × {formatCurrency(cu)} = <span className="text-stone-800">{formatCurrency(cu * cant)}</span>
                         </span>
                       </div>
                     );

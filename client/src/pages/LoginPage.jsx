@@ -28,14 +28,14 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
       <div className={`${cx.card} w-full max-w-sm p-8`}>
         <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center mb-4 shadow-lg shadow-[#FA7B21]/20">
+          <div className="w-14 h-14 rounded-2xl bg-[var(--accent)] flex items-center justify-center mb-4 shadow-lg shadow-[var(--accent)]/20">
             <Calculator size={28} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-wide">NODUM</h1>
-          <p className="text-zinc-500 text-sm mt-1">Cotizador de productos</p>
+          <h1 className="text-2xl font-bold text-stone-800 tracking-wide">NODUM</h1>
+          <p className="text-stone-400 text-sm mt-1">Cotizador de productos</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,7 +66,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={() => setShowPw(!showPw)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300"
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
               >
                 {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
               </button>
@@ -74,7 +74,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-xl px-3 py-2">
+            <div className="text-rose-600 text-sm bg-rose-50 border border-rose-200 rounded-xl px-3 py-2">
               {error}
             </div>
           )}

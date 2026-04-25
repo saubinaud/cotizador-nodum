@@ -92,20 +92,20 @@ export default function ProyeccionPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
-          <TrendingUp size={20} className="text-white" />
+        <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent)] flex items-center justify-center">
+          <TrendingUp size={20} className="text-stone-800" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-white">Proyección de Ventas</h2>
-          <p className="text-zinc-500 text-xs">Calcula cuánto necesitas vender para alcanzar tu meta</p>
+          <h2 className="text-xl font-bold text-stone-800">Proyección de Ventas</h2>
+          <p className="text-stone-400 text-xs">Calcula cuánto necesitas vender para alcanzar tu meta</p>
         </div>
       </div>
 
       {/* Target input */}
       <div className={`${cx.card} p-5`}>
         <div className="flex items-center gap-2 mb-3">
-          <Target size={16} className="text-[#FA7B21]" />
-          <span className="text-white text-sm font-medium">Meta de ganancia</span>
+          <Target size={16} className="text-[var(--accent)]" />
+          <span className="text-stone-800 text-sm font-medium">Meta de ganancia</span>
         </div>
         <div className="flex flex-col sm:flex-row gap-3">
           <div className="flex-1">
@@ -139,11 +139,11 @@ export default function ProyeccionPage() {
           </div>
         </div>
         {metaGanancia && totalGanancia > 0 && (
-          <div className="mt-3 text-xs text-zinc-500">
+          <div className="mt-3 text-xs text-stone-400">
             {totalGanancia >= Number(metaGanancia) ? (
-              <span className="text-green-400">Meta alcanzada con las cantidades actuales</span>
+              <span className="text-emerald-600">Meta alcanzada con las cantidades actuales</span>
             ) : (
-              <span className="text-amber-400">
+              <span className="text-amber-600">
                 Falta {formatCurrency(Number(metaGanancia) - totalGanancia)} para alcanzar la meta
               </span>
             )}
@@ -153,7 +153,7 @@ export default function ProyeccionPage() {
 
       {products.length === 0 ? (
         <div className={`${cx.card} p-8 text-center`}>
-          <p className="text-zinc-500 text-sm">No hay productos registrados</p>
+          <p className="text-stone-400 text-sm">No hay productos registrados</p>
         </div>
       ) : (
         <>
@@ -167,14 +167,14 @@ export default function ProyeccionPage() {
               return (
                 <div key={p.id} className={`${cx.card} p-4 space-y-3`}>
                   <div className="flex justify-between items-start">
-                    <h3 className="text-white font-medium text-sm">{p.nombre}</h3>
-                    <span className={`text-xs font-semibold ${gUni > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                    <h3 className="text-stone-800 font-medium text-sm">{p.nombre}</h3>
+                    <span className={`text-xs font-semibold ${gUni > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                       {formatCurrency(gUni)}/uni
                     </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2 text-xs text-zinc-400">
-                    <div>Costo neto: <span className="text-white">{formatCurrency(p.costo_neto)}</span></div>
-                    <div>Precio final: <span className="text-white">{formatCurrency(p.precio_final)}</span></div>
+                  <div className="grid grid-cols-2 gap-2 text-xs text-stone-500">
+                    <div>Costo neto: <span className="text-stone-800">{formatCurrency(p.costo_neto)}</span></div>
+                    <div>Precio final: <span className="text-stone-800">{formatCurrency(p.precio_final)}</span></div>
                   </div>
                   <div className="grid grid-cols-2 gap-2">
                     <div>
@@ -202,9 +202,9 @@ export default function ProyeccionPage() {
                     </div>
                   </div>
                   {cant > 0 && (
-                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-zinc-800 pt-2">
-                      <div className="text-zinc-400">Ingreso: <span className="text-white">{formatCurrency(ingreso)}</span></div>
-                      <div className="text-zinc-400">Ganancia: <span className={ganancia >= 0 ? 'text-green-400' : 'text-red-400'}>{formatCurrency(ganancia)}</span></div>
+                    <div className="grid grid-cols-2 gap-2 text-xs border-t border-stone-200 pt-2">
+                      <div className="text-stone-500">Ingreso: <span className="text-stone-800">{formatCurrency(ingreso)}</span></div>
+                      <div className="text-stone-500">Ganancia: <span className={ganancia >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{formatCurrency(ganancia)}</span></div>
                     </div>
                   )}
                 </div>
@@ -216,7 +216,7 @@ export default function ProyeccionPage() {
           <div className={`${cx.card} hidden lg:block overflow-hidden`}>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-800">
+                <tr className="border-b border-stone-200">
                   <th className={cx.th}>Producto</th>
                   <th className={cx.th}>Costo Neto</th>
                   <th className={cx.th}>Precio Final</th>
@@ -235,11 +235,11 @@ export default function ProyeccionPage() {
                   const ganancia = gUni * cant;
                   return (
                     <tr key={p.id} className={cx.tr}>
-                      <td className={cx.td + ' text-white font-medium'}>{p.nombre}</td>
-                      <td className={cx.td + ' text-zinc-400'}>{formatCurrency(p.costo_neto)}</td>
-                      <td className={cx.td + ' text-zinc-400'}>{formatCurrency(p.precio_final)}</td>
+                      <td className={cx.td + ' text-stone-800 font-medium'}>{p.nombre}</td>
+                      <td className={cx.td + ' text-stone-500'}>{formatCurrency(p.costo_neto)}</td>
+                      <td className={cx.td + ' text-stone-500'}>{formatCurrency(p.precio_final)}</td>
                       <td className={cx.td}>
-                        <span className={gUni > 0 ? 'text-green-400' : 'text-red-400'}>
+                        <span className={gUni > 0 ? 'text-emerald-600' : 'text-rose-600'}>
                           {formatCurrency(gUni)}
                         </span>
                       </td>
@@ -264,9 +264,9 @@ export default function ProyeccionPage() {
                           className={cx.input + ' w-24'}
                         />
                       </td>
-                      <td className={cx.td + ' text-right text-white'}>{formatCurrency(ingreso)}</td>
+                      <td className={cx.td + ' text-right text-stone-800'}>{formatCurrency(ingreso)}</td>
                       <td className={cx.td + ' text-right'}>
-                        <span className={ganancia >= 0 ? 'text-green-400' : 'text-red-400'}>
+                        <span className={ganancia >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
                           {formatCurrency(ganancia)}
                         </span>
                       </td>
@@ -283,25 +283,25 @@ export default function ProyeccionPage() {
       {totalUnidades > 0 && (
         <div className={`${cx.card} p-5`}>
           <div className="flex items-center gap-2 mb-4">
-            <Calculator size={16} className="text-[#FA7B21]" />
-            <span className="text-white text-sm font-medium">Resumen de proyección</span>
+            <Calculator size={16} className="text-[var(--accent)]" />
+            <span className="text-stone-800 text-sm font-medium">Resumen de proyección</span>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <div>
-              <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold mb-1">Unidades</p>
-              <p className="text-white text-lg font-bold">{totalUnidades}</p>
+              <p className="text-stone-400 text-[10px] uppercase tracking-widest font-semibold mb-1">Unidades</p>
+              <p className="text-stone-800 text-lg font-bold">{totalUnidades}</p>
             </div>
             <div>
-              <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold mb-1">Ingresos</p>
-              <p className="text-white text-lg font-bold">{formatCurrency(totalIngresos)}</p>
+              <p className="text-stone-400 text-[10px] uppercase tracking-widest font-semibold mb-1">Ingresos</p>
+              <p className="text-stone-800 text-lg font-bold">{formatCurrency(totalIngresos)}</p>
             </div>
             <div>
-              <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold mb-1">Costos</p>
-              <p className="text-zinc-400 text-lg font-bold">{formatCurrency(totalCostos)}</p>
+              <p className="text-stone-400 text-[10px] uppercase tracking-widest font-semibold mb-1">Costos</p>
+              <p className="text-stone-500 text-lg font-bold">{formatCurrency(totalCostos)}</p>
             </div>
             <div>
-              <p className="text-zinc-500 text-[10px] uppercase tracking-widest font-semibold mb-1">Ganancia</p>
-              <p className={`text-lg font-bold ${totalGanancia >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+              <p className="text-stone-400 text-[10px] uppercase tracking-widest font-semibold mb-1">Ganancia</p>
+              <p className={`text-lg font-bold ${totalGanancia >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                 {formatCurrency(totalGanancia)}
               </p>
             </div>

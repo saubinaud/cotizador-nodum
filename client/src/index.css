@@ -1,2 +1,20 @@
 @import "tailwindcss";
 @source ".";
+
+:root {
+  --accent: #f97316;
+  --accent-hover: #ea580c;
+  --accent-light: #fff7ed;
+}
+
+[data-theme="lavanda"] {
+  --accent: #8b5cf6;
+  --accent-hover: #7c3aed;
+  --accent-light: #f5f3ff;
+}
+
+[data-theme="menta"] {
+  --accent: #14b8a6;
+  --accent-hover: #0d9488;
+  --accent-light: #f0fdfa;
+}

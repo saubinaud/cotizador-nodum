@@ -143,8 +143,8 @@ export default function MaterialesPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-white">Materiales</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">{materiales.filter((m) => !m._new).length} materiales registrados</p>
+          <h2 className="text-xl font-bold text-stone-800">Materiales</h2>
+          <p className="text-stone-400 text-sm mt-0.5">{materiales.filter((m) => !m._new).length} materiales registrados</p>
         </div>
         <button onClick={addNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={16} /> Nuevo Material
@@ -153,7 +153,7 @@ export default function MaterialesPage() {
 
       {materiales.length > 0 && (
         <div className="mb-4 relative">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
           <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Buscar material..." className={cx.input + ' pl-9'} />
         </div>
       )}
@@ -164,7 +164,7 @@ export default function MaterialesPage() {
           const isEditing = editingId === (mat._new ? 'new' : mat.id);
           if (isEditing) {
             return (
-              <div key={mat.id || `new-${idx}`} className={`${cx.card} p-4 border-[#FA7B21] space-y-3`}>
+              <div key={mat.id || `new-${idx}`} className={`${cx.card} p-4 border-[var(--accent)] space-y-3`}>
                 <input type="text" value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} onBlur={(e) => { const v = e.target.value.trim(); if (v) setEditData({ ...editData, nombre: v.charAt(0).toUpperCase() + v.slice(1) }); }} placeholder="Nombre" className={cx.input} autoFocus />
                 <input type="text" value={editData.proveedor || ''} onChange={(e) => setEditData({ ...editData, proveedor: e.target.value })} placeholder="Proveedor (opcional)" className={cx.input} />
                 <div className="grid grid-cols-3 gap-2">
@@ -185,15 +185,15 @@ export default function MaterialesPage() {
             <div key={mat.id} className={`${cx.card} p-4`}>
               <div className="flex justify-between items-start">
                 <div>
-                  <h3 className="text-white font-medium text-sm">{mat.nombre}</h3>
-                  <p className="text-zinc-500 text-xs mt-1">
+                  <h3 className="text-stone-800 font-medium text-sm">{mat.nombre}</h3>
+                  <p className="text-stone-400 text-xs mt-1">
                     {mat.proveedor && <span>{mat.proveedor} - </span>}
                     {mat.cantidad_presentacion} {mat.unidad_medida} - {formatCurrency(mat.precio_presentacion)}
                   </p>
                 </div>
-                <span className="text-[#FA7B21] text-sm font-semibold">{formatCurrency(costoUnitario(mat))}/{mat.unidad_medida}</span>
+                <span className="text-[var(--accent)] text-sm font-semibold">{formatCurrency(costoUnitario(mat))}/{mat.unidad_medida}</span>
               </div>
-              <div className="flex gap-2 mt-3 border-t border-zinc-800 pt-3">
+              <div className="flex gap-2 mt-3 border-t border-stone-200 pt-3">
                 <button onClick={() => startEdit(mat)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}><Pencil size={13} /> Editar</button>
                 <button onClick={() => setDeleteTarget(mat)} className={cx.btnDanger + ' flex items-center justify-center gap-1'}><Trash2 size={13} /></button>
               </div>
@@ -206,7 +206,7 @@ export default function MaterialesPage() {
       <div className={`${cx.card} hidden lg:block overflow-hidden`}>
         <table className="w-full">
           <thead>
-            <tr className="border-b border-zinc-800">
+            <tr className="border-b border-stone-200">
               <th className={cx.th}>Nombre</th>
               <th className={cx.th}>Proveedor</th>
               <th className={cx.th}>Presentacion</th>
@@ -221,7 +221,7 @@ export default function MaterialesPage() {
               const isEditing = editingId === (mat._new ? 'new' : mat.id);
               if (isEditing) {
                 return (
-                  <tr key={mat.id || `new-${idx}`} className="border-b border-[#FA7B21]/30">
+                  <tr key={mat.id || `new-${idx}`} className="border-b border-[var(--accent)]/30">
                     <td className={cx.td}><input type="text" value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} onBlur={(e) => { const v = e.target.value.trim(); if (v) setEditData({ ...editData, nombre: v.charAt(0).toUpperCase() + v.slice(1) }); }} className={cx.input} autoFocus /></td>
                     <td className={cx.td}><input type="text" value={editData.proveedor || ''} onChange={(e) => setEditData({ ...editData, proveedor: e.target.value })} className={cx.input} /></td>
                     <td className={cx.td}><input type="number" value={editData.cantidad_presentacion} onChange={(e) => setEditData({ ...editData, cantidad_presentacion: e.target.value })} className={cx.input} /></td>
@@ -231,10 +231,10 @@ export default function MaterialesPage() {
                       </select>
                     </td>
                     <td className={cx.td}><input type="number" step="0.01" value={editData.precio_presentacion} onChange={(e) => setEditData({ ...editData, precio_presentacion: e.target.value })} className={cx.input} /></td>
-                    <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(costoUnitario(editData))}</td>
+                    <td className={cx.td + ' text-[var(--accent)] font-semibold'}>{formatCurrency(costoUnitario(editData))}</td>
                     <td className={cx.td + ' text-right'}>
                       <div className="flex justify-end gap-1">
-                        <button onClick={saveEdit} className={cx.btnIcon + ' text-green-400 hover:text-green-300'}><Save size={15} /></button>
+                        <button onClick={saveEdit} className={cx.btnIcon + ' text-emerald-600 hover:text-emerald-500'}><Save size={15} /></button>
                         <button onClick={cancelEdit} className={cx.btnIcon}><X size={15} /></button>
                       </div>
                     </td>
@@ -243,16 +243,16 @@ export default function MaterialesPage() {
               }
               return (
                 <tr key={mat.id} className={cx.tr}>
-                  <td className={cx.td + ' text-white font-medium'}>{mat.nombre}</td>
-                  <td className={cx.td + ' text-zinc-400'}>{mat.proveedor || '-'}</td>
-                  <td className={cx.td + ' text-zinc-300'}>{mat.cantidad_presentacion}</td>
-                  <td className={cx.td + ' text-zinc-300'}>{mat.unidad_medida}</td>
-                  <td className={cx.td + ' text-zinc-300'}>{formatCurrency(mat.precio_presentacion)}</td>
-                  <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(costoUnitario(mat))}/{mat.unidad_medida}</td>
+                  <td className={cx.td + ' text-stone-800 font-medium'}>{mat.nombre}</td>
+                  <td className={cx.td + ' text-stone-500'}>{mat.proveedor || '-'}</td>
+                  <td className={cx.td + ' text-stone-600'}>{mat.cantidad_presentacion}</td>
+                  <td className={cx.td + ' text-stone-600'}>{mat.unidad_medida}</td>
+                  <td className={cx.td + ' text-stone-600'}>{formatCurrency(mat.precio_presentacion)}</td>
+                  <td className={cx.td + ' text-[var(--accent)] font-semibold'}>{formatCurrency(costoUnitario(mat))}/{mat.unidad_medida}</td>
                   <td className={cx.td + ' text-right'}>
                     <div className="flex justify-end gap-1">
                       <button onClick={() => startEdit(mat)} className={cx.btnIcon}><Pencil size={15} /></button>
-                      <button onClick={() => setDeleteTarget(mat)} className={cx.btnIcon + ' hover:text-red-400'}><Trash2 size={15} /></button>
+                      <button onClick={() => setDeleteTarget(mat)} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={15} /></button>
                     </div>
                   </td>
                 </tr>

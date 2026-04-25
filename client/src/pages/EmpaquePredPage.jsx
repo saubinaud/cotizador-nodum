@@ -145,8 +145,8 @@ export default function EmpaquePredPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-white">Empaques Predeterminados</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">{empaques.length} empaques</p>
+          <h2 className="text-xl font-bold text-stone-800">Empaques Predeterminados</h2>
+          <p className="text-stone-400 text-sm mt-0.5">{empaques.length} empaques</p>
         </div>
         <button onClick={startNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={16} /> Nuevo Empaque
@@ -155,7 +155,7 @@ export default function EmpaquePredPage() {
 
       {/* Edit/create form */}
       {editData && (
-        <div className={`${cx.card} p-5 mb-6 border-[#FA7B21]`}>
+        <div className={`${cx.card} p-5 mb-6 border-[var(--accent)]`}>
           <div className="mb-4">
             <label className={cx.label}>Nombre del empaque</label>
             <input
@@ -168,7 +168,7 @@ export default function EmpaquePredPage() {
             />
           </div>
 
-          <h4 className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-3">Materiales</h4>
+          <h4 className="text-xs text-stone-400 uppercase tracking-wider font-semibold mb-3">Materiales</h4>
 
           {/* Desktop table */}
           <div className="hidden lg:block mb-3">
@@ -184,7 +184,7 @@ export default function EmpaquePredPage() {
               </thead>
               <tbody>
                 {editData.materiales.map((mat) => (
-                  <tr key={mat._id} className="border-b border-zinc-800/50 last:border-0">
+                  <tr key={mat._id} className="border-b border-stone-100 last:border-0">
                     <td className="py-2 pr-2">
                       <SearchableSelect
                         options={catalogMateriales}
@@ -200,19 +200,19 @@ export default function EmpaquePredPage() {
                           value={mat.cantidad}
                           onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
                           placeholder="1"
-                          className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                          className="w-full bg-stone-100 rounded-lg px-3 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
                         />
-                        <span className="text-zinc-500 text-xs">{mat.unidad_medida || ''}</span>
+                        <span className="text-stone-400 text-xs">{mat.unidad_medida || ''}</span>
                       </div>
                     </td>
-                    <td className="py-2 px-2 text-sm text-zinc-400 text-center">
+                    <td className="py-2 px-2 text-sm text-stone-500 text-center">
                       {formatCurrency(mat.precio)}
                     </td>
-                    <td className="py-2 px-2 text-sm text-white font-medium text-right">
+                    <td className="py-2 px-2 text-sm text-stone-800 font-medium text-right">
                       {formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}
                     </td>
                     <td className="py-2 pl-2">
-                      <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-red-400'}>
+                      <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-rose-600'}>
                         <Trash2 size={14} />
                       </button>
                     </td>
@@ -225,7 +225,7 @@ export default function EmpaquePredPage() {
           {/* Mobile cards */}
           <div className="space-y-3 lg:hidden mb-3">
             {editData.materiales.map((mat) => (
-              <div key={mat._id} className="bg-zinc-800 rounded-xl p-3 space-y-2">
+              <div key={mat._id} className="bg-stone-100 rounded-xl p-3 space-y-2">
                 <SearchableSelect
                   options={catalogMateriales}
                   value={mat.material_id}
@@ -241,16 +241,16 @@ export default function EmpaquePredPage() {
                         value={mat.cantidad}
                         onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
                         placeholder="1"
-                        className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                        className="w-20 bg-white rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
                       />
-                      <span className="text-zinc-500 text-xs">{mat.unidad_medida || ''}</span>
+                      <span className="text-stone-400 text-xs">{mat.unidad_medida || ''}</span>
                     </div>
                   </div>
-                  <div className="text-xs text-zinc-400 text-right flex-1">
+                  <div className="text-xs text-stone-500 text-right flex-1">
                     <p>Unit: {formatCurrency(mat.precio)}</p>
-                    <p className="text-white font-medium">{formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}</p>
+                    <p className="text-stone-800 font-medium">{formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}</p>
                   </div>
-                  <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-red-400'}>
+                  <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-rose-600'}>
                     <Trash2 size={14} />
                   </button>
                 </div>
@@ -262,8 +262,8 @@ export default function EmpaquePredPage() {
           {editData.materiales.some((m) => m.material_id) && (
             <div className="flex justify-end mb-3 pr-10">
               <div className="text-right">
-                <span className="text-zinc-500 text-xs">Costo total: </span>
-                <span className="text-[#FA7B21] font-semibold text-sm">
+                <span className="text-stone-400 text-xs">Costo total: </span>
+                <span className="text-[var(--accent)] font-semibold text-sm">
                   {formatCurrency(editData.materiales.reduce((s, m) => s + (Number(m.precio) || 0) * (Number(m.cantidad) || 0), 0))}
                 </span>
               </div>
@@ -292,30 +292,30 @@ export default function EmpaquePredPage() {
             <div key={emp.id} className={`${cx.card} p-4`}>
               <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [emp.id]: prev[emp.id] === false ? true : false }))}>
                 <div className="flex items-center gap-2 flex-1">
-                  {collapsed[emp.id] === false ? <ChevronUp size={16} className="text-zinc-500 flex-shrink-0" /> : <ChevronDown size={16} className="text-zinc-500 flex-shrink-0" />}
+                  {collapsed[emp.id] === false ? <ChevronUp size={16} className="text-stone-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />}
                   <div>
-                    <h3 className="text-white font-medium text-sm">{emp.nombre}</h3>
-                    <p className="text-zinc-500 text-xs mt-0.5">
+                    <h3 className="text-stone-800 font-medium text-sm">{emp.nombre}</h3>
+                    <p className="text-stone-400 text-xs mt-0.5">
                       {(emp.materiales || []).length} materiales
-                      {totalCosto > 0 && <span className="text-[#FA7B21] ml-2 font-semibold">{formatCurrency(totalCosto)}</span>}
+                      {totalCosto > 0 && <span className="text-[var(--accent)] ml-2 font-semibold">{formatCurrency(totalCosto)}</span>}
                     </p>
                   </div>
                 </div>
                 <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                   <button onClick={() => startEdit(emp)} className={cx.btnIcon}><Pencil size={15} /></button>
-                  <button onClick={() => setDeleteTarget(emp)} className={cx.btnIcon + ' hover:text-red-400'}><Trash2 size={15} /></button>
+                  <button onClick={() => setDeleteTarget(emp)} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={15} /></button>
                 </div>
               </div>
               {collapsed[emp.id] === false && (emp.materiales || []).length > 0 && (
-                <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
+                <div className="mt-3 pt-3 border-t border-stone-200 space-y-1">
                   {emp.materiales.map((m, i) => {
                     const pu = Number(m.cantidad_presentacion) > 0 ? Number(m.precio_presentacion) / Number(m.cantidad_presentacion) : 0;
                     const cant = parseFloat(m.cantidad) || 0;
                     return (
                       <div key={i} className="flex justify-between text-xs">
-                        <span className="text-zinc-400">{m.nombre || `Material #${m.material_id}`}</span>
-                        <span className="text-zinc-500">
-                          {cant} {m.unidad_medida || ''} × {formatCurrency(pu)} = <span className="text-white">{formatCurrency(pu * cant)}</span>
+                        <span className="text-stone-500">{m.nombre || `Material #${m.material_id}`}</span>
+                        <span className="text-stone-400">
+                          {cant} {m.unidad_medida || ''} × {formatCurrency(pu)} = <span className="text-stone-800">{formatCurrency(pu * cant)}</span>
                         </span>
                       </div>
                     );

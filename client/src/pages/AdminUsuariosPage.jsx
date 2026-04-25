@@ -137,8 +137,8 @@ export default function AdminUsuariosPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-white">Usuarios</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">{users.length} usuarios registrados</p>
+          <h2 className="text-xl font-bold text-stone-800">Usuarios</h2>
+          <p className="text-stone-400 text-sm mt-0.5">{users.length} usuarios registrados</p>
         </div>
         <button onClick={() => { setShowCreate(true); setOnboardingLink(''); }} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <UserPlus size={16} /> Nuevo Usuario
@@ -147,15 +147,15 @@ export default function AdminUsuariosPage() {
 
       {/* Create form modal */}
       {showCreate && (
-        <div className={`${cx.card} p-5 mb-6 border-[#FA7B21]`}>
+        <div className={`${cx.card} p-5 mb-6 border-[var(--accent)]`}>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-white font-semibold">Crear usuario</h3>
+            <h3 className="text-stone-800 font-semibold">Crear usuario</h3>
             <button onClick={() => { setShowCreate(false); setOnboardingLink(''); }} className={cx.btnIcon}><X size={16} /></button>
           </div>
 
           {onboardingLink ? (
             <div className="space-y-3">
-              <p className="text-zinc-400 text-sm">Enlace de onboarding generado:</p>
+              <p className="text-stone-500 text-sm">Enlace de onboarding generado:</p>
               <div className="flex gap-2">
                 <input type="text" value={onboardingLink} readOnly className={cx.input + ' text-xs'} />
                 <button onClick={copyLink} className={cx.btnSecondary + ' flex items-center gap-1'}>
@@ -216,12 +216,12 @@ export default function AdminUsuariosPage() {
                 <label className={cx.label}>Modulos con acceso</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
                   {ALL_MODULES.map((m) => (
-                    <label key={m.key} className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer hover:text-white">
+                    <label key={m.key} className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer hover:text-stone-800">
                       <input
                         type="checkbox"
                         checked={createForm.permisos.includes(m.key)}
                         onChange={() => toggleCreatePermiso(m.key)}
-                        className="accent-[#FA7B21] w-4 h-4"
+                        className="accent-[var(--accent)] w-4 h-4"
                       />
                       {m.label}
                     </label>
@@ -246,20 +246,20 @@ export default function AdminUsuariosPage() {
           <div key={u.id} className={`${cx.card} p-4`}>
             <div className="flex justify-between items-start">
               <div>
-                <h3 className="text-white font-medium text-sm">{u.nombre || u.email}</h3>
-                <p className="text-zinc-500 text-xs mt-0.5">{u.email}</p>
-                <p className="text-zinc-600 text-xs mt-1">{u.empresa || u.nombre_comercial || '-'}</p>
+                <h3 className="text-stone-800 font-medium text-sm">{u.nombre || u.email}</h3>
+                <p className="text-stone-400 text-xs mt-0.5">{u.email}</p>
+                <p className="text-stone-400 text-xs mt-1">{u.empresa || u.nombre_comercial || '-'}</p>
               </div>
               <div className="flex items-center gap-2">
-                {u.rol === 'admin' && <span className={cx.badge('bg-purple-500/10 text-purple-400')}>admin</span>}
-                <span className={cx.badge(u.estado === 'activo' ? 'bg-green-500/10 text-green-400' : 'bg-red-500/10 text-red-400')}>
+                {u.rol === 'admin' && <span className={cx.badge('bg-violet-50 text-violet-600')}>admin</span>}
+                <span className={cx.badge(u.estado === 'activo' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600')}>
                   {u.estado}
                 </span>
               </div>
             </div>
             <div className="flex flex-wrap gap-1 mt-2">
               {(Array.isArray(u.permisos) ? u.permisos : DEFAULT_PERMISOS).map((p) => (
-                <span key={p} className="text-[10px] px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded">{p}</span>
+                <span key={p} className="text-[10px] px-1.5 py-0.5 bg-stone-100 text-stone-600 rounded">{p}</span>
               ))}
             </div>
             {u.estado === 'pendiente' && u.onboarding_token && (
@@ -278,7 +278,7 @@ export default function AdminUsuariosPage() {
                 </button>
               </div>
             )}
-            <div className="flex gap-2 mt-3 border-t border-zinc-800 pt-3">
+            <div className="flex gap-2 mt-3 border-t border-stone-200 pt-3">
               <button
                 onClick={() => startEditPermisos(u)}
                 className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}
@@ -287,7 +287,7 @@ export default function AdminUsuariosPage() {
               </button>
               <button
                 onClick={() => toggleStatus(u)}
-                className={`${u.estado === 'activo' ? cx.btnDanger : cx.btnGhost + ' text-green-400'} flex-1 flex items-center justify-center gap-1`}
+                className={`${u.estado === 'activo' ? cx.btnDanger : cx.btnGhost + ' text-emerald-600'} flex-1 flex items-center justify-center gap-1`}
               >
                 {u.estado === 'activo' ? <><Ban size={13} /> Suspender</> : <><CheckCircle size={13} /> Reactivar</>}
               </button>
@@ -303,7 +303,7 @@ export default function AdminUsuariosPage() {
       <div className={`${cx.card} hidden lg:block overflow-hidden`}>
         <table className="w-full">
           <thead>
-            <tr className="border-b border-zinc-800">
+            <tr className="border-b border-stone-200">
               <th className={cx.th}>Nombre</th>
               <th className={cx.th}>Email</th>
               <th className={cx.th}>Negocio</th>
@@ -316,24 +316,24 @@ export default function AdminUsuariosPage() {
           <tbody>
             {users.map((u) => (
               <tr key={u.id} className={cx.tr}>
-                <td className={cx.td + ' text-white font-medium'}>{u.nombre || '-'}</td>
-                <td className={cx.td + ' text-zinc-300'}>{u.email}</td>
-                <td className={cx.td + ' text-zinc-400'}>{u.empresa || u.nombre_comercial || '-'}</td>
+                <td className={cx.td + ' text-stone-800 font-medium'}>{u.nombre || '-'}</td>
+                <td className={cx.td + ' text-stone-600'}>{u.email}</td>
+                <td className={cx.td + ' text-stone-500'}>{u.empresa || u.nombre_comercial || '-'}</td>
                 <td className={cx.td}>
-                  <span className={cx.badge(u.rol === 'admin' ? 'bg-purple-500/10 text-purple-400' : 'bg-zinc-800 text-zinc-400')}>
+                  <span className={cx.badge(u.rol === 'admin' ? 'bg-violet-50 text-violet-600' : 'bg-stone-100 text-stone-600')}>
                     {u.rol}
                   </span>
                 </td>
-                <td className={cx.td + ' text-zinc-500'}>{formatDate(u.created_at)}</td>
+                <td className={cx.td + ' text-stone-400'}>{formatDate(u.created_at)}</td>
                 <td className={cx.td}>
                   <div className="flex items-center gap-2">
-                    <span className={cx.badge(u.estado === 'activo' ? 'bg-green-500/10 text-green-400' : u.estado === 'pendiente' ? 'bg-amber-500/10 text-amber-400' : 'bg-red-500/10 text-red-400')}>
+                    <span className={cx.badge(u.estado === 'activo' ? 'bg-emerald-50 text-emerald-600' : u.estado === 'pendiente' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600')}>
                       {u.estado}
                     </span>
                     {u.estado === 'pendiente' && u.onboarding_token && (
                       <button
                         onClick={() => { navigator.clipboard.writeText(`${window.location.href.split('#')[0]}#/onboarding?token=${u.onboarding_token}`); toast.success('Link copiado'); }}
-                        className={cx.btnIcon + ' text-amber-400'} title="Copiar link onboarding"
+                        className={cx.btnIcon + ' text-amber-600'} title="Copiar link onboarding"
                       >
                         <Copy size={13} />
                       </button>
@@ -347,11 +347,11 @@ export default function AdminUsuariosPage() {
                     </button>
                     <button
                       onClick={() => toggleStatus(u)}
-                      className={u.estado === 'activo' ? cx.btnDanger : cx.btnGhost + ' text-green-400'}
+                      className={u.estado === 'activo' ? cx.btnDanger : cx.btnGhost + ' text-emerald-600'}
                     >
                       {u.estado === 'activo' ? 'Suspender' : 'Reactivar'}
                     </button>
-                    <button onClick={() => setDeleteTarget(u)} className={cx.btnIcon + ' hover:text-red-400'} title="Eliminar">
+                    <button onClick={() => setDeleteTarget(u)} className={cx.btnIcon + ' hover:text-rose-600'} title="Eliminar">
                       <Trash2 size={15} />
                     </button>
                   </div>
@@ -367,15 +367,15 @@ export default function AdminUsuariosPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setEditPermisos(null)} />
           <div className={`${cx.card} relative p-6 w-full max-w-sm mx-4`}>
-            <h3 className="text-white font-semibold mb-4">Modulos con acceso</h3>
+            <h3 className="text-stone-800 font-semibold mb-4">Modulos con acceso</h3>
             <div className="space-y-3">
               {ALL_MODULES.map((m) => (
-                <label key={m.key} className="flex items-center gap-3 text-sm text-zinc-300 cursor-pointer hover:text-white">
+                <label key={m.key} className="flex items-center gap-3 text-sm text-stone-600 cursor-pointer hover:text-stone-800">
                   <input
                     type="checkbox"
                     checked={editPermisos.permisos.includes(m.key)}
                     onChange={() => toggleEditPermiso(m.key)}
-                    className="accent-[#FA7B21] w-4 h-4"
+                    className="accent-[var(--accent)] w-4 h-4"
                   />
                   {m.label}
                 </label>

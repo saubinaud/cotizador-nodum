@@ -131,7 +131,7 @@ export default function PerfilPage() {
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <h2 className="text-xl font-bold text-white">Mi Perfil</h2>
+      <h2 className="text-xl font-bold text-stone-800">Mi Perfil</h2>
 
       {/* Profile info */}
       <div className={`${cx.card} p-5`}>
@@ -141,7 +141,7 @@ export default function PerfilPage() {
               {user?.logo_url ? (
                 <img src={user.logo_url} alt="Logo" className="w-16 h-16 rounded-2xl object-cover" />
               ) : (
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
+                <div className="w-16 h-16 rounded-2xl bg-[var(--accent)] flex items-center justify-center">
                   <User size={28} className="text-white" />
                 </div>
               )}
@@ -161,8 +161,8 @@ export default function PerfilPage() {
               </label>
             </div>
             <div>
-              <h3 className="text-white font-semibold text-lg">{user?.nombre || 'Usuario'}</h3>
-              <p className="text-zinc-500 text-sm">{user?.email}</p>
+              <h3 className="text-stone-800 font-semibold text-lg">{user?.nombre || 'Usuario'}</h3>
+              <p className="text-stone-400 text-sm">{user?.email}</p>
             </div>
           </div>
           {!editing && (
@@ -279,49 +279,78 @@ export default function PerfilPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={cx.label}>DNI</label>
-              <p className="text-white text-sm">{user?.dni || '-'}</p>
+              <p className="text-stone-800 text-sm">{user?.dni || '-'}</p>
             </div>
             <div>
               <label className={cx.label}>RUC</label>
-              <p className="text-white text-sm">{user?.ruc || '-'}</p>
+              <p className="text-stone-800 text-sm">{user?.ruc || '-'}</p>
             </div>
             <div>
               <label className={cx.label}>Nombre comercial</label>
-              <p className="text-white text-sm">{user?.empresa || user?.nombre_comercial || '-'}</p>
+              <p className="text-stone-800 text-sm">{user?.empresa || user?.nombre_comercial || '-'}</p>
             </div>
             <div>
               <label className={cx.label}>Razon social</label>
-              <p className="text-white text-sm">{user?.razon_social || '-'}</p>
+              <p className="text-stone-800 text-sm">{user?.razon_social || '-'}</p>
             </div>
             <div>
               <label className={cx.label}>Tipo de negocio</label>
-              <p className="text-white text-sm">{user?.tipo_negocio === 'informal' ? 'Informal (no paga IGV)' : 'Formal'}</p>
+              <p className="text-stone-800 text-sm">{user?.tipo_negocio === 'informal' ? 'Informal (no paga IGV)' : 'Formal'}</p>
             </div>
             <div>
               <label className={cx.label}>Tasa IGV</label>
-              <p className="text-white text-sm">{user?.tipo_negocio === 'informal' ? 'No aplica' : `${igvDisplay}%`}</p>
+              <p className="text-stone-800 text-sm">{user?.tipo_negocio === 'informal' ? 'No aplica' : `${igvDisplay}%`}</p>
             </div>
             <div>
               <label className={cx.label}>Pais</label>
-              <p className="text-white text-sm">{getPaisByCode(user?.pais)?.name || user?.pais || 'Peru'}</p>
+              <p className="text-stone-800 text-sm">{getPaisByCode(user?.pais)?.name || user?.pais || 'Peru'}</p>
             </div>
             <div>
               <label className={cx.label}>Moneda</label>
-              <p className="text-white text-sm">{user?.moneda || 'PEN'} ({user?.simbolo || 'S/'})</p>
+              <p className="text-stone-800 text-sm">{user?.moneda || 'PEN'} ({user?.simbolo || 'S/'})</p>
             </div>
             <div>
               <label className={cx.label}>Rol</label>
-              <p className="text-white text-sm capitalize">{user?.rol || 'cliente'}</p>
+              <p className="text-stone-800 text-sm capitalize">{user?.rol || 'cliente'}</p>
             </div>
           </div>
         )}
       </div>
 
+      {/* Theme selector */}
+      <div className={`${cx.card} p-5`}>
+        <h3 className="text-stone-800 font-semibold mb-3">Tema</h3>
+        <div className="flex gap-3">
+          {[
+            { key: 'coral', color: '#f97316', name: 'Coral' },
+            { key: 'lavanda', color: '#8b5cf6', name: 'Lavanda' },
+            { key: 'menta', color: '#14b8a6', name: 'Menta' },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => {
+                localStorage.setItem('nodum_theme', t.key);
+                document.documentElement.setAttribute('data-theme', t.key);
+                window.location.reload();
+              }}
+              className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
+                (localStorage.getItem('nodum_theme') || 'coral') === t.key
+                  ? 'border-[var(--accent)] bg-[var(--accent-light)]'
+                  : 'border-stone-200 hover:border-stone-300'
+              }`}
+            >
+              <div className="w-8 h-8 rounded-full" style={{ background: t.color }} />
+              <span className="text-xs text-stone-600 font-medium">{t.name}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* Change password */}
       <div className={`${cx.card} p-5`}>
         <div className="flex items-center gap-2 mb-4">
-          <Lock size={16} className="text-zinc-400" />
-          <h3 className="text-white font-semibold">Cambiar contrasena</h3>
+          <Lock size={16} className="text-stone-400" />
+          <h3 className="text-stone-800 font-semibold">Cambiar contrasena</h3>
         </div>
 
         <form onSubmit={handleChangePassword} className="space-y-4">

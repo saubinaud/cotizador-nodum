@@ -233,8 +233,8 @@ export default function DashboardPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-white">Mis Productos</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">{products.length} productos</p>
+          <h2 className="text-xl font-bold text-stone-800">Mis Productos</h2>
+          <p className="text-stone-400 text-sm mt-0.5">{products.length} productos</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -243,7 +243,7 @@ export default function DashboardPage() {
             className={cx.btnSecondary + ' flex items-center gap-2'}
             title="Exportar recetas completas"
           >
-            {exporting ? <div className="w-4 h-4 border-2 border-zinc-500 border-t-white rounded-full animate-spin" /> : <Download size={16} />}
+            {exporting ? <div className="w-4 h-4 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" /> : <Download size={16} />}
           </button>
           <button
             onClick={() => navigate('/cotizador')}
@@ -258,7 +258,7 @@ export default function DashboardPage() {
       {products.length > 0 && (
         <div className="mb-4 flex gap-2 items-center">
           <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500" />
+            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
             <input
               type="text"
               value={search}
@@ -269,14 +269,14 @@ export default function DashboardPage() {
           </div>
           <button
             onClick={() => setViewMode('gallery')}
-            className={`${cx.btnIcon} ${viewMode === 'gallery' ? 'text-[#FA7B21]' : ''}`}
+            className={`${cx.btnIcon} ${viewMode === 'gallery' ? 'text-[var(--accent)]' : ''}`}
             title="Vista galeria"
           >
             <Grid3X3 size={18} />
           </button>
           <button
             onClick={() => setViewMode('table')}
-            className={`${cx.btnIcon} ${viewMode === 'table' ? 'text-[#FA7B21]' : ''}`}
+            className={`${cx.btnIcon} ${viewMode === 'table' ? 'text-[var(--accent)]' : ''}`}
             title="Vista lista"
           >
             <LayoutList size={18} />
@@ -293,35 +293,35 @@ export default function DashboardPage() {
             {prods.map((p) => (
               <div key={p.id} className={`${cx.card} overflow-hidden cursor-pointer group relative`} onClick={() => handleDetail(p)}>
                 {p.tipo_presentacion === 'entero' && p.unidades_por_producto > 1 && (
-                  <span className="absolute top-2 left-2 bg-[#FA7B21] text-white text-[10px] font-bold px-2 py-0.5 rounded-lg z-10">
+                  <span className="absolute top-2 left-2 bg-[var(--accent)] text-white text-[10px] font-bold px-2 py-0.5 rounded-lg z-10">
                     {p.unidades_por_producto} porciones
                   </span>
                 )}
                 {p.imagen_url ? (
-                  <div className="aspect-[4/3] bg-zinc-800 overflow-hidden">
+                  <div className="aspect-[4/3] bg-stone-100 overflow-hidden">
                     <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                   </div>
                 ) : (
-                  <div className="aspect-[4/3] bg-zinc-800 flex items-center justify-center">
-                    <Package size={32} className="text-zinc-700" />
+                  <div className="aspect-[4/3] bg-stone-100 flex items-center justify-center">
+                    <Package size={32} className="text-stone-300" />
                   </div>
                 )}
                 <div className="p-3">
-                  <h3 className="text-white text-sm font-medium truncate">{p.nombre}</h3>
+                  <h3 className="text-stone-800 text-sm font-medium truncate">{p.nombre}</h3>
                   <div className="flex justify-between items-center mt-2">
-                    <span className="text-zinc-500 text-xs">Margen: {formatPercent(p.margen)}</span>
-                    <span className="text-[#FA7B21] font-bold text-sm">{formatCurrency(precioComercial(p.precio_final))}</span>
+                    <span className="text-stone-400 text-xs">Margen: {formatPercent(p.margen)}</span>
+                    <span className="text-[var(--accent)] font-bold text-sm">{formatCurrency(precioComercial(p.precio_final))}</span>
                   </div>
                 </div>
                 {/* Action buttons */}
                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => handleDuplicate(p)} className="bg-zinc-900/80 backdrop-blur rounded-lg p-1.5 text-zinc-400 hover:text-white" title="Duplicar">
+                  <button onClick={() => handleDuplicate(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-stone-800" title="Duplicar">
                     <Copy size={13} />
                   </button>
-                  <button onClick={() => handleHistory(p)} className="bg-zinc-900/80 backdrop-blur rounded-lg p-1.5 text-zinc-400 hover:text-white" title="Historial">
+                  <button onClick={() => handleHistory(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-stone-800" title="Historial">
                     <History size={13} />
                   </button>
-                  <button onClick={() => setDeleteTarget(p)} className="bg-zinc-900/80 backdrop-blur rounded-lg p-1.5 text-zinc-400 hover:text-red-400" title="Eliminar">
+                  <button onClick={() => setDeleteTarget(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-rose-600" title="Eliminar">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -336,16 +336,16 @@ export default function DashboardPage() {
               <div key={p.id} className={`${cx.card} p-4`}>
                 <div className="flex justify-between items-start mb-3">
                   <div>
-                    <h3 className="text-white font-medium text-sm">{p.nombre}</h3>
-                    <p className="text-zinc-500 text-xs mt-0.5">{formatDate(p.updated_at)}</p>
+                    <h3 className="text-stone-800 font-medium text-sm">{p.nombre}</h3>
+                    <p className="text-stone-400 text-xs mt-0.5">{formatDate(p.updated_at)}</p>
                   </div>
-                  <span className="text-[#FA7B21] font-bold text-lg">{formatCurrency(precioComercial(p.precio_final))}</span>
+                  <span className="text-[var(--accent)] font-bold text-lg">{formatCurrency(precioComercial(p.precio_final))}</span>
                 </div>
-                <div className="flex gap-4 text-xs text-zinc-400 mb-3">
+                <div className="flex gap-4 text-xs text-stone-500 mb-3">
                   <span>Costo: {formatCurrency(p.costo_neto)}</span>
                   <span>Margen: {formatPercent(p.margen)}</span>
                 </div>
-                <div className="flex gap-2 border-t border-zinc-800 pt-3">
+                <div className="flex gap-2 border-t border-stone-200 pt-3">
                   <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}>
                     <Pencil size={13} /> Editar
                   </button>
@@ -368,7 +368,7 @@ export default function DashboardPage() {
           <div className={`${cx.card} hidden lg:block overflow-hidden`}>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-zinc-800">
+                <tr className="border-b border-stone-200">
                   <th className={cx.th}>Producto</th>
                   <th className={cx.th}>Tipo</th>
                   <th className={cx.th}>Costo Neto</th>
@@ -381,16 +381,16 @@ export default function DashboardPage() {
               <tbody>
                 {prods.map((p) => (
                   <tr key={p.id} className={cx.tr}>
-                    <td className={cx.td + ' text-white font-medium'}>{p.nombre}</td>
-                    <td className={cx.td + ' text-zinc-400 text-xs'}>
+                    <td className={cx.td + ' text-stone-800 font-medium'}>{p.nombre}</td>
+                    <td className={cx.td + ' text-stone-500 text-xs'}>
                       {p.tipo_presentacion === 'entero'
                         ? `Entero${p.unidades_por_producto > 1 ? ` (${p.unidades_por_producto})` : ''}`
                         : 'Unidad'}
                     </td>
-                    <td className={cx.td + ' text-zinc-300'}>{formatCurrency(p.costo_neto)}</td>
-                    <td className={cx.td + ' text-zinc-300'}>{formatPercent(p.margen)}</td>
-                    <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(p.precio_final)}</td>
-                    <td className={cx.td + ' text-zinc-500'}>{formatDate(p.updated_at)}</td>
+                    <td className={cx.td + ' text-stone-600'}>{formatCurrency(p.costo_neto)}</td>
+                    <td className={cx.td + ' text-stone-600'}>{formatPercent(p.margen)}</td>
+                    <td className={cx.td + ' text-[var(--accent)] font-semibold'}>{formatCurrency(p.precio_final)}</td>
+                    <td className={cx.td + ' text-stone-400'}>{formatDate(p.updated_at)}</td>
                     <td className={cx.td + ' text-right'}>
                       <div className="flex justify-end gap-1">
                         <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnIcon} title="Editar">
@@ -402,7 +402,7 @@ export default function DashboardPage() {
                         <button onClick={() => handleHistory(p)} className={cx.btnIcon} title="Historial">
                           <History size={15} />
                         </button>
-                        <button onClick={() => setDeleteTarget(p)} className={cx.btnIcon + ' hover:text-red-400'} title="Eliminar">
+                        <button onClick={() => setDeleteTarget(p)} className={cx.btnIcon + ' hover:text-rose-600'} title="Eliminar">
                           <Trash2 size={15} />
                         </button>
                       </div>
@@ -419,8 +419,8 @@ export default function DashboardPage() {
           return (
             <div className={label === 'Presentaciones enteras' ? 'mb-8' : ''}>
               <div className="flex items-center gap-2 mb-4">
-                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{label}</span>
-                <span className="text-xs text-zinc-600">({prods.length})</span>
+                <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">{label}</span>
+                <span className="text-xs text-stone-400">({prods.length})</span>
               </div>
               {viewMode === 'gallery' && renderGalleryGrid(prods)}
               {viewMode === 'table' && (
@@ -436,8 +436,8 @@ export default function DashboardPage() {
         if (filtered.length === 0 && !loading) {
           return (
             <div className={`${cx.card} p-12 text-center`}>
-              <Package size={40} className="mx-auto text-zinc-700 mb-3" />
-              <p className="text-zinc-400 text-sm">
+              <Package size={40} className="mx-auto text-stone-300 mb-3" />
+              <p className="text-stone-500 text-sm">
                 {products.length === 0
                   ? 'Aun no tienes productos. Crea tu primer cotizacion.'
                   : 'No se encontraron productos.'}
@@ -467,19 +467,19 @@ export default function DashboardPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => { setHistoryModal(null); setSelectedVersion(null); setConfirmRestore(null); }} />
           <div className={`${cx.card} relative p-6 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto`}>
-            <h3 className="text-white font-semibold mb-4">Historial: {historyModal.nombre}</h3>
+            <h3 className="text-stone-800 font-semibold mb-4">Historial: {historyModal.nombre}</h3>
 
             {history.length === 0 ? (
-              <p className="text-zinc-500 text-sm">Sin historial disponible.</p>
+              <p className="text-stone-400 text-sm">Sin historial disponible.</p>
             ) : confirmRestore ? (
               /* Confirmation step */
               <div className="space-y-4">
-                <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4">
-                  <p className="text-amber-400 text-sm font-medium mb-1">Confirmar restauracion</p>
-                  <p className="text-zinc-300 text-sm">
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+                  <p className="text-amber-600 text-sm font-medium mb-1">Confirmar restauracion</p>
+                  <p className="text-stone-600 text-sm">
                     Vas a revertir <strong>{historyModal.nombre}</strong> a la <strong>version {confirmRestore.version}</strong> ({confirmRestore.motivo}).
                   </p>
-                  <p className="text-zinc-500 text-xs mt-2">Se creara una nueva version con los valores restaurados. Los datos actuales no se pierden.</p>
+                  <p className="text-stone-400 text-xs mt-2">Se creara una nueva version con los valores restaurados. Los datos actuales no se pierden.</p>
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -511,8 +511,8 @@ export default function DashboardPage() {
                   ← Volver al listado
                 </button>
                 <div className="flex items-center justify-between">
-                  <h4 className="text-zinc-300 text-sm font-semibold">Version {selectedVersion.version} — {selectedVersion.motivo}</h4>
-                  <span className="text-zinc-500 text-xs">{formatDate(selectedVersion.created_at)}</span>
+                  <h4 className="text-stone-600 text-sm font-semibold">Version {selectedVersion.version} — {selectedVersion.motivo}</h4>
+                  <span className="text-stone-400 text-xs">{formatDate(selectedVersion.created_at)}</span>
                 </div>
 
                 {/* Snapshot details */}
@@ -529,10 +529,10 @@ export default function DashboardPage() {
                     { key: 'precio_final', label: 'Precio final', fmt: formatCurrency },
                   ];
                   return (
-                    <div className="bg-zinc-800 rounded-xl overflow-hidden">
+                    <div className="bg-stone-100 rounded-xl overflow-hidden">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="text-zinc-500 text-[10px] uppercase tracking-wider">
+                          <tr className="text-stone-400 text-[10px] uppercase tracking-wider">
                             <th className="text-left px-3 py-2">Campo</th>
                             <th className="text-center px-3 py-2">Esta version</th>
                             <th className="text-center px-3 py-2">Actual</th>
@@ -561,19 +561,19 @@ export default function DashboardPage() {
                               }
                             }
                             return (
-                              <tr key={f.key} className="border-t border-zinc-700/50">
-                                <td className="px-3 py-2 text-zinc-400">{f.label}</td>
-                                <td className="px-3 py-2 text-center text-white font-medium">{display(snapVal)}</td>
-                                <td className="px-3 py-2 text-center text-zinc-400">{display(currVal)}</td>
+                              <tr key={f.key} className="border-t border-stone-200">
+                                <td className="px-3 py-2 text-stone-500">{f.label}</td>
+                                <td className="px-3 py-2 text-center text-stone-800 font-medium">{display(snapVal)}</td>
+                                <td className="px-3 py-2 text-center text-stone-500">{display(currVal)}</td>
                                 <td className="px-3 py-2 text-center">
                                   {variacion ? (
-                                    <span className={`text-xs font-medium ${variacion.value > 0 ? 'text-green-400' : variacion.value < 0 ? 'text-red-400' : 'text-zinc-600'}`}>
+                                    <span className={`text-xs font-medium ${variacion.value > 0 ? 'text-emerald-600' : variacion.value < 0 ? 'text-rose-600' : 'text-stone-400'}`}>
                                       {variacion.text}
                                     </span>
                                   ) : changed ? (
-                                    <span className="text-amber-400 text-xs">Cambio</span>
+                                    <span className="text-amber-600 text-xs">Cambio</span>
                                   ) : (
-                                    <span className="text-zinc-600 text-xs">—</span>
+                                    <span className="text-stone-400 text-xs">—</span>
                                   )}
                                 </td>
                               </tr>
@@ -602,19 +602,19 @@ export default function DashboardPage() {
                   <button
                     key={i}
                     onClick={() => setSelectedVersion(h)}
-                    className="w-full text-left border-l-2 border-zinc-700 hover:border-[#FA7B21] pl-3 py-2 rounded-r-lg hover:bg-zinc-800 transition-all"
+                    className="w-full text-left border-l-2 border-stone-200 hover:border-[var(--accent)] pl-3 py-2 rounded-r-lg hover:bg-stone-100 transition-all"
                   >
                     <div className="flex justify-between items-start">
                       <div>
-                        <p className="text-sm text-white">
-                          {i === 0 && <span className="text-[10px] bg-green-500/10 text-green-400 px-1.5 py-0.5 rounded mr-2">Actual</span>}
+                        <p className="text-sm text-stone-800">
+                          {i === 0 && <span className="text-[10px] bg-emerald-50 text-emerald-600 px-1.5 py-0.5 rounded mr-2">Actual</span>}
                           Version {h.version}
                         </p>
-                        <p className="text-xs text-zinc-500">{h.motivo}</p>
+                        <p className="text-xs text-stone-400">{h.motivo}</p>
                       </div>
                       <div className="text-right">
-                        <p className="text-xs text-zinc-500">{formatDate(h.created_at)}</p>
-                        {h.precio_final && <p className="text-xs text-[#FA7B21]">{formatCurrency(h.precio_final)}</p>}
+                        <p className="text-xs text-stone-400">{formatDate(h.created_at)}</p>
+                        {h.precio_final && <p className="text-xs text-[var(--accent)]">{formatCurrency(h.precio_final)}</p>}
                       </div>
                     </div>
                   </button>
@@ -638,15 +638,15 @@ export default function DashboardPage() {
               {detailModal.imagen_url ? (
                 <img src={detailModal.imagen_url} alt={detailModal.nombre} className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
               ) : (
-                <div className="w-20 h-20 rounded-xl bg-zinc-800 flex items-center justify-center flex-shrink-0">
-                  <Package size={28} className="text-zinc-700" />
+                <div className="w-20 h-20 rounded-xl bg-stone-100 flex items-center justify-center flex-shrink-0">
+                  <Package size={28} className="text-stone-300" />
                 </div>
               )}
               <div className="flex-1">
-                <h3 className="text-white font-bold text-lg">{detailModal.nombre}</h3>
+                <h3 className="text-stone-800 font-bold text-lg">{detailModal.nombre}</h3>
                 <div className="flex gap-4 mt-1 text-sm">
-                  <span className="text-zinc-400">Margen: {formatPercent(detailModal.margen)}</span>
-                  <span className="text-[#FA7B21] font-bold">{formatCurrency(detailModal.precio_final)}</span>
+                  <span className="text-stone-500">Margen: {formatPercent(detailModal.margen)}</span>
+                  <span className="text-[var(--accent)] font-bold">{formatCurrency(detailModal.precio_final)}</span>
                 </div>
               </div>
             </div>
@@ -658,14 +658,14 @@ export default function DashboardPage() {
                 {/* Preparaciones */}
                 {(detailData.preparaciones || []).map((prep, pi) => (
                   <div key={pi} className="mb-4">
-                    <h4 className="text-sm font-semibold text-zinc-300 mb-2">
+                    <h4 className="text-sm font-semibold text-stone-600 mb-2">
                       {prep.nombre || `Preparacion ${pi + 1}`}
-                      {prep.capacidad && <span className="text-zinc-500 font-normal"> — {parseFloat(prep.capacidad)} {prep.unidad_capacidad || ''}</span>}
+                      {prep.capacidad && <span className="text-stone-400 font-normal"> — {parseFloat(prep.capacidad)} {prep.unidad_capacidad || ''}</span>}
                     </h4>
-                    <div className="bg-zinc-800 rounded-xl overflow-hidden">
+                    <div className="bg-stone-100 rounded-xl overflow-hidden">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="text-zinc-500 text-[10px] uppercase tracking-wider">
+                          <tr className="text-stone-400 text-[10px] uppercase tracking-wider">
                             <th className="text-left px-3 py-2">Insumo</th>
                             <th className="text-center px-3 py-2">Cantidad</th>
                             <th className="text-center px-3 py-2">Costo Unit.</th>
@@ -678,11 +678,11 @@ export default function DashboardPage() {
                             const cu = costoConvertido(cuBase, ins.unidad_medida, ins.uso_unidad);
                             const cant = parseFloat(ins.cantidad_usada || ins.cantidad) || 0;
                             return (
-                              <tr key={ii} className="border-t border-zinc-700/50">
-                                <td className="px-3 py-2 text-white">{ins.nombre} <span className="text-zinc-500 text-xs">{ins.uso_unidad || ins.unidad_medida}</span></td>
-                                <td className="px-3 py-2 text-center text-zinc-300">{cant}</td>
-                                <td className="px-3 py-2 text-center text-zinc-400">{formatCurrency(cu)}</td>
-                                <td className="px-3 py-2 text-right text-white">{formatCurrency(cu * cant)}</td>
+                              <tr key={ii} className="border-t border-stone-200">
+                                <td className="px-3 py-2 text-stone-800">{ins.nombre} <span className="text-stone-400 text-xs">{ins.uso_unidad || ins.unidad_medida}</span></td>
+                                <td className="px-3 py-2 text-center text-stone-600">{cant}</td>
+                                <td className="px-3 py-2 text-center text-stone-500">{formatCurrency(cu)}</td>
+                                <td className="px-3 py-2 text-right text-stone-800">{formatCurrency(cu * cant)}</td>
                               </tr>
                             );
                           })}
@@ -695,11 +695,11 @@ export default function DashboardPage() {
                 {/* Materiales */}
                 {(detailData.materiales || []).length > 0 && (
                   <div className="mb-4">
-                    <h4 className="text-sm font-semibold text-zinc-300 mb-2">Empaque / Materiales</h4>
-                    <div className="bg-zinc-800 rounded-xl overflow-hidden">
+                    <h4 className="text-sm font-semibold text-stone-600 mb-2">Empaque / Materiales</h4>
+                    <div className="bg-stone-100 rounded-xl overflow-hidden">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="text-zinc-500 text-[10px] uppercase tracking-wider">
+                          <tr className="text-stone-400 text-[10px] uppercase tracking-wider">
                             <th className="text-left px-3 py-2">Material</th>
                             <th className="text-center px-3 py-2">Cantidad</th>
                             <th className="text-center px-3 py-2">Precio Unit.</th>
@@ -711,11 +711,11 @@ export default function DashboardPage() {
                             const pu = Number(mat.cantidad_presentacion) > 0 ? Number(mat.precio_presentacion) / Number(mat.cantidad_presentacion) : 0;
                             const cant = parseFloat(mat.cantidad) || 0;
                             return (
-                              <tr key={mi} className="border-t border-zinc-700/50">
-                                <td className="px-3 py-2 text-white">{mat.nombre} <span className="text-zinc-500 text-xs">{mat.unidad_medida}</span></td>
-                                <td className="px-3 py-2 text-center text-zinc-300">{cant}</td>
-                                <td className="px-3 py-2 text-center text-zinc-400">{formatCurrency(pu)}</td>
-                                <td className="px-3 py-2 text-right text-white">{formatCurrency(pu * cant)}</td>
+                              <tr key={mi} className="border-t border-stone-200">
+                                <td className="px-3 py-2 text-stone-800">{mat.nombre} <span className="text-stone-400 text-xs">{mat.unidad_medida}</span></td>
+                                <td className="px-3 py-2 text-center text-stone-600">{cant}</td>
+                                <td className="px-3 py-2 text-center text-stone-500">{formatCurrency(pu)}</td>
+                                <td className="px-3 py-2 text-right text-stone-800">{formatCurrency(pu * cant)}</td>
                               </tr>
                             );
                           })}
@@ -726,15 +726,15 @@ export default function DashboardPage() {
                 )}
 
                 {/* Totals */}
-                <div className="bg-zinc-800 rounded-xl p-4 space-y-2 mt-4">
-                  <div className="flex justify-between text-sm"><span className="text-zinc-400">Costo insumos</span><span className="text-white">{formatCurrency(detailData.costo_insumos)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-400">Costo empaque</span><span className="text-white">{formatCurrency(detailData.costo_empaque)}</span></div>
-                  <div className="flex justify-between text-sm font-semibold border-t border-zinc-700 pt-2"><span className="text-zinc-300">Costo neto</span><span className="text-white">{formatCurrency(detailData.costo_neto)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-400">Margen</span><span className="text-white">{formatPercent(detailData.margen)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-400">Precio venta</span><span className="text-white">{formatCurrency(detailData.precio_venta)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-400">IGV ({(Number(detailData.igv_rate) < 1 ? Number(detailData.igv_rate) * 100 : Number(detailData.igv_rate)).toFixed(1)}%)</span><span className="text-white">{formatCurrency(Number(detailData.precio_final) - Number(detailData.precio_venta))}</span></div>
-                  <div className="flex justify-between text-base font-bold border-t border-zinc-700 pt-2"><span className="text-zinc-300">Precio final</span><span className="text-[#FA7B21]">{formatCurrency(detailData.precio_final)}</span></div>
-                  <div className="flex justify-between text-sm mt-1"><span className="text-zinc-500">Sugerido</span><span className="text-green-400 font-semibold">{formatCurrency(precioComercial(detailData.precio_final))}</span></div>
+                <div className="bg-stone-100 rounded-xl p-4 space-y-2 mt-4">
+                  <div className="flex justify-between text-sm"><span className="text-stone-500">Costo insumos</span><span className="text-stone-800">{formatCurrency(detailData.costo_insumos)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-stone-500">Costo empaque</span><span className="text-stone-800">{formatCurrency(detailData.costo_empaque)}</span></div>
+                  <div className="flex justify-between text-sm font-semibold border-t border-stone-200 pt-2"><span className="text-stone-600">Costo neto</span><span className="text-stone-800">{formatCurrency(detailData.costo_neto)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-stone-500">Margen</span><span className="text-stone-800">{formatPercent(detailData.margen)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-stone-500">Precio venta</span><span className="text-stone-800">{formatCurrency(detailData.precio_venta)}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-stone-500">IGV ({(Number(detailData.igv_rate) < 1 ? Number(detailData.igv_rate) * 100 : Number(detailData.igv_rate)).toFixed(1)}%)</span><span className="text-stone-800">{formatCurrency(Number(detailData.precio_final) - Number(detailData.precio_venta))}</span></div>
+                  <div className="flex justify-between text-base font-bold border-t border-stone-200 pt-2"><span className="text-stone-600">Precio final</span><span className="text-[var(--accent)]">{formatCurrency(detailData.precio_final)}</span></div>
+                  <div className="flex justify-between text-sm mt-1"><span className="text-stone-400">Sugerido</span><span className="text-emerald-600 font-semibold">{formatCurrency(precioComercial(detailData.precio_final))}</span></div>
                 </div>
               </>
             )}

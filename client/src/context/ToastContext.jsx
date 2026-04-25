@@ -31,8 +31,8 @@ export function ToastProvider({ children }) {
             key={t.id}
             className={`px-4 py-3 rounded-xl text-sm font-medium shadow-lg animate-[slideIn_0.2s_ease-out] ${
               t.type === 'error'
-                ? 'bg-red-900 border border-red-800 text-red-200'
-                : 'bg-zinc-800 border border-zinc-700 text-white'
+                ? 'bg-rose-600 border border-rose-500 text-white'
+                : 'bg-stone-800 border border-stone-700 text-white'
             }`}
           >
             {t.message}

@@ -42,8 +42,8 @@ function SidebarLink({ to, label, icon: Icon, onClick }) {
       className={({ isActive }) =>
         `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
           isActive
-            ? 'bg-gradient-to-r from-[#FA7B21]/15 to-transparent text-[#FA7B21] border-l-2 border-[#FA7B21]'
-            : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+            ? 'bg-[var(--accent-light)] text-[var(--accent)] border-l-2 border-[var(--accent)]'
+            : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
         }`
       }
     >
@@ -70,18 +70,18 @@ export default function Layout() {
 
   const sidebarContent = (
     <>
-      <div className="p-5 border-b border-zinc-800">
+      <div className="p-5 border-b border-stone-200">
         <div className="flex items-center gap-2.5">
           {user?.logo_url ? (
             <img src={user.logo_url} alt="Logo" className="w-9 h-9 rounded-xl object-cover" />
           ) : (
-            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-[var(--accent)] flex items-center justify-center">
               <Calculator size={18} className="text-white" />
             </div>
           )}
           <div>
-            <h1 className="text-base font-bold text-white tracking-wide">NODUM</h1>
-            <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Cotizador</p>
+            <h1 className="text-base font-bold text-stone-800 tracking-wide">NODUM</h1>
+            <p className="text-[10px] text-stone-400 uppercase tracking-widest">Cotizador</p>
           </div>
         </div>
       </div>
@@ -93,7 +93,7 @@ export default function Layout() {
         {isAdmin && (
           <>
             <div className="mt-4 mb-2 px-3">
-              <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-semibold">
+              <p className="text-[10px] text-stone-400 uppercase tracking-widest font-semibold">
                 Admin
               </p>
             </div>
@@ -104,16 +104,16 @@ export default function Layout() {
         )}
       </nav>
 
-      <div className="p-3 border-t border-zinc-800">
+      <div className="p-3 border-t border-stone-200">
         <div className="flex items-center gap-3 px-3 py-2">
-          <div className="w-8 h-8 rounded-full bg-zinc-800 flex items-center justify-center text-xs font-bold text-zinc-400">
+          <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-xs font-bold text-stone-500">
             {user?.nombre?.charAt(0)?.toUpperCase() || 'U'}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm text-white truncate">{user?.nombre || 'Usuario'}</p>
-            <p className="text-[10px] text-zinc-500 truncate">{user?.email}</p>
+            <p className="text-sm text-stone-800 truncate">{user?.nombre || 'Usuario'}</p>
+            <p className="text-[10px] text-stone-400 truncate">{user?.email}</p>
           </div>
-          <button onClick={handleLogout} className="p-2 text-zinc-500 hover:text-red-400 transition-colors rounded-lg">
+          <button onClick={handleLogout} className="p-2 text-stone-400 hover:text-rose-500 transition-colors rounded-lg">
             <LogOut size={16} />
           </button>
         </div>
@@ -122,9 +122,9 @@ export default function Layout() {
   );
 
   return (
-    <div className="min-h-screen bg-zinc-950 flex">
+    <div className="min-h-screen bg-stone-50 flex">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-60 flex-col bg-zinc-900 border-r border-zinc-800 fixed inset-y-0 left-0 z-30">
+      <aside className="hidden lg:flex w-60 flex-col bg-white border-r border-stone-200 fixed inset-y-0 left-0 z-30">
         {sidebarContent}
       </aside>
 
@@ -132,10 +132,10 @@ export default function Layout() {
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={closeSidebar} />
-          <aside className="absolute left-0 top-0 bottom-0 w-60 bg-zinc-900 border-r border-zinc-800 flex flex-col">
+          <aside className="absolute left-0 top-0 bottom-0 w-60 bg-white border-r border-stone-200 flex flex-col">
             <button
               onClick={closeSidebar}
-              className="absolute top-4 right-4 p-1 text-zinc-400 hover:text-white"
+              className="absolute top-4 right-4 p-1 text-stone-400 hover:text-stone-800"
             >
               <X size={20} />
             </button>
@@ -147,19 +147,19 @@ export default function Layout() {
       {/* Main content */}
       <div className="flex-1 lg:ml-60">
         {/* Mobile header */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-zinc-900 border-b border-zinc-800 sticky top-0 z-20">
-          <button onClick={() => setOpen(true)} className="p-2 text-zinc-400 hover:text-white">
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-stone-200 sticky top-0 z-20">
+          <button onClick={() => setOpen(true)} className="p-2 text-stone-400 hover:text-stone-800">
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
             {user?.logo_url ? (
               <img src={user.logo_url} alt="Logo" className="w-7 h-7 rounded-lg object-cover" />
             ) : (
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
+              <div className="w-7 h-7 rounded-lg bg-[var(--accent)] flex items-center justify-center">
                 <Calculator size={14} className="text-white" />
               </div>
             )}
-            <span className="text-sm font-bold text-white">NODUM</span>
+            <span className="text-sm font-bold text-stone-800">NODUM</span>
           </div>
           <div className="w-9" />
         </header>

@@ -14,11 +14,11 @@ const iconMap = {
 };
 
 const colorMap = {
-  crear: 'text-green-400 bg-green-500/10',
+  crear: 'text-emerald-600 bg-green-500/10',
   actualizar: 'text-blue-400 bg-blue-500/10',
-  eliminar: 'text-red-400 bg-red-500/10',
-  login: 'text-yellow-400 bg-yellow-500/10',
-  default: 'text-zinc-400 bg-zinc-800',
+  eliminar: 'text-rose-600 bg-rose-50',
+  login: 'text-amber-600 bg-amber-50',
+  default: 'text-stone-500 bg-stone-100',
 };
 
 function getIcon(tipo) {
@@ -67,8 +67,8 @@ export default function AdminActividadPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-white">Actividad</h2>
-          <p className="text-zinc-500 text-sm mt-0.5">Registro de actividad del sistema</p>
+          <h2 className="text-xl font-bold text-stone-800">Actividad</h2>
+          <p className="text-stone-400 text-sm mt-0.5">Registro de actividad del sistema</p>
         </div>
         <button onClick={refresh} className={cx.btnSecondary + ' flex items-center gap-2'}>
           <RefreshCw size={14} /> Actualizar
@@ -83,29 +83,29 @@ export default function AdminActividadPage() {
         </div>
       ) : logs.length === 0 ? (
         <div className={`${cx.card} p-12 text-center`}>
-          <Activity size={40} className="mx-auto text-zinc-700 mb-3" />
-          <p className="text-zinc-400 text-sm">Sin actividad registrada.</p>
+          <Activity size={40} className="mx-auto text-stone-300 mb-3" />
+          <p className="text-stone-500 text-sm">Sin actividad registrada.</p>
         </div>
       ) : (
         <div className={`${cx.card} overflow-hidden`}>
-          <div className="divide-y divide-zinc-800">
+          <div className="divide-y divide-stone-200">
             {logs.map((log, i) => {
               const Icon = getIcon(log.entidad);
               const color = getColor(log.accion);
               return (
-                <div key={log.id || i} className="flex items-start gap-4 p-4 hover:bg-zinc-800/50 transition-colors">
+                <div key={log.id || i} className="flex items-start gap-4 p-4 hover:bg-stone-100 transition-colors">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${color}`}>
                     <Icon size={16} />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white text-sm">{`${log.accion} ${log.entidad} #${log.entidad_id}`}</p>
+                    <p className="text-stone-800 text-sm">{`${log.accion} ${log.entidad} #${log.entidad_id}`}</p>
                     <div className="flex flex-wrap gap-3 mt-1">
                       {log.usuario_nombre && (
-                        <span className="text-zinc-500 text-xs flex items-center gap-1">
+                        <span className="text-stone-400 text-xs flex items-center gap-1">
                           <User size={11} /> {log.usuario_nombre}
                         </span>
                       )}
-                      <span className="text-zinc-600 text-xs">
+                      <span className="text-stone-400 text-xs">
                         {log.created_at ? new Date(log.created_at).toLocaleString('es-PE') : '-'}
                       </span>
                     </div>
@@ -121,7 +121,7 @@ export default function AdminActividadPage() {
           </div>
 
           {hasMore && (
-            <div className="p-4 border-t border-zinc-800 text-center">
+            <div className="p-4 border-t border-stone-200 text-center">
               <button
                 onClick={() => loadLogs(page + 1)}
                 disabled={loading}

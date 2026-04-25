@@ -28,27 +28,27 @@ export default function SearchableSelect({ options = [], value, onChange, placeh
         onClick={() => setOpen(!open)}
         className={`${cx.input} text-left flex items-center justify-between`}
       >
-        <span className={selected ? 'text-white' : 'text-zinc-600'}>
+        <span className={selected ? 'text-stone-800' : 'text-stone-400'}>
           {selected ? selected[displayKey] : placeholder}
         </span>
-        <ChevronDown size={14} className="text-zinc-500" />
+        <ChevronDown size={14} className="text-stone-400" />
       </button>
 
       {open && (
-        <div className="absolute z-50 mt-1 w-full bg-zinc-800 border border-zinc-700 rounded-xl shadow-xl overflow-hidden">
+        <div className="absolute z-50 mt-1 w-full bg-white border border-stone-200 rounded-xl shadow-xl overflow-hidden">
           <div className="p-2">
             <input
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder="Buscar..."
-              className="w-full px-3 py-2 bg-zinc-900 border border-zinc-700 rounded-lg text-white text-sm placeholder:text-zinc-600 focus:outline-none focus:border-[#FA7B21]"
+              className="w-full px-3 py-2 bg-stone-50 border border-stone-200 rounded-lg text-stone-800 text-sm placeholder:text-stone-400 focus:outline-none focus:border-[var(--accent)]"
               autoFocus
             />
           </div>
           <div className="max-h-48 overflow-y-auto">
             {filtered.length === 0 ? (
-              <div className="px-3 py-2 text-sm text-zinc-500">Sin resultados</div>
+              <div className="px-3 py-2 text-sm text-stone-400">Sin resultados</div>
             ) : (
               filtered.map((o) => (
                 <button
@@ -59,8 +59,8 @@ export default function SearchableSelect({ options = [], value, onChange, placeh
                     setOpen(false);
                     setSearch('');
                   }}
-                  className={`w-full text-left px-3 py-2 text-sm hover:bg-zinc-700 transition-colors ${
-                    o[valueKey] === value ? 'text-[#FA7B21]' : 'text-white'
+                  className={`w-full text-left px-3 py-2 text-sm hover:bg-stone-100 transition-colors ${
+                    o[valueKey] === value ? 'text-[var(--accent)]' : 'text-stone-800'
                   }`}
                 >
                   {o[displayKey]}
