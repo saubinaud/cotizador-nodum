@@ -168,6 +168,7 @@ export default function CotizadorPage() {
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(!!id);
   const [showPriceChoice, setShowPriceChoice] = useState(false);
+  const [selectedPrice, setSelectedPrice] = useState(null);
 
   const [catalogInsumos, setCatalogInsumos] = useState([]);
   const [catalogMateriales, setCatalogMateriales] = useState([]);
@@ -503,8 +504,9 @@ export default function CotizadorPage() {
     handleSave();
   };
 
-  const handleSave = async () => {
+  const handleSave = async (overridePrice) => {
     setShowPriceChoice(false);
+    setSelectedPrice(null);
     if (!nombre.trim()) {
       toast.error('Ingresa un nombre para el producto');
       return;
@@ -544,6 +546,8 @@ export default function CotizadorPage() {
             empaque_tipo: m.empaque_tipo || 'entero',
           })),
         ...costos,
+        // If user chose a specific price from the modal, override precioFinal
+        ...(overridePrice != null ? { precioFinal: overridePrice } : {}),
       };
 
       if (id) {
@@ -1348,7 +1352,7 @@ export default function CotizadorPage() {
 
             <div className="space-y-3">
               <button
-                onClick={handleSave}
+                onClick={() => handleSave(preciosRecomendados(costos.precioFinal).conDecimales)}
                 className="w-full flex items-center justify-between p-4 border border-stone-200 rounded-xl hover:border-[var(--accent)] hover:bg-[var(--accent-light)] transition-colors group"
               >
                 <div className="text-left">
@@ -1359,7 +1363,7 @@ export default function CotizadorPage() {
               </button>
 
               <button
-                onClick={handleSave}
+                onClick={() => handleSave(preciosRecomendados(costos.precioFinal).sinDecimales)}
                 className="w-full flex items-center justify-between p-4 border border-stone-200 rounded-xl hover:border-[var(--accent)] hover:bg-[var(--accent-light)] transition-colors group"
               >
                 <div className="text-left">
@@ -1370,7 +1374,7 @@ export default function CotizadorPage() {
               </button>
 
               <button
-                onClick={handleSave}
+                onClick={() => handleSave(null)}
                 className="w-full flex items-center justify-between p-4 border border-stone-200 rounded-xl hover:border-[var(--accent)] hover:bg-[var(--accent-light)] transition-colors group"
               >
                 <div className="text-left">
