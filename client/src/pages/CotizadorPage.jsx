@@ -939,11 +939,11 @@ export default function CotizadorPage() {
                   <table className="w-full hidden lg:table">
                     <thead>
                       <tr>
-                        <th className={cx.th}>Preparacion</th>
-                        <th className={cx.th}>Rendimiento</th>
-                        <th className={cx.th + ' w-32'}>Para el producto</th>
-                        <th className={cx.th}>Productos por tanda</th>
-                        <th className={cx.th + ' text-right'}>Costo prep.</th>
+                        <th className={cx.th + ' w-[20%]'}>Preparacion</th>
+                        <th className={cx.th + ' w-[15%]'}>Rendimiento</th>
+                        <th className={cx.th + ' w-[30%]'}>Para el producto</th>
+                        <th className={cx.th + ' w-[20%]'}>Por tanda</th>
+                        <th className={cx.th + ' w-[15%] text-right'}>Costo</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -1102,8 +1102,8 @@ export default function CotizadorPage() {
         </div>
 
         {/* ── Right column: Resumen — premium sticky card ── */}
-        <div className="xl:col-span-1">
-          <div className={`${cx.card} p-6 xl:sticky xl:top-6`}>
+        <div className="xl:col-span-1 xl:self-start xl:sticky xl:top-6">
+          <div className={`${cx.card} p-6`}>
             <h3 className="text-lg font-semibold text-stone-900 mb-5">Resumen<InfoTip text="El costo neto incluye insumos + empaque. El margen define tu ganancia. El precio sugerido redondea a un valor comercial (.90 o .00)." /></h3>
 
             {tipoPresentacion === 'entero' ? (
