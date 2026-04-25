@@ -75,7 +75,7 @@ export default function PLVentasPage() {
   }, []);
 
   // Load ventas + resumen when periodo changes
-  const loadVentas = useCallback(async (pid) => {
+  const loadVentas = async (pid) => {
     if (!pid) return;
     setLoadingVentas(true);
     try {
@@ -90,11 +90,11 @@ export default function PLVentasPage() {
     } finally {
       setLoadingVentas(false);
     }
-  }, [api, toast]);
+  };
 
   useEffect(() => {
     if (periodoId) loadVentas(periodoId);
-  }, [periodoId, loadVentas]);
+  }, [periodoId]); // eslint-disable-line
 
   // Period options for CustomSelect
   const periodoOptions = useMemo(() =>

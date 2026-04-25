@@ -75,7 +75,7 @@ export default function PLGastosPage() {
   }, []);
 
   // Load gastos + resumen when periodo changes
-  const loadGastos = useCallback(async (pid) => {
+  const loadGastos = async (pid) => {
     if (!pid) return;
     setLoadingGastos(true);
     try {
@@ -90,19 +90,19 @@ export default function PLGastosPage() {
     } finally {
       setLoadingGastos(false);
     }
-  }, [api, toast]);
+  };
 
   useEffect(() => {
     if (periodoId) loadGastos(periodoId);
-  }, [periodoId, loadGastos]);
+  }, [periodoId]); // eslint-disable-line
 
   // Reload categorias
-  const reloadCategorias = useCallback(async () => {
+  const reloadCategorias = async () => {
     try {
       const res = await api.get('/pl/categorias');
       setCategorias(res.data || []);
     } catch { /* silent */ }
-  }, [api]);
+  };
 
   // Period options for CustomSelect
   const periodoOptions = useMemo(() =>

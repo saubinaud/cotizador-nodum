@@ -54,7 +54,7 @@ export default function PLResumenPage() {
   }, []);
 
   // Load P&L data when periodo changes
-  const loadResumen = useCallback(async (pid) => {
+  const loadResumen = async (pid) => {
     if (!pid) return;
     setLoadingData(true);
     try {
@@ -65,11 +65,11 @@ export default function PLResumenPage() {
     } finally {
       setLoadingData(false);
     }
-  }, [api, toast]);
+  };
 
   useEffect(() => {
     if (periodoId) loadResumen(periodoId);
-  }, [periodoId, loadResumen]);
+  }, [periodoId]); // eslint-disable-line
 
   const periodoOptions = useMemo(() =>
     periodos.map((p) => ({ value: String(p.id), label: p.nombre })),
