@@ -27,7 +27,7 @@ function currentMonthPeriod() {
   return { nombre: `${MESES[m]} ${y}`, fecha_inicio: inicio, fecha_fin: fin };
 }
 
-const EMPTY_ITEM = { tipo: 'insumo', insumo_id: null, material_id: null, nombre_item: '', cantidad: '', unidad: '', precio_unitario: '' };
+const EMPTY_ITEM = { tipo: 'insumo', insumo_id: null, material_id: null, nombre_item: '', cantidad: '', unidad: '', precio_unitario: '', _precio_catalogo: 0 };
 
 export default function PLComprasPage() {
   const api = useApi();
@@ -144,16 +144,22 @@ export default function PLComprasPage() {
   };
 
   const selectInsumo = (idx, ins) => {
+    const precioSugerido = Number(ins.cantidad_presentacion) > 0
+      ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion)
+      : Number(ins.precio_presentacion) || 0;
     setItems((prev) => prev.map((item, i) => {
       if (i !== idx) return item;
-      return { ...item, insumo_id: ins.id, unidad: ins.unidad || '' };
+      return { ...item, insumo_id: ins.id, unidad: ins.unidad_medida || ins.unidad || '', precio_unitario: precioSugerido.toFixed(4), _precio_catalogo: precioSugerido };
     }));
   };
 
   const selectMaterial = (idx, mat) => {
+    const precioSugerido = Number(mat.cantidad_presentacion) > 0
+      ? Number(mat.precio_presentacion) / Number(mat.cantidad_presentacion)
+      : Number(mat.precio_presentacion) || 0;
     setItems((prev) => prev.map((item, i) => {
       if (i !== idx) return item;
-      return { ...item, material_id: mat.id, unidad: mat.unidad || '' };
+      return { ...item, material_id: mat.id, unidad: mat.unidad_medida || mat.unidad || '', precio_unitario: precioSugerido.toFixed(4), _precio_catalogo: precioSugerido };
     }));
   };
 
@@ -505,12 +511,20 @@ export default function PLComprasPage() {
                         </div>
                         <div>
                           <label className="text-[10px] text-stone-400 font-medium">Unidad</label>
-                          <input
-                            type="text"
+                          <CustomSelect
                             value={item.unidad}
-                            onChange={(e) => updateItem(idx, 'unidad', e.target.value)}
-                            className={cx.input}
-                            placeholder="kg, und..."
+                            onChange={(v) => updateItem(idx, 'unidad', v)}
+                            options={[
+                              { value: 'uni', label: 'uni' },
+                              { value: 'g', label: 'g' },
+                              { value: 'kg', label: 'kg' },
+                              { value: 'ml', label: 'ml' },
+                              { value: 'L', label: 'L' },
+                              { value: 'oz', label: 'oz' },
+                              { value: 'cm', label: 'cm' },
+                              { value: 'mt', label: 'mt' },
+                            ]}
+                            compact
                           />
                         </div>
                         <div>
@@ -527,9 +541,23 @@ export default function PLComprasPage() {
                         </div>
                       </div>
 
-                      {/* Subtotal */}
-                      <div className="text-right text-xs font-semibold text-stone-600 mt-2">
-                        Subtotal: {formatCurrency(itemSubtotal(item))}
+                      {/* Subtotal + variacion */}
+                      <div className="flex items-center justify-between mt-2">
+                        {item._precio_catalogo > 0 && parseFloat(item.precio_unitario) > 0 && (
+                          <span className={`text-[10px] font-medium ${
+                            parseFloat(item.precio_unitario) > item._precio_catalogo ? 'text-rose-500' :
+                            parseFloat(item.precio_unitario) < item._precio_catalogo ? 'text-teal-600' : 'text-stone-400'
+                          }`}>
+                            {parseFloat(item.precio_unitario) > item._precio_catalogo
+                              ? `+${((parseFloat(item.precio_unitario) / item._precio_catalogo - 1) * 100).toFixed(1)}% vs catalogo`
+                              : parseFloat(item.precio_unitario) < item._precio_catalogo
+                              ? `${((parseFloat(item.precio_unitario) / item._precio_catalogo - 1) * 100).toFixed(1)}% vs catalogo`
+                              : 'Mismo precio'}
+                          </span>
+                        )}
+                        <span className="text-xs font-semibold text-stone-600">
+                          Subtotal: {formatCurrency(itemSubtotal(item))}
+                        </span>
                       </div>
                     </div>
                   ))}
