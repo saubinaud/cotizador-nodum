@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useCalculadorCostos } from '../hooks/useCalculadorCostos';
 import { cx } from '../styles/tokens';
-import { formatCurrency } from '../utils/format';
+import { formatCurrency, precioComercial } from '../utils/format';
 import SearchableSelect from '../components/SearchableSelect';
 import {
   Plus,
@@ -39,12 +39,13 @@ const emptyPreparacion = () => ({
   collapsed: false,
 });
 
-const emptyMaterial = () => ({
+const emptyMaterial = (tipo = 'entero') => ({
   _id: newTempId(),
   material_id: null,
   nombre: '',
   cantidad: '1',
   precio: 0,
+  empaque_tipo: tipo,
 });
 
 export default function CotizadorPage() {
@@ -136,6 +137,7 @@ export default function CotizadorPage() {
                 unidad_medida: mat.unidad_medida || '',
                 cantidad: parseFloat(mat.cantidad) || 1,
                 precio,
+                empaque_tipo: mat.empaque_tipo || 'entero',
               };
             })
           );
@@ -240,8 +242,8 @@ export default function CotizadorPage() {
   };
 
   // --- Material handlers ---
-  const addMaterial = () => {
-    setMateriales((prev) => [...prev, emptyMaterial()]);
+  const addMaterial = (tipo = 'entero') => {
+    setMateriales((prev) => [...prev, emptyMaterial(tipo)]);
   };
 
   const removeMaterial = (matId) => {
@@ -318,6 +320,7 @@ export default function CotizadorPage() {
             id: m.id,
             material_id: m.material_id,
             cantidad: Number(m.cantidad) || 1,
+            empaque_tipo: m.empaque_tipo || 'entero',
           })),
         ...costos,
       };
@@ -345,6 +348,97 @@ export default function CotizadorPage() {
       0
     );
   }, []);
+
+  // Helper to render a list of materials (mobile cards + desktop table)
+  const renderMaterialsList = (mats) => {
+    if (mats.length === 0) {
+      return <p className="text-zinc-500 text-sm text-center py-2">Sin materiales.</p>;
+    }
+    return (
+      <div className={`${cx.card} p-4`}>
+        {/* Mobile material cards */}
+        <div className="space-y-3 lg:hidden">
+          {mats.map((mat) => (
+            <div key={mat._id} className="bg-zinc-800 rounded-xl p-3 space-y-2">
+              <SearchableSelect
+                options={catalogMateriales}
+                value={mat.material_id}
+                onChange={(item) => selectMaterial(mat._id, item)}
+                placeholder="Seleccionar material..."
+              />
+              <div className="flex gap-2 items-center">
+                <input
+                  type="number"
+                  value={mat.cantidad}
+                  onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
+                  placeholder="Cant."
+                  className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                />
+                <span className="text-zinc-500 text-xs">{mat.unidad_medida || ''}</span>
+                <span className="text-zinc-500 text-xs">x {formatCurrency(mat.precio)}</span>
+                <span className="ml-auto text-white text-sm font-medium">
+                  {formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}
+                </span>
+                <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-red-400'}>
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Desktop material table */}
+        <table className="w-full hidden lg:table">
+          <thead>
+            <tr>
+              <th className={cx.th + ' w-2/5'}>Material</th>
+              <th className={cx.th + ' w-1/6'}>Cantidad</th>
+              <th className={cx.th + ' w-1/6'}>Precio Unit.</th>
+              <th className={cx.th + ' w-1/6 text-right'}>Subtotal</th>
+              <th className={cx.th + ' w-10'}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {mats.map((mat) => (
+              <tr key={mat._id} className="border-b border-zinc-800/50 last:border-0">
+                <td className="py-2 pr-2">
+                  <SearchableSelect
+                    options={catalogMateriales}
+                    value={mat.material_id}
+                    onChange={(item) => selectMaterial(mat._id, item)}
+                    placeholder="Seleccionar material..."
+                  />
+                </td>
+                <td className="py-2 px-2">
+                  <div className="flex items-center gap-1">
+                    <input
+                      type="number"
+                      value={mat.cantidad}
+                      onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
+                      placeholder="1"
+                      className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                    />
+                    <span className="text-zinc-500 text-xs">{mat.unidad_medida || ''}</span>
+                  </div>
+                </td>
+                <td className="py-2 px-2 text-sm text-zinc-400 text-center">
+                  {formatCurrency(mat.precio)}
+                </td>
+                <td className="py-2 px-2 text-sm text-white font-medium text-right">
+                  {formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}
+                </td>
+                <td className="py-2 pl-2">
+                  <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-red-400'}>
+                    <Trash2 size={14} />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    );
+  };
 
   if (loadingProduct) {
     return (
@@ -692,104 +786,50 @@ export default function CotizadorPage() {
 
           {/* Empaque / Materiales */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">
-                Empaque / Materiales
-              </h3>
-              <button onClick={addMaterial} className={cx.btnGhost + ' flex items-center gap-1'}>
-                <Plus size={14} /> Agregar Material
-              </button>
-            </div>
+            <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">
+              Empaque / Materiales
+            </h3>
 
-            {materiales.length > 0 && (
-              <div className={`${cx.card} p-4`}>
-                {/* Mobile material cards */}
-                <div className="space-y-3 lg:hidden">
-                  {materiales.map((mat) => (
-                    <div key={mat._id} className="bg-zinc-800 rounded-xl p-3 space-y-2">
-                      <SearchableSelect
-                        options={catalogMateriales}
-                        value={mat.material_id}
-                        onChange={(item) => selectMaterial(mat._id, item)}
-                        placeholder="Seleccionar material..."
-                      />
-                      <div className="flex gap-2 items-center">
-                        <input
-                          type="number"
-                          value={mat.cantidad}
-                          onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
-                          placeholder="Cant."
-                          className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
-                        />
-                        <span className="text-zinc-500 text-xs">{mat.unidad_medida || ''}</span>
-                        <span className="text-zinc-500 text-xs">x {formatCurrency(mat.precio)}</span>
-                        <span className="ml-auto text-white text-sm font-medium">
-                          {formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}
-                        </span>
-                        <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-red-400'}>
-                          <Trash2 size={14} />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
+            {tipoPresentacion === 'entero' ? (
+              <>
+                {/* Empaque producto entero */}
+                <div className="mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-zinc-400">Producto entero</h4>
+                    <button onClick={() => addMaterial('entero')} className={cx.btnGhost + ' flex items-center gap-1 text-xs'}>
+                      <Plus size={13} /> Agregar
+                    </button>
+                  </div>
+                  {renderMaterialsList(materiales.filter(m => (m.empaque_tipo || 'entero') === 'entero'))}
                 </div>
 
-                {/* Desktop material table */}
-                <table className="w-full hidden lg:table">
-                  <thead>
-                    <tr>
-                      <th className={cx.th + ' w-2/5'}>Material</th>
-                      <th className={cx.th + ' w-1/6'}>Cantidad</th>
-                      <th className={cx.th + ' w-1/6'}>Precio Unit.</th>
-                      <th className={cx.th + ' w-1/6 text-right'}>Subtotal</th>
-                      <th className={cx.th + ' w-10'}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {materiales.map((mat) => (
-                      <tr key={mat._id} className="border-b border-zinc-800/50 last:border-0">
-                        <td className="py-2 pr-2">
-                          <SearchableSelect
-                            options={catalogMateriales}
-                            value={mat.material_id}
-                            onChange={(item) => selectMaterial(mat._id, item)}
-                            placeholder="Seleccionar material..."
-                          />
-                        </td>
-                        <td className="py-2 px-2">
-                          <div className="flex items-center gap-1">
-                            <input
-                              type="number"
-                              value={mat.cantidad}
-                              onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
-                              placeholder="1"
-                              className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
-                            />
-                            <span className="text-zinc-500 text-xs">{mat.unidad_medida || ''}</span>
-                          </div>
-                        </td>
-                        <td className="py-2 px-2 text-sm text-zinc-400 text-center">
-                          {formatCurrency(mat.precio)}
-                        </td>
-                        <td className="py-2 px-2 text-sm text-white font-medium text-right">
-                          {formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}
-                        </td>
-                        <td className="py-2 pl-2">
-                          <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-red-400'}>
-                            <Trash2 size={14} />
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {materiales.length === 0 && (
-              <div className={`${cx.card} p-8 text-center`}>
-                <p className="text-zinc-500 text-sm">Sin materiales de empaque.</p>
-              </div>
+                {/* Empaque por unidad */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <h4 className="text-xs font-semibold text-zinc-400">Por unidad ({unidadesPorProducto} uni)</h4>
+                    <button onClick={() => addMaterial('unidad')} className={cx.btnGhost + ' flex items-center gap-1 text-xs'}>
+                      <Plus size={13} /> Agregar
+                    </button>
+                  </div>
+                  {renderMaterialsList(materiales.filter(m => m.empaque_tipo === 'unidad'))}
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center justify-between mb-3">
+                  <span />
+                  <button onClick={() => addMaterial('entero')} className={cx.btnGhost + ' flex items-center gap-1'}>
+                    <Plus size={14} /> Agregar Material
+                  </button>
+                </div>
+                {materiales.length > 0 ? (
+                  renderMaterialsList(materiales)
+                ) : (
+                  <div className={`${cx.card} p-8 text-center`}>
+                    <p className="text-zinc-500 text-sm">Sin materiales de empaque.</p>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
@@ -820,10 +860,18 @@ export default function CotizadorPage() {
                   <span className="text-white">{formatCurrency(costos.costoInsumos)}</span>
                 </div>
               )}
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Costo empaque</span>
-                <span className="text-white">{formatCurrency(costos.costoEmpaque)}</span>
-              </div>
+              {costos.costoEmpaqueEntero > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-400">Empaque {tipoPresentacion === 'entero' ? 'entero' : ''}</span>
+                  <span className="text-white">{formatCurrency(costos.costoEmpaqueEntero)}</span>
+                </div>
+              )}
+              {costos.costoEmpaqueUnidad > 0 && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-400">Empaque/uni &times; {costos.multiplicador}</span>
+                  <span className="text-white">{formatCurrency(costos.costoEmpaqueUnidad * costos.multiplicador)}</span>
+                </div>
+              )}
               <div className="border-t border-zinc-800 pt-3 flex justify-between text-sm font-semibold">
                 <span className="text-zinc-300">Costo neto</span>
                 <span className="text-white">{formatCurrency(costos.costoNeto)}</span>
@@ -871,7 +919,32 @@ export default function CotizadorPage() {
                   {formatCurrency(costos.precioFinal)}
                 </span>
               </div>
+              <div className="flex justify-between items-baseline mt-1">
+                <span className="text-zinc-500 text-xs">Precio sugerido</span>
+                <span className="text-lg font-semibold text-green-400">
+                  {formatCurrency(precioComercial(costos.precioFinal))}
+                </span>
+              </div>
             </div>
+
+            {/* Dual pricing for entero */}
+            {tipoPresentacion === 'entero' && (
+              <div className="border-t border-zinc-800 pt-4 mt-2">
+                <p className="text-[10px] text-zinc-500 uppercase tracking-wider font-semibold mb-2">Precio por unidad</p>
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-400">Costo/uni</span>
+                  <span className="text-white">{formatCurrency(costos.costoNetoUnidad)}</span>
+                </div>
+                <div className="flex justify-between items-baseline mt-1">
+                  <span className="text-zinc-300 font-semibold">Precio/uni</span>
+                  <span className="text-lg font-bold text-[#FA7B21]">{formatCurrency(costos.precioFinalUnidad)}</span>
+                </div>
+                <div className="flex justify-between items-baseline mt-1">
+                  <span className="text-zinc-500 text-xs">Sugerido/uni</span>
+                  <span className="text-sm font-semibold text-green-400">{formatCurrency(precioComercial(costos.precioFinalUnidad))}</span>
+                </div>
+              </div>
+            )}
 
             <button
               onClick={handleSave}

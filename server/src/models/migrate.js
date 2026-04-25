@@ -41,6 +41,12 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS cantidad_por_unidad NUMERIC(12,4)
     `);
 
+    // producto_materiales — empaque_tipo (entero/unidad)
+    await client.query(`
+      ALTER TABLE producto_materiales
+        ADD COLUMN IF NOT EXISTS empaque_tipo VARCHAR(10) NOT NULL DEFAULT 'entero'
+    `);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

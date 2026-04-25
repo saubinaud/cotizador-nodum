@@ -69,9 +69,9 @@ router.post('/', async (req, res) => {
     if (materiales && materiales.length > 0) {
       for (const mat of materiales) {
         await client.query(
-          `INSERT INTO producto_materiales (producto_id, material_id, cantidad)
-           VALUES ($1, $2, $3)`,
-          [producto.id, mat.material_id, mat.cantidad]
+          `INSERT INTO producto_materiales (producto_id, material_id, cantidad, empaque_tipo)
+           VALUES ($1, $2, $3, $4)`,
+          [producto.id, mat.material_id, mat.cantidad, mat.empaque_tipo || 'entero']
         );
 
         const matData = await client.query(
@@ -170,7 +170,7 @@ router.get('/:id', async (req, res) => {
     }
 
     const matsRes = await pool.query(
-      `SELECT pm.id, pm.material_id, pm.cantidad,
+      `SELECT pm.id, pm.material_id, pm.cantidad, pm.empaque_tipo,
               m.nombre, m.unidad_medida, m.precio_presentacion, m.cantidad_presentacion
        FROM producto_materiales pm
        JOIN materiales m ON m.id = pm.material_id
@@ -286,8 +286,8 @@ router.put('/:id', async (req, res) => {
       if (materiales && materiales.length > 0) {
         for (const mat of materiales) {
           await client.query(
-            'INSERT INTO producto_materiales (producto_id, material_id, cantidad) VALUES ($1, $2, $3)',
-            [req.params.id, mat.material_id, mat.cantidad]
+            'INSERT INTO producto_materiales (producto_id, material_id, cantidad, empaque_tipo) VALUES ($1, $2, $3, $4)',
+            [req.params.id, mat.material_id, mat.cantidad, mat.empaque_tipo || 'entero']
           );
 
           const matData = await client.query(
@@ -445,8 +445,8 @@ router.post('/:id/duplicar', async (req, res) => {
     );
     for (const mat of mats.rows) {
       await client.query(
-        'INSERT INTO producto_materiales (producto_id, material_id, cantidad) VALUES ($1, $2, $3)',
-        [newId, mat.material_id, mat.cantidad]
+        'INSERT INTO producto_materiales (producto_id, material_id, cantidad, empaque_tipo) VALUES ($1, $2, $3, $4)',
+        [newId, mat.material_id, mat.cantidad, mat.empaque_tipo || 'entero']
       );
     }
 

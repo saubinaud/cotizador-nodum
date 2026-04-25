@@ -11,6 +11,15 @@ export function formatPercent(n) {
   return `${pct.toFixed(1)}%`;
 }
 
+export function precioComercial(precio) {
+  if (!precio || precio <= 0) return 0;
+  const entero = Math.floor(precio);
+  const centavos = precio - entero;
+  if (centavos <= 0.05) return entero || 0.90;
+  if (centavos <= 0.90) return entero + 0.90;
+  return entero + 1;
+}
+
 export function formatDate(d) {
   if (!d) return '-';
   const date = new Date(d);
