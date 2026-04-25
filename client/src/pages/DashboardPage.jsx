@@ -16,6 +16,8 @@ import {
   Grid3X3,
   LayoutList,
   Download,
+  Columns2,
+  Square,
 } from 'lucide-react';
 
 function normU(u) { if (!u) return ''; if (u === 'l') return 'L'; return u; }
@@ -41,6 +43,7 @@ export default function DashboardPage() {
   const [selectedVersion, setSelectedVersion] = useState(null);
   const [confirmRestore, setConfirmRestore] = useState(null);
   const [viewMode, setViewMode] = useState('gallery');
+  const [mobileColumns, setMobileColumns] = useState(() => localStorage.getItem('kudi_mobile_cols') === '1' ? 1 : 2);
   const [detailModal, setDetailModal] = useState(null);
   const [detailData, setDetailData] = useState(null);
 
@@ -249,6 +252,17 @@ export default function DashboardPage() {
             <LayoutList size={18} />
           </button>
           <button
+            onClick={() => {
+              const next = mobileColumns === 2 ? 1 : 2;
+              setMobileColumns(next);
+              localStorage.setItem('kudi_mobile_cols', String(next));
+            }}
+            className={`${cx.btnIcon} sm:hidden`}
+            title={mobileColumns === 2 ? 'Una columna' : 'Dos columnas'}
+          >
+            {mobileColumns === 2 ? <Square size={18} /> : <Columns2 size={18} />}
+          </button>
+          <button
             onClick={exportExcel}
             disabled={exporting}
             className={cx.btnSecondary + ' flex items-center gap-2'}
@@ -285,7 +299,7 @@ export default function DashboardPage() {
         const productosUnidad = filtered.filter((p) => p.tipo_presentacion !== 'entero');
 
         const renderGalleryGrid = (prods) => (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className={`grid ${mobileColumns === 2 ? 'grid-cols-2' : 'grid-cols-1'} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4`}>
             {prods.map((p) => (
               <div key={p.id} className={`${cx.cardHover} overflow-hidden group relative`} onClick={() => handleDetail(p)}>
                 {p.tipo_presentacion === 'entero' && p.unidades_por_producto > 1 && (
