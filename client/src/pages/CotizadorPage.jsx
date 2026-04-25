@@ -120,7 +120,7 @@ export default function CotizadorPage() {
   const [margen, setMargen] = useState(50);
   const [margenPorcion, setMargenPorcion] = useState(50);
   // igv_rate in DB is decimal (0.18), hook expects integer (18)
-  const [igvRate, setIgvRate] = useState(user?.igv_rate ? Math.round(user.igv_rate * 100) : 18);
+  const [igvRate, setIgvRate] = useState(user?.igv_rate ? parseFloat((user.igv_rate * 100).toFixed(2)) : 18);
   const [tipoPresentacion, setTipoPresentacion] = useState('unidad');
   const [unidadesPorProducto, setUnidadesPorProducto] = useState(1);
   const [saving, setSaving] = useState(false);
@@ -207,7 +207,7 @@ export default function CotizadorPage() {
         // DB stores decimals (0.5, 0.18), UI uses integers (50, 18)
         setMargen(p.margen ? Math.round(p.margen * 100) : 50);
         setMargenPorcion(p.margen_porcion ? Math.round(p.margen_porcion * 100) : (p.margen ? Math.round(p.margen * 100) : 50));
-        setIgvRate(p.igv_rate ? Math.round(p.igv_rate * 100) : (user?.igv_rate ? Math.round(user.igv_rate * 100) : 18));
+        setIgvRate(p.igv_rate ? parseFloat((p.igv_rate * 100).toFixed(2)) : (user?.igv_rate ? parseFloat((user.igv_rate * 100).toFixed(2)) : 18));
 
         if (p.preparaciones?.length) {
           setPreparaciones(
