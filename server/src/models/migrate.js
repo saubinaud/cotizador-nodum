@@ -86,6 +86,25 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS empaque_tipo VARCHAR(10) NOT NULL DEFAULT 'entero'
     `);
 
+    // insumo_precios — WAC price history
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS insumo_precios (
+        id SERIAL PRIMARY KEY,
+        insumo_id INTEGER NOT NULL REFERENCES insumos(id) ON DELETE CASCADE,
+        compra_item_id INTEGER REFERENCES compra_items(id) ON DELETE SET NULL,
+        fecha DATE NOT NULL,
+        cantidad NUMERIC(12,4) NOT NULL,
+        cantidad_base NUMERIC(12,4) NOT NULL,
+        precio_total NUMERIC(12,4) NOT NULL,
+        costo_por_base NUMERIC(12,8) NOT NULL,
+        proveedor VARCHAR(200),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // metodo_costeo en usuarios
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS metodo_costeo VARCHAR(10) NOT NULL DEFAULT 'wac'`);
+
     // usuarios — pais, moneda, logo_url
     await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pais VARCHAR(5) DEFAULT 'PE'`);
     await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS moneda VARCHAR(5) DEFAULT 'PEN'`);

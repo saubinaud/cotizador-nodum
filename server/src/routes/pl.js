@@ -1,9 +1,70 @@
 const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
+const { aBase, getUnidadBase } = require('../utils/unidades');
+
+/**
+ * Recalculates WAC (Weighted Average Cost) for an insumo
+ * based on all purchase history in insumo_precios.
+ * Updates insumos.costo_base with the new WAC.
+ */
+async function recalcularWAC(insumoId) {
+  const hist = await pool.query(
+    'SELECT cantidad_base, precio_total FROM insumo_precios WHERE insumo_id = $1',
+    [insumoId]
+  );
+  if (hist.rows.length === 0) return;
+
+  const totalCantidad = hist.rows.reduce((s, r) => s + parseFloat(r.cantidad_base), 0);
+  const totalPrecio = hist.rows.reduce((s, r) => s + parseFloat(r.precio_total), 0);
+
+  if (totalCantidad <= 0) return;
+
+  const wac = totalPrecio / totalCantidad;
+  await pool.query(
+    'UPDATE insumos SET costo_base = $1, updated_at = NOW() WHERE id = $2',
+    [wac, insumoId]
+  );
+  return wac;
+}
 
 const router = express.Router();
 router.use(auth);
+
+// GET /api/pl/insumo-precios/:insumoId — price history + WAC
+router.get('/insumo-precios/:insumoId', async (req, res) => {
+  try {
+    const history = await pool.query(
+      'SELECT * FROM insumo_precios WHERE insumo_id = $1 ORDER BY fecha DESC LIMIT 20',
+      [req.params.insumoId]
+    );
+    const insumo = await pool.query(
+      'SELECT id, nombre, costo_base, unidad_base, unidad_medida, precio_presentacion, cantidad_presentacion FROM insumos WHERE id = $1',
+      [req.params.insumoId]
+    );
+
+    const hist = history.rows;
+    const totalCantBase = hist.reduce((s, r) => s + parseFloat(r.cantidad_base), 0);
+    const totalPrecio = hist.reduce((s, r) => s + parseFloat(r.precio_total), 0);
+    const wac = totalCantBase > 0 ? totalPrecio / totalCantBase : 0;
+    const ultimoPrecio = hist.length > 0 ? parseFloat(hist[0].costo_por_base) : 0;
+    const precioMinimo = hist.length > 0 ? Math.min(...hist.map(h => parseFloat(h.costo_por_base))) : 0;
+    const precioMaximo = hist.length > 0 ? Math.max(...hist.map(h => parseFloat(h.costo_por_base))) : 0;
+
+    return res.json({ success: true, data: {
+      insumo: insumo.rows[0],
+      historial: hist,
+      wac,
+      ultimo_precio: ultimoPrecio,
+      precio_minimo: precioMinimo,
+      precio_maximo: precioMaximo,
+      num_compras: hist.length,
+    }});
+  } catch (err) {
+    console.error('Insumo precios error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
 
 // ==================== TRANSACCIONES ====================
 
@@ -795,17 +856,40 @@ router.post('/compras', async (req, res) => {
     );
     const compra = compraRes.rows[0];
 
+    const insumosToRecalc = new Set();
+
     for (const item of items) {
       const itemTotal = parseFloat(item.precio_unitario) * parseFloat(item.cantidad);
-      await client.query(
+      const ciRes = await client.query(
         `INSERT INTO compra_items (compra_id, insumo_id, material_id, nombre_item, cantidad, unidad, precio_unitario, total)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
         [compra.id, item.insumo_id || null, item.material_id || null, item.nombre_item || null,
          item.cantidad, item.unidad || null, item.precio_unitario, itemTotal]
       );
+
+      // Register price history for insumos
+      if (item.insumo_id) {
+        const ins = await client.query('SELECT unidad_medida FROM insumos WHERE id = $1', [item.insumo_id]);
+        const unidadBase = getUnidadBase(item.unidad || ins.rows[0]?.unidad_medida || 'g');
+        const cantBase = aBase(parseFloat(item.cantidad), item.unidad || ins.rows[0]?.unidad_medida || 'g');
+        const costoPorBase = cantBase > 0 ? itemTotal / cantBase : 0;
+
+        await client.query(
+          `INSERT INTO insumo_precios (insumo_id, compra_item_id, fecha, cantidad, cantidad_base, precio_total, costo_por_base, proveedor)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+          [item.insumo_id, ciRes.rows[0].id, fecha, item.cantidad, cantBase, itemTotal, costoPorBase, proveedor || null]
+        );
+        insumosToRecalc.add(item.insumo_id);
+      }
     }
 
     await client.query('COMMIT');
+
+    // Recalculate WAC for affected insumos (outside transaction for safety)
+    for (const insumoId of insumosToRecalc) {
+      try { await recalcularWAC(insumoId); } catch (e) { console.error('WAC recalc error:', e); }
+    }
+
     return res.status(201).json({ success: true, data: compra });
   } catch (err) {
     await client.query('ROLLBACK');
