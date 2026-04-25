@@ -23,3 +23,4 @@
 7. [06-DEPLOY.md](06-DEPLOY.md) — Como hacer deploy (frontend + backend)
 8. [07-HISTORIAL-CAMBIOS.md](07-HISTORIAL-CAMBIOS.md) — Registro de todo lo implementado
 9. [08-PENDIENTES.md](08-PENDIENTES.md) — Features por implementar
+10. [09-DESIGN-SYSTEM.md](09-DESIGN-SYSTEM.md) — UX/UI: colores, tipografia, componentes, anti-patrones
