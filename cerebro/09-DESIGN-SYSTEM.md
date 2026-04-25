@@ -186,6 +186,44 @@ CSS variables en `:root` y `[data-theme="..."]`.
 
 Selector visual en Perfil: 3 circulos de color.
 
+## InfoTips (tooltips informativos)
+
+Icono `?` al lado de titulos de seccion. Hover muestra tooltip explicativo.
+
+```
+Estilo: w-4 h-4 rounded-full bg-stone-100 text-stone-400 text-[10px]
+Hover:  bg-[var(--accent)] text-white
+Tooltip: bg-stone-800 text-white text-xs rounded-lg w-56
+Flecha: border trick apuntando hacia abajo
+```
+
+Donde ponerlos:
+- Al lado de titulos de seccion (h3): Producto, Preparaciones, Composicion, Empaque, Resumen
+- Al lado de labels complejos: Presentacion, Margen
+- NO en cada campo — solo donde el concepto no es obvio
+
+## Modales — Airbnb listing style
+
+```
+Overlay:   bg-black/40 backdrop-blur-sm
+Container: bg-white rounded-2xl shadow-2xl max-h-[85vh] overflow-y-auto
+Imagen:    aspect-[3/1] rounded-t-2xl (banner ancho)
+Padding:   p-6
+Tablas:    border border-stone-100 rounded-lg, header bg-stone-50
+Acciones:  flex gap-3 mt-6 (Editar primary + Cerrar secondary)
+```
+
+## Listas — Acordeon en card unico
+
+```
+Container: cx.card + divide-y divide-stone-100
+Item:      p-5, header clickeable con chevron
+Colapsado: nombre + costo visible
+Expandido: mini-tabla bordeada con bg-stone-50 header
+```
+
+Aplicado en: Preparaciones (cotizador), PrepPred, EmpaquePred, Dashboard historial.
+
 ## Anti-patrones (lo que NO hacer)
 
 - NO usar shadow en cards por defecto (solo en hover)
@@ -194,7 +232,9 @@ Selector visual en Perfil: 3 circulos de color.
 - NO usar colores pasteles lavados (usar tonos profundos Presage)
 - NO usar tipografias decorativas (system-ui es suficiente)
 - NO numerar pasos (los titulos hablan solos)
-- NO agregar subtitulos descriptivos obvios
+- NO agregar subtitulos descriptivos en paginas (solo InfoTips)
 - NO duplicar botones (guardar solo en un lugar)
 - NO usar ring de color en focus (oscurecer borde — Airbnb)
 - NO usar rounded-full en botones (solo en badges)
+- NO usar porcentajes en grids con gap (usar fr)
+- NO poner InfoTips en cada campo (solo en conceptos no obvios)
