@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { useCalculadorCostos } from '../hooks/useCalculadorCostos';
 import { cx } from '../styles/tokens';
-import { formatCurrency, precioComercial } from '../utils/format';
+import { formatCurrency, precioComercial, preciosRecomendados } from '../utils/format';
 import SearchableSelect from '../components/SearchableSelect';
 import CustomSelect from '../components/CustomSelect';
 import {
@@ -174,6 +174,7 @@ export default function CotizadorPage() {
   const [catalogEmpaques, setCatalogEmpaques] = useState([]);
 
   const costos = useCalculadorCostos(preparaciones, materiales, margen, igvRate, tipoPresentacion, unidadesPorProducto, margenPorcion);
+  const precioConfig = user?.precio_decimales || 'variable';
 
   const enrichedInsumos = useMemo(() => {
     // Group by normalized name
@@ -249,9 +250,9 @@ export default function CotizadorPage() {
         setImagenUrl(p.imagen_url || '');
         setTipoPresentacion(p.tipo_presentacion || 'unidad');
         setUnidadesPorProducto(parseInt(p.unidades_por_producto) || 1);
-        // DB stores decimals (0.5, 0.18), UI uses integers (50, 18)
-        setMargen(p.margen ? Math.round(p.margen * 100) : 50);
-        setMargenPorcion(p.margen_porcion ? Math.round(p.margen_porcion * 100) : (p.margen ? Math.round(p.margen * 100) : 50));
+        // DB stores decimals (0.5, 0.18), UI uses percentage (50, 18) — preserve decimals
+        setMargen(p.margen ? parseFloat((p.margen * 100).toFixed(2)) : 50);
+        setMargenPorcion(p.margen_porcion ? parseFloat((p.margen_porcion * 100).toFixed(2)) : (p.margen ? parseFloat((p.margen * 100).toFixed(2)) : 50));
         setIgvRate(p.igv_rate ? parseFloat((p.igv_rate * 100).toFixed(2)) : (user?.igv_rate ? parseFloat((user.igv_rate * 100).toFixed(2)) : 18));
 
         if (p.preparaciones?.length) {
@@ -560,7 +561,7 @@ export default function CotizadorPage() {
     const igvDec = igvRate / 100;
     const precioVenta = precioFinal / (1 + igvDec);
     if (costos.costoNeto > 0 && precioVenta > costos.costoNeto) {
-      const newMargen = Math.round((1 - costos.costoNeto / precioVenta) * 100);
+      const newMargen = parseFloat(((1 - costos.costoNeto / precioVenta) * 100).toFixed(1));
       setMargen(Math.min(90, Math.max(0, newMargen)));
     }
   }, [igvRate, costos.costoNeto]);
@@ -569,7 +570,7 @@ export default function CotizadorPage() {
     const igvDec = igvRate / 100;
     const precioVenta = precioFinal / (1 + igvDec);
     if (costos.costoNetoPorcion > 0 && precioVenta > costos.costoNetoPorcion) {
-      const newMargen = Math.round((1 - costos.costoNetoPorcion / precioVenta) * 100);
+      const newMargen = parseFloat(((1 - costos.costoNetoPorcion / precioVenta) * 100).toFixed(1));
       setMargenPorcion(Math.min(90, Math.max(0, newMargen)));
     }
   }, [igvRate, costos.costoNetoPorcion]);
@@ -1140,7 +1141,7 @@ export default function CotizadorPage() {
                       type="range"
                       min="0"
                       max="90"
-                      step="1"
+                      step="0.5"
                       value={margen}
                       onChange={(e) => setMargen(Number(e.target.value))}
                       className="flex-1 accent-[var(--accent)] h-1.5"
@@ -1172,17 +1173,28 @@ export default function CotizadorPage() {
                     <span className="text-stone-600 text-sm">Precio final</span>
                     <EditablePrice value={costos.precioFinal} onChange={setMargenFromPrecio} className="text-2xl font-bold text-stone-900" />
                   </div>
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-stone-400 text-xs">Sugerido</span>
-                    <span className="text-base font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinal))}</span>
-                  </div>
+                  {precioConfig === 'variable' ? (
+                    <div className="flex justify-between items-baseline gap-4">
+                      <span className="text-stone-400 text-xs">Sugeridos</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-[var(--success)]">{formatCurrency(preciosRecomendados(costos.precioFinal).conDecimales)}</span>
+                        <span className="text-stone-300">|</span>
+                        <span className="text-sm font-semibold text-stone-600">{formatCurrency(preciosRecomendados(costos.precioFinal).sinDecimales)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-stone-400 text-xs">Sugerido</span>
+                      <span className="text-base font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinal, precioConfig))}</span>
+                    </div>
+                  )}
                 </div>
 
                 {/* Margen por porcion */}
                 <div className="py-4 border-b border-stone-100">
                   <label className={cx.label}>Margen por porcion</label>
                   <div className="flex items-center gap-3 mt-1">
-                    <input type="range" min="0" max="90" step="1" value={margenPorcion} onChange={(e) => setMargenPorcion(Number(e.target.value))} className="flex-1 accent-[var(--accent)] h-1.5" />
+                    <input type="range" min="0" max="90" step="0.5" value={margenPorcion} onChange={(e) => setMargenPorcion(Number(e.target.value))} className="flex-1 accent-[var(--accent)] h-1.5" />
                     <input type="number" value={margenPorcion} onChange={(e) => setMargenPorcion(Math.min(90, Math.max(0, Number(e.target.value) || 0)))} className="w-20 bg-stone-50 rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400" />
                     <span className="text-stone-400 text-sm">%</span>
                   </div>
@@ -1199,10 +1211,21 @@ export default function CotizadorPage() {
                     <span className="text-stone-600 text-sm">Precio final</span>
                     <EditablePrice value={costos.precioFinalPorcion} onChange={setMargenPorcionFromPrecio} className="text-2xl font-bold text-stone-900" />
                   </div>
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-stone-400 text-xs">Sugerido</span>
-                    <span className="text-base font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinalPorcion))}</span>
-                  </div>
+                  {precioConfig === 'variable' ? (
+                    <div className="flex justify-between items-baseline gap-4">
+                      <span className="text-stone-400 text-xs">Sugeridos</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-[var(--success)]">{formatCurrency(preciosRecomendados(costos.precioFinalPorcion).conDecimales)}</span>
+                        <span className="text-stone-300">|</span>
+                        <span className="text-sm font-semibold text-stone-600">{formatCurrency(preciosRecomendados(costos.precioFinalPorcion).sinDecimales)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-stone-400 text-xs">Sugerido</span>
+                      <span className="text-base font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinalPorcion, precioConfig))}</span>
+                    </div>
+                  )}
                 </div>
               </>
             ) : (
@@ -1230,7 +1253,7 @@ export default function CotizadorPage() {
                       type="range"
                       min="0"
                       max="90"
-                      step="1"
+                      step="0.5"
                       value={margen}
                       onChange={(e) => setMargen(Number(e.target.value))}
                       className="flex-1 accent-[var(--accent)] h-1.5"
@@ -1264,10 +1287,21 @@ export default function CotizadorPage() {
                     <span className="text-stone-600 text-sm">Precio final</span>
                     <EditablePrice value={costos.precioFinal} onChange={setMargenFromPrecio} className="text-2xl font-bold text-stone-900" />
                   </div>
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-stone-400 text-xs">Sugerido</span>
-                    <span className="text-base font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinal))}</span>
-                  </div>
+                  {precioConfig === 'variable' ? (
+                    <div className="flex justify-between items-baseline gap-4">
+                      <span className="text-stone-400 text-xs">Sugeridos</span>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-[var(--success)]">{formatCurrency(preciosRecomendados(costos.precioFinal).conDecimales)}</span>
+                        <span className="text-stone-300">|</span>
+                        <span className="text-sm font-semibold text-stone-600">{formatCurrency(preciosRecomendados(costos.precioFinal).sinDecimales)}</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-stone-400 text-xs">Sugerido</span>
+                      <span className="text-base font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinal, precioConfig))}</span>
+                    </div>
+                  )}
                 </div>
               </>
             )}

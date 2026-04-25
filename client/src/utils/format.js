@@ -12,13 +12,28 @@ export function formatPercent(n) {
   return `${pct.toFixed(1)}%`;
 }
 
-export function precioComercial(precio) {
+export function precioComercial(precio, modo = 'variable') {
   if (!precio || precio <= 0) return 0;
+
+  if (modo === 'enteros') {
+    // Always round up to next integer
+    return Math.ceil(precio);
+  }
+
+  // 'decimales' and 'variable' use same logic: round to .90 or next integer
   const entero = Math.floor(precio);
   const centavos = precio - entero;
-  if (centavos <= 0.05) return entero || 0.90;
+  if (centavos <= 0.05) return entero || 1;
   if (centavos <= 0.90) return entero + 0.90;
   return entero + 1;
+}
+
+// Helper to get both versions
+export function preciosRecomendados(precio) {
+  return {
+    conDecimales: precioComercial(precio, 'decimales'),
+    sinDecimales: precioComercial(precio, 'enteros'),
+  };
 }
 
 export function formatDate(d) {

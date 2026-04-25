@@ -34,6 +34,7 @@ export default function PerfilPage() {
       igv_rate: user?.igv_rate ? (Number(user.igv_rate) < 1 ? Math.round(Number(user.igv_rate) * 100) : Number(user.igv_rate)) : 18,
       pais: user?.pais || 'PE',
       tipo_negocio: user?.tipo_negocio || 'formal',
+      precio_decimales: user?.precio_decimales || 'variable',
     });
     setEditing(true);
   };
@@ -252,6 +253,18 @@ export default function PerfilPage() {
                 />
               </div>
             </div>
+            <div>
+              <label className={cx.label}>Formato de precio</label>
+              <CustomSelect
+                value={profileForm.precio_decimales}
+                onChange={(v) => setProfileForm({ ...profileForm, precio_decimales: v })}
+                options={[
+                  { value: 'decimales', label: 'Con decimales (S/ 17.90)' },
+                  { value: 'enteros', label: 'Sin decimales (S/ 18)' },
+                  { value: 'variable', label: 'Variable (muestra ambos)' },
+                ]}
+              />
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={handleSaveProfile}
@@ -302,6 +315,12 @@ export default function PerfilPage() {
             <div>
               <label className={cx.label}>Moneda</label>
               <p className="text-stone-800 text-sm">{user?.moneda || 'PEN'} ({user?.simbolo || 'S/'})</p>
+            </div>
+            <div>
+              <label className={cx.label}>Formato de precio</label>
+              <p className="text-stone-800 text-sm">
+                {user?.precio_decimales === 'decimales' ? 'Con decimales' : user?.precio_decimales === 'enteros' ? 'Sin decimales' : 'Variable (ambos)'}
+              </p>
             </div>
             <div>
               <label className={cx.label}>Rol</label>

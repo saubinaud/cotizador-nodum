@@ -94,6 +94,9 @@ async function runMigrations() {
     // usuarios — tipo_negocio (formal/informal)
     await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tipo_negocio VARCHAR(10) NOT NULL DEFAULT 'formal'`);
 
+    // usuarios — precio_decimales (decimales/enteros/variable)
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS precio_decimales VARCHAR(10) NOT NULL DEFAULT 'variable'`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);
