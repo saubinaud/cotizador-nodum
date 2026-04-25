@@ -63,6 +63,47 @@ function costoEnUsoUnidad(ins) {
   return factor > 0 ? (Number(ins.costo_unitario) || 0) * factor : (Number(ins.costo_unitario) || 0);
 }
 
+function EditablePrice({ value, onChange, simbolo = 'S/', className = '' }) {
+  const [editing, setEditing] = useState(false);
+  const [tempVal, setTempVal] = useState('');
+
+  if (editing) {
+    return (
+      <input
+        type="number"
+        step="0.01"
+        value={tempVal}
+        onChange={(e) => setTempVal(e.target.value)}
+        onBlur={() => {
+          const num = parseFloat(tempVal);
+          if (num > 0) onChange(num);
+          setEditing(false);
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') { e.target.blur(); }
+          if (e.key === 'Escape') { setEditing(false); }
+        }}
+        className={`bg-transparent border-none outline-none text-right ${className}`}
+        autoFocus
+        style={{ width: `${Math.max(4, String(tempVal).length + 1)}ch` }}
+      />
+    );
+  }
+
+  return (
+    <span
+      className={`cursor-pointer hover:opacity-70 transition-opacity ${className}`}
+      onClick={() => {
+        setTempVal(Number(value).toFixed(2));
+        setEditing(true);
+      }}
+      title="Click para editar precio"
+    >
+      {simbolo} {Number(value).toFixed(2)}
+    </span>
+  );
+}
+
 function InfoTip({ text }) {
   return (
     <span className="relative group inline-flex ml-1.5 cursor-help" style={{ zIndex: 100 }}>
@@ -513,6 +554,25 @@ export default function CotizadorPage() {
       0
     );
   }, []);
+
+  // Reverse calc: from price → margin
+  const setMargenFromPrecio = useCallback((precioFinal) => {
+    const igvDec = igvRate / 100;
+    const precioVenta = precioFinal / (1 + igvDec);
+    if (costos.costoNeto > 0 && precioVenta > costos.costoNeto) {
+      const newMargen = Math.round((1 - costos.costoNeto / precioVenta) * 100);
+      setMargen(Math.min(90, Math.max(0, newMargen)));
+    }
+  }, [igvRate, costos.costoNeto]);
+
+  const setMargenPorcionFromPrecio = useCallback((precioFinal) => {
+    const igvDec = igvRate / 100;
+    const precioVenta = precioFinal / (1 + igvDec);
+    if (costos.costoNetoPorcion > 0 && precioVenta > costos.costoNetoPorcion) {
+      const newMargen = Math.round((1 - costos.costoNetoPorcion / precioVenta) * 100);
+      setMargenPorcion(Math.min(90, Math.max(0, newMargen)));
+    }
+  }, [igvRate, costos.costoNetoPorcion]);
 
   // Helper to render a list of materials (mobile cards + desktop table)
   const renderMaterialsList = (mats) => {
@@ -1110,7 +1170,7 @@ export default function CotizadorPage() {
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-stone-600 text-sm">Precio final</span>
-                    <span className="text-2xl font-bold text-stone-900">{formatCurrency(costos.precioFinal)}</span>
+                    <EditablePrice value={costos.precioFinal} onChange={setMargenFromPrecio} className="text-2xl font-bold text-stone-900" />
                   </div>
                   <div className="flex justify-between items-baseline">
                     <span className="text-stone-400 text-xs">Sugerido</span>
@@ -1137,7 +1197,7 @@ export default function CotizadorPage() {
                   </div>
                   <div className="flex justify-between items-baseline pt-1">
                     <span className="text-stone-600 text-sm">Precio final</span>
-                    <span className="text-2xl font-bold text-stone-900">{formatCurrency(costos.precioFinalPorcion)}</span>
+                    <EditablePrice value={costos.precioFinalPorcion} onChange={setMargenPorcionFromPrecio} className="text-2xl font-bold text-stone-900" />
                   </div>
                   <div className="flex justify-between items-baseline">
                     <span className="text-stone-400 text-xs">Sugerido</span>
@@ -1198,11 +1258,11 @@ export default function CotizadorPage() {
                   </div>
                 </div>
 
-                {/* Final price — BIG, prominent */}
+                {/* Final price — BIG, editable */}
                 <div className="pt-4">
                   <div className="flex justify-between items-baseline mb-1">
                     <span className="text-stone-600 text-sm">Precio final</span>
-                    <span className="text-2xl font-bold text-stone-900">{formatCurrency(costos.precioFinal)}</span>
+                    <EditablePrice value={costos.precioFinal} onChange={setMargenFromPrecio} className="text-2xl font-bold text-stone-900" />
                   </div>
                   <div className="flex justify-between items-baseline">
                     <span className="text-stone-400 text-xs">Sugerido</span>
