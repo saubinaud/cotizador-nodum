@@ -5,6 +5,166 @@ const auth = require('../middleware/auth');
 const router = express.Router();
 router.use(auth);
 
+// ==================== TRANSACCIONES ====================
+
+// GET /api/pl/transacciones/balance?periodo_id=X — quick balance
+router.get('/transacciones/balance', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    let where = 'WHERE t.usuario_id = $1';
+    const params = [req.user.id];
+    if (periodo_id) {
+      where += ' AND t.periodo_id = $2';
+      params.push(periodo_id);
+    }
+    const result = await pool.query(
+      `SELECT
+        COALESCE(SUM(CASE WHEN t.tipo = 'venta' THEN t.monto_absoluto ELSE 0 END), 0) AS ingresos,
+        COALESCE(SUM(CASE WHEN t.tipo = 'compra' THEN t.monto_absoluto ELSE 0 END), 0) AS compras,
+        COALESCE(SUM(CASE WHEN t.tipo = 'gasto' THEN t.monto_absoluto ELSE 0 END), 0) AS gastos,
+        COALESCE(SUM(t.monto), 0) AS balance,
+        COUNT(*) AS total_transacciones
+       FROM transacciones t ${where}`,
+      params
+    );
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Balance error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// GET /api/pl/transacciones?periodo_id=X&tipo=venta — timeline
+router.get('/transacciones', async (req, res) => {
+  try {
+    const { periodo_id, tipo, limit: lim } = req.query;
+    let query = `SELECT t.*,
+      p.nombre AS producto_nombre, p.imagen_url AS producto_imagen, p.costo_neto AS producto_costo_neto,
+      cg.nombre AS categoria_nombre, cg.tipo AS categoria_tipo
+     FROM transacciones t
+     LEFT JOIN productos p ON p.id = t.producto_id
+     LEFT JOIN categorias_gasto cg ON cg.id = t.categoria_id
+     WHERE t.usuario_id = $1`;
+    const params = [req.user.id];
+    let paramIdx = 2;
+
+    if (periodo_id) {
+      query += ` AND t.periodo_id = $${paramIdx++}`;
+      params.push(periodo_id);
+    }
+    if (tipo) {
+      query += ` AND t.tipo = $${paramIdx++}`;
+      params.push(tipo);
+    }
+    query += ' ORDER BY t.fecha DESC, t.created_at DESC';
+    if (lim) {
+      query += ` LIMIT $${paramIdx++}`;
+      params.push(parseInt(lim));
+    }
+
+    const result = await pool.query(query, params);
+
+    // For compras, get items
+    for (const t of result.rows) {
+      if (t.tipo === 'compra' && t.compra_id) {
+        const items = await pool.query(
+          `SELECT ci.*, COALESCE(i.nombre, m.nombre, ci.nombre_item) AS item_nombre
+           FROM compra_items ci LEFT JOIN insumos i ON i.id = ci.insumo_id LEFT JOIN materiales m ON m.id = ci.material_id
+           WHERE ci.compra_id = $1`, [t.compra_id]
+        );
+        t.compra_items = items.rows;
+      }
+    }
+
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Transacciones error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// POST /api/pl/transacciones — quick create any transaction
+router.post('/transacciones', async (req, res) => {
+  try {
+    const { tipo, periodo_id, fecha, producto_id, cantidad, precio_unitario,
+            descuento_tipo, descuento_valor, categoria_id, monto_absoluto,
+            descripcion, nota } = req.body;
+
+    if (!tipo || !fecha) return res.status(400).json({ success: false, error: 'tipo y fecha requeridos' });
+
+    // Auto-assign period if not provided
+    let pid = periodo_id;
+    if (!pid) {
+      const per = await pool.query(
+        'SELECT id FROM periodos WHERE usuario_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+        [req.user.id, fecha]
+      );
+      pid = per.rows[0]?.id || null;
+    }
+
+    let monto = 0;
+    let montoAbs = 0;
+
+    if (tipo === 'venta') {
+      const prod = await pool.query('SELECT precio_final, costo_neto FROM productos WHERE id = $1', [producto_id]);
+      const precio = precio_unitario || parseFloat(prod.rows[0]?.precio_final || 0);
+      const cant = parseInt(cantidad) || 1;
+      let desc = 0;
+      const descVal = parseFloat(descuento_valor) || 0;
+      if (descuento_tipo === 'total') desc = descVal;
+      else if (descuento_tipo === 'unit') desc = descVal * cant;
+      else if (descuento_tipo === 'percent') desc = (precio * cant) * (descVal / 100);
+
+      montoAbs = (precio * cant) - desc;
+      monto = montoAbs; // positive = income
+    } else if (tipo === 'gasto' || tipo === 'compra') {
+      montoAbs = parseFloat(monto_absoluto) || 0;
+      monto = -montoAbs; // negative = expense
+    }
+
+    const result = await pool.query(
+      `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, producto_id, cantidad, precio_unitario,
+        descuento, descuento_tipo, descuento_valor, categoria_id, monto, monto_absoluto, descripcion, nota)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+      [req.user.id, pid, tipo, fecha, producto_id || null, cantidad || null, precio_unitario || null,
+        tipo === 'venta' ? (montoAbs - (parseFloat(precio_unitario || 0) * parseInt(cantidad || 1))) * -1 : 0,
+        descuento_tipo || 'none', descuento_valor || 0, categoria_id || null,
+        monto, montoAbs, descripcion || null, nota || null]
+    );
+
+    // Also insert into legacy tables for backward compatibility
+    if (tipo === 'venta' && pid) {
+      await pool.query(
+        'INSERT INTO ventas (periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total) VALUES ($1,$2,$3,$4,$5,$6,$7)',
+        [pid, producto_id, fecha, cantidad || 1, precio_unitario || 0, 0, montoAbs]
+      ).catch(() => {});
+    }
+    if (tipo === 'gasto' && pid && categoria_id) {
+      await pool.query(
+        'INSERT INTO gastos (periodo_id, categoria_id, fecha, monto, descripcion) VALUES ($1,$2,$3,$4,$5)',
+        [pid, categoria_id, fecha, montoAbs, descripcion]
+      ).catch(() => {});
+    }
+
+    return res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Create transaccion error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// DELETE /api/pl/transacciones/:id
+router.delete('/transacciones/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM transacciones WHERE id = $1 AND usuario_id = $2 RETURNING id', [req.params.id, req.user.id]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Transaccion no encontrada' });
+    return res.json({ success: true, data: { message: 'Eliminada' } });
+  } catch (err) {
+    console.error('Delete transaccion error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
 // ==================== P&L RESUMEN ====================
 
 // GET /api/pl/resumen?periodo_id=X — full P&L calculation

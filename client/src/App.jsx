@@ -17,6 +17,7 @@ import AdminUsuariosPage from './pages/AdminUsuariosPage';
 import AdminActividadPage from './pages/AdminActividadPage';
 import ProyeccionPage from './pages/ProyeccionPage';
 import ActividadPage from './pages/ActividadPage';
+import PLTimelinePage from './pages/PLTimelinePage';
 import PLResumenPage from './pages/PLResumenPage';
 import PLVentasPage from './pages/PLVentasPage';
 import PLGastosPage from './pages/PLGastosPage';
@@ -49,7 +50,8 @@ export default function App() {
               <Route path="/empaques-predeterminados" element={<EmpaquePredPage />} />
               <Route path="/proyeccion" element={<ProyeccionPage />} />
               <Route path="/actividad" element={<ActividadPage />} />
-              <Route path="/pl" element={<PLResumenPage />} />
+              <Route path="/pl" element={<PLTimelinePage />} />
+              <Route path="/pl/resumen" element={<PLResumenPage />} />
               <Route path="/pl/ventas" element={<PLVentasPage />} />
               <Route path="/pl/gastos" element={<PLGastosPage />} />
               <Route path="/pl/compras" element={<PLComprasPage />} />

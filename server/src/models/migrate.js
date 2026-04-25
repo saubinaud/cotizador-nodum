@@ -155,6 +155,38 @@ async function runMigrations() {
       )
     `);
 
+    // ==================== TRANSACCIONES (unified P&L) ====================
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS transacciones (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        periodo_id INTEGER REFERENCES periodos(id) ON DELETE SET NULL,
+        tipo VARCHAR(20) NOT NULL CHECK (tipo IN ('venta', 'gasto', 'compra')),
+        fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+        producto_id INTEGER REFERENCES productos(id) ON DELETE SET NULL,
+        cantidad INTEGER,
+        precio_unitario NUMERIC(12,2),
+        descuento NUMERIC(12,2) NOT NULL DEFAULT 0,
+        descuento_tipo VARCHAR(10) NOT NULL DEFAULT 'none',
+        descuento_valor NUMERIC(12,2) NOT NULL DEFAULT 0,
+        categoria_id INTEGER REFERENCES categorias_gasto(id) ON DELETE SET NULL,
+        compra_id INTEGER REFERENCES compras(id) ON DELETE SET NULL,
+        monto NUMERIC(12,2) NOT NULL DEFAULT 0,
+        monto_absoluto NUMERIC(12,2) NOT NULL DEFAULT 0,
+        descripcion VARCHAR(255),
+        nota TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Indexes for transacciones
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_transacciones_usuario ON transacciones(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_transacciones_periodo ON transacciones(periodo_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_transacciones_fecha ON transacciones(fecha DESC)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_transacciones_tipo ON transacciones(tipo)`);
+
     // Update default permisos to include 'pl'
     await client.query(`
       ALTER TABLE usuarios

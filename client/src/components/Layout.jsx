@@ -46,10 +46,11 @@ const sidebarGroups = [
     label: 'P&L',
     icon: DollarSign,
     links: [
-      { to: '/pl', label: 'Resumen', icon: BarChart3, perm: 'pl' },
+      { to: '/pl', label: 'Timeline', icon: Activity, perm: 'pl', end: true },
+      { to: '/pl/resumen', label: 'Estado de resultados', icon: BarChart3, perm: 'pl' },
       { to: '/pl/ventas', label: 'Ventas', icon: ShoppingCart, perm: 'pl' },
-      { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'pl' },
       { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'pl' },
+      { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'pl' },
     ],
   },
 ];
@@ -64,10 +65,11 @@ const adminLinks = [
   { to: '/admin/actividad', label: 'Actividad', icon: Activity },
 ];
 
-function SidebarLink({ to, label, icon: Icon, onClick, collapsed }) {
+function SidebarLink({ to, label, icon: Icon, onClick, collapsed, end }) {
   return (
     <NavLink
       to={to}
+      end={end}
       onClick={onClick}
       title={collapsed ? label : undefined}
       className={({ isActive }) =>
