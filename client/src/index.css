@@ -20,22 +20,22 @@ body {
 }
 
 :root {
+  --accent: #059669;
+  --accent-hover: #047857;
+  --accent-light: #ecfdf5;
+  --success: #059669;
+}
+
+[data-theme="coral"] {
   --accent: #e8590c;
   --accent-hover: #c2410c;
   --accent-light: #fff7ed;
-  --success: #0f766e;
+  --success: #059669;
 }
 
 [data-theme="lavanda"] {
   --accent: #4f46e5;
   --accent-hover: #4338ca;
   --accent-light: #eef2ff;
-  --success: #0f766e;
-}
-
-[data-theme="menta"] {
-  --accent: #0f766e;
-  --accent-hover: #115e59;
-  --accent-light: #f0fdfa;
-  --success: #0f766e;
+  --success: #059669;
 }

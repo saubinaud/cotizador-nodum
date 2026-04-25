@@ -335,19 +335,24 @@ export default function PerfilPage() {
         <h3 className="text-lg font-semibold text-stone-900 mb-3">Tema</h3>
         <div className="flex gap-3">
           {[
-            { key: 'coral', color: '#f97316', name: 'Coral' },
-            { key: 'lavanda', color: '#8b5cf6', name: 'Lavanda' },
-            { key: 'menta', color: '#14b8a6', name: 'Menta' },
+            { key: 'menta', color: '#059669', name: 'Menta' },
+            { key: 'coral', color: '#e8590c', name: 'Coral' },
+            { key: 'lavanda', color: '#4f46e5', name: 'Lavanda' },
           ].map((t) => (
             <button
               key={t.key}
               onClick={() => {
-                localStorage.setItem('nodum_theme', t.key);
-                document.documentElement.setAttribute('data-theme', t.key);
+                if (t.key === 'menta') {
+                  localStorage.removeItem('nodum_theme');
+                  document.documentElement.removeAttribute('data-theme');
+                } else {
+                  localStorage.setItem('nodum_theme', t.key);
+                  document.documentElement.setAttribute('data-theme', t.key);
+                }
                 window.location.reload();
               }}
               className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                (localStorage.getItem('nodum_theme') || 'coral') === t.key
+                (!localStorage.getItem('nodum_theme') && t.key === 'menta') || localStorage.getItem('nodum_theme') === t.key
                   ? 'border-[var(--accent)] bg-[var(--accent-light)]'
                   : 'border-stone-200 hover:border-stone-300'
               }`}
