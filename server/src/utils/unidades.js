@@ -10,6 +10,7 @@ const UNIDAD_BASE = {
   g: 'g', kg: 'g', oz: 'g', lb: 'g', mg: 'g',
   ml: 'ml', L: 'ml', l: 'ml',
   uni: 'uni', docena: 'uni',
+  cm: 'cm', mt: 'cm', m: 'cm',
 };
 
 // Factor para convertir 1 unidad → unidad base
@@ -17,6 +18,7 @@ const A_BASE = {
   g: 1, kg: 1000, oz: 28.3495, lb: 453.592, mg: 0.001,
   ml: 1, L: 1000, l: 1000,
   uni: 1, docena: 12,
+  cm: 1, mt: 100, m: 100,
 };
 
 function normU(u) {

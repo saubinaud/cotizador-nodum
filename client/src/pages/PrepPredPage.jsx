@@ -21,7 +21,7 @@ const FACTORES = {
   'g→kg': 0.001, 'kg→g': 1000,
   'g→oz': 0.03527, 'oz→g': 28.3495,
   'kg→oz': 35.274, 'oz→kg': 0.02835,
-  'ml→L': 0.001, 'L→ml': 1000,
+  'ml→L': 0.001, 'L→ml': 1000, 'cm→mt': 0.01, 'mt→cm': 100,
 };
 
 function convertirUnidad(valor, deUnidad, aUnidad) {
@@ -39,7 +39,7 @@ function getUnidadesCompatibles(unidadBase) {
   const grupos = [
     ['g', 'kg', 'oz'],
     ['ml', 'L'],
-    ['uni'],
+    ['uni'], ['cm', 'mt'],
   ];
   for (const grupo of grupos) {
     if (grupo.includes(u)) return grupo;

@@ -29,7 +29,7 @@ const FACTORES = {
   'g→kg': 0.001, 'kg→g': 1000,
   'g→oz': 0.03527, 'oz→g': 28.3495,
   'kg→oz': 35.274, 'oz→kg': 0.02835,
-  'ml→L': 0.001, 'L→ml': 1000,
+  'ml→L': 0.001, 'L→ml': 1000, 'cm→mt': 0.01, 'mt→cm': 100,
 };
 
 function convertirUnidad(valor, deUnidad, aUnidad) {
@@ -47,7 +47,7 @@ function getUnidadesCompatibles(unidadBase) {
   const grupos = [
     ['g', 'kg', 'oz'],
     ['ml', 'L'],
-    ['uni'],
+    ['uni'], ['cm', 'mt'],
   ];
   for (const grupo of grupos) {
     if (grupo.includes(u)) return grupo;
@@ -167,6 +167,7 @@ export default function CotizadorPage() {
   const [unidadesPorProducto, setUnidadesPorProducto] = useState(1);
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(!!id);
+  const [showPriceChoice, setShowPriceChoice] = useState(false);
 
   const [catalogInsumos, setCatalogInsumos] = useState([]);
   const [catalogMateriales, setCatalogMateriales] = useState([]);
@@ -490,7 +491,22 @@ export default function CotizadorPage() {
   };
 
   // --- Save ---
+  const precioConfig = user?.precio_decimales || 'variable';
+
+  const handleSaveClick = () => {
+    if (!nombre.trim()) {
+      toast.error('Ingresa un nombre para el producto');
+      return;
+    }
+    if (precioConfig === 'variable') {
+      setShowPriceChoice(true);
+      return;
+    }
+    handleSave();
+  };
+
   const handleSave = async () => {
+    setShowPriceChoice(false);
     if (!nombre.trim()) {
       toast.error('Ingresa un nombre para el producto');
       return;
@@ -1308,7 +1324,7 @@ export default function CotizadorPage() {
 
             {/* Save button — full width, prominent */}
             <button
-              onClick={handleSave}
+              onClick={handleSaveClick}
               disabled={saving}
               className={cx.btnPrimary + ' w-full mt-5 py-3 text-sm flex items-center justify-center gap-2'}
             >
@@ -1323,6 +1339,56 @@ export default function CotizadorPage() {
           </div>
         </div>
       </div>
+
+      {/* Price choice modal — shown when saving with 'variable' config */}
+      {showPriceChoice && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowPriceChoice(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <h3 className="text-lg font-bold text-stone-900 mb-2">Precio de venta</h3>
+            <p className="text-sm text-stone-500 mb-5">Elige el precio con el que guardaras este producto</p>
+
+            <div className="space-y-3">
+              <button
+                onClick={handleSave}
+                className="w-full flex items-center justify-between p-4 border border-stone-200 rounded-xl hover:border-[var(--accent)] hover:bg-[var(--accent-light)] transition-colors group"
+              >
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-stone-800 group-hover:text-[var(--accent)]">Con decimales</p>
+                  <p className="text-xs text-stone-400">Precio redondeado a .90</p>
+                </div>
+                <span className="text-xl font-bold text-stone-900">{formatCurrency(preciosRecomendados(costos.precioFinal).conDecimales)}</span>
+              </button>
+
+              <button
+                onClick={handleSave}
+                className="w-full flex items-center justify-between p-4 border border-stone-200 rounded-xl hover:border-[var(--accent)] hover:bg-[var(--accent-light)] transition-colors group"
+              >
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-stone-800 group-hover:text-[var(--accent)]">Sin decimales</p>
+                  <p className="text-xs text-stone-400">Redondeado al entero superior</p>
+                </div>
+                <span className="text-xl font-bold text-stone-900">{formatCurrency(preciosRecomendados(costos.precioFinal).sinDecimales)}</span>
+              </button>
+
+              <button
+                onClick={handleSave}
+                className="w-full flex items-center justify-between p-4 border border-stone-200 rounded-xl hover:border-[var(--accent)] hover:bg-[var(--accent-light)] transition-colors group"
+              >
+                <div className="text-left">
+                  <p className="text-sm font-semibold text-stone-800 group-hover:text-[var(--accent)]">Precio exacto</p>
+                  <p className="text-xs text-stone-400">Sin redondeo</p>
+                </div>
+                <span className="text-xl font-bold text-stone-900">{formatCurrency(costos.precioFinal)}</span>
+              </button>
+            </div>
+
+            <button onClick={() => setShowPriceChoice(false)} className={cx.btnGhost + ' w-full mt-4 text-center'}>
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
