@@ -47,6 +47,19 @@ router.get('/resumen', async (req, res) => {
       [periodo_id]
     );
 
+    // Real COGS from purchases
+    const comprasRes = await pool.query(
+      `SELECT
+        COALESCE(SUM(CASE WHEN ci.insumo_id IS NOT NULL THEN ci.total ELSE 0 END), 0) AS compras_insumos,
+        COALESCE(SUM(CASE WHEN ci.material_id IS NOT NULL THEN ci.total ELSE 0 END), 0) AS compras_materiales,
+        COALESCE(SUM(ci.total), 0) AS compras_total
+       FROM compras c
+       LEFT JOIN compra_items ci ON ci.compra_id = c.id
+       WHERE c.periodo_id = $1 AND c.usuario_id = $2`,
+      [periodo_id, req.user.id]
+    );
+    const comp = comprasRes.rows[0];
+
     // Top products
     const topProductos = await pool.query(
       `SELECT p.id, p.nombre, p.imagen_url,
@@ -107,6 +120,11 @@ router.get('/resumen', async (req, res) => {
           punto_equilibrio: Math.round(punto_equilibrio * 100) / 100,
           unidades_vendidas: parseInt(v.unidades_vendidas),
           num_ventas: parseInt(v.num_ventas),
+        },
+        cogs_real: {
+          insumos: parseFloat(comp.compras_insumos),
+          materiales: parseFloat(comp.compras_materiales),
+          total: parseFloat(comp.compras_total),
         },
         top_productos: topProductos.rows,
       },
@@ -533,6 +551,122 @@ router.delete('/gastos/:id', async (req, res) => {
     return res.json({ success: true, data: { message: 'Gasto eliminado' } });
   } catch (err) {
     console.error('Delete gasto error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// ==================== COMPRAS ====================
+
+// GET /api/pl/compras/resumen?periodo_id=X
+router.get('/compras/resumen', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+
+    const result = await pool.query(
+      `SELECT
+        COUNT(DISTINCT c.id) AS num_compras,
+        COALESCE(SUM(ci.total), 0) AS total_compras,
+        COALESCE(SUM(CASE WHEN ci.insumo_id IS NOT NULL THEN ci.total ELSE 0 END), 0) AS total_insumos,
+        COALESCE(SUM(CASE WHEN ci.material_id IS NOT NULL THEN ci.total ELSE 0 END), 0) AS total_materiales,
+        COALESCE(SUM(CASE WHEN ci.insumo_id IS NULL AND ci.material_id IS NULL THEN ci.total ELSE 0 END), 0) AS total_otros
+       FROM compras c
+       LEFT JOIN compra_items ci ON ci.compra_id = c.id
+       WHERE c.periodo_id = $1 AND c.usuario_id = $2`,
+      [periodo_id, req.user.id]
+    );
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Compras resumen error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// GET /api/pl/compras?periodo_id=X
+router.get('/compras', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+
+    const compras = await pool.query(
+      'SELECT * FROM compras WHERE periodo_id = $1 AND usuario_id = $2 ORDER BY fecha DESC',
+      [periodo_id, req.user.id]
+    );
+
+    // Get items for each compra
+    const result = [];
+    for (const compra of compras.rows) {
+      const items = await pool.query(
+        `SELECT ci.*,
+                COALESCE(i.nombre, m.nombre, ci.nombre_item) AS item_nombre
+         FROM compra_items ci
+         LEFT JOIN insumos i ON i.id = ci.insumo_id
+         LEFT JOIN materiales m ON m.id = ci.material_id
+         WHERE ci.compra_id = $1
+         ORDER BY ci.id`,
+        [compra.id]
+      );
+      result.push({ ...compra, items: items.rows });
+    }
+
+    return res.json({ success: true, data: result });
+  } catch (err) {
+    console.error('List compras error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// POST /api/pl/compras — create purchase with items
+router.post('/compras', async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { periodo_id, fecha, proveedor, nota, items } = req.body;
+    if (!periodo_id || !fecha || !items || items.length === 0) {
+      return res.status(400).json({ success: false, error: 'periodo_id, fecha y al menos un item son requeridos' });
+    }
+
+    await client.query('BEGIN');
+
+    const total = items.reduce((s, item) => s + (parseFloat(item.precio_unitario) * parseFloat(item.cantidad)), 0);
+
+    const compraRes = await client.query(
+      'INSERT INTO compras (periodo_id, usuario_id, fecha, proveedor, nota, total) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [periodo_id, req.user.id, fecha, proveedor || null, nota || null, total]
+    );
+    const compra = compraRes.rows[0];
+
+    for (const item of items) {
+      const itemTotal = parseFloat(item.precio_unitario) * parseFloat(item.cantidad);
+      await client.query(
+        `INSERT INTO compra_items (compra_id, insumo_id, material_id, nombre_item, cantidad, unidad, precio_unitario, total)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+        [compra.id, item.insumo_id || null, item.material_id || null, item.nombre_item || null,
+         item.cantidad, item.unidad || null, item.precio_unitario, itemTotal]
+      );
+    }
+
+    await client.query('COMMIT');
+    return res.status(201).json({ success: true, data: compra });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    console.error('Create compra error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  } finally {
+    client.release();
+  }
+});
+
+// DELETE /api/pl/compras/:id
+router.delete('/compras/:id', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'DELETE FROM compras WHERE id = $1 AND usuario_id = $2 RETURNING id',
+      [req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Compra no encontrada' });
+    return res.json({ success: true, data: { message: 'Compra eliminada' } });
+  } catch (err) {
+    console.error('Delete compra error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });
   }
 });

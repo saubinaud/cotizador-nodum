@@ -20,6 +20,7 @@ import ActividadPage from './pages/ActividadPage';
 import PLResumenPage from './pages/PLResumenPage';
 import PLVentasPage from './pages/PLVentasPage';
 import PLGastosPage from './pages/PLGastosPage';
+import PLComprasPage from './pages/PLComprasPage';
 
 export default function App() {
   return (
@@ -51,6 +52,7 @@ export default function App() {
               <Route path="/pl" element={<PLResumenPage />} />
               <Route path="/pl/ventas" element={<PLVentasPage />} />
               <Route path="/pl/gastos" element={<PLGastosPage />} />
+              <Route path="/pl/compras" element={<PLComprasPage />} />
               <Route path="/perfil" element={<PerfilPage />} />
             </Route>
 

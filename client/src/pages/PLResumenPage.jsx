@@ -219,6 +219,23 @@ export default function PLResumenPage() {
               <div className="border-t border-stone-200 my-2" />
               <SubtotalLine label="Total COGS" amount={data.cogs.total} />
 
+              {data.cogs_real && data.cogs_real.total > 0 && (
+                <div className="mt-2 pt-2 border-t border-stone-100">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-stone-400 italic">COGS real (compras)</span>
+                    <span className="text-stone-500">{fmt(data.cogs_real.total)}</span>
+                  </div>
+                  {data.cogs.total > 0 && (
+                    <div className="flex justify-between text-xs mt-1">
+                      <span className="text-stone-400">Diferencia vs teorico</span>
+                      <span className={data.cogs_real.total > data.cogs.total ? 'text-rose-500' : 'text-teal-600'}>
+                        {data.cogs_real.total > data.cogs.total ? '+' : ''}{fmt(data.cogs_real.total - data.cogs.total)}
+                      </span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* UTILIDAD BRUTA */}
               <GrandTotal label="Utilidad Bruta" amount={data.utilidad_bruta} pctNote={pct(data.utilidad_bruta, ingresosNetos)} />
 

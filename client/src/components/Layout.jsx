@@ -23,6 +23,7 @@ import {
   BarChart3,
   ShoppingCart,
   Receipt,
+  ShoppingBag,
 } from 'lucide-react';
 
 const sidebarGroups = [
@@ -48,6 +49,7 @@ const sidebarGroups = [
       { to: '/pl', label: 'Resumen', icon: BarChart3, perm: 'pl' },
       { to: '/pl/ventas', label: 'Ventas', icon: ShoppingCart, perm: 'pl' },
       { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'pl' },
+      { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'pl' },
     ],
   },
 ];
