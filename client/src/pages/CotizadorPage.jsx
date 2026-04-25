@@ -637,7 +637,7 @@ export default function CotizadorPage() {
 
           {/* ── Producto ── */}
           <div>
-            <h3 className="text-lg font-semibold text-stone-900 mb-4">Producto</h3>
+            <h3 className="text-lg font-semibold text-stone-900 mb-4">Producto<InfoTip text="Define el nombre y tipo de presentacion. Si vendes un producto entero (torta, pie), indica cuantas porciones tiene." /></h3>
             <div className={`${cx.card} p-6`}>
               <div className={`grid gap-4 grid-cols-1 ${tipoPresentacion === 'entero' ? 'sm:grid-cols-[9fr_7fr_4fr]' : 'sm:grid-cols-[3fr_2fr]'}`}>
                 <div>
@@ -681,7 +681,7 @@ export default function CotizadorPage() {
 
           {/* ── Preparaciones — Airbnb accordion ── */}
           <div>
-            <h3 className="text-lg font-semibold text-stone-900 mb-4">Preparaciones</h3>
+            <h3 className="text-lg font-semibold text-stone-900 mb-4">Preparaciones<InfoTip text="Cada preparacion es una receta base (masa, relleno, crema). Indica cuanto rinde en total. Puedes cargar plantillas guardadas previamente." /></h3>
 
             {/* Single card with divide-y for all preps */}
             <div className={`${cx.card} divide-y divide-stone-100`}>
@@ -971,7 +971,7 @@ export default function CotizadorPage() {
 
           {/* ── Empaque / Materiales ── */}
           <div>
-            <h3 className="text-lg font-semibold text-stone-900 mb-4">Empaque</h3>
+            <h3 className="text-lg font-semibold text-stone-900 mb-4">Empaque<InfoTip text="Materiales de empaque para presentar tu producto. Si es presentacion entera, separa el empaque del producto completo y el de cada porcion individual." /></h3>
 
             {tipoPresentacion === 'entero' ? (
               <div className="space-y-5">
@@ -1041,7 +1041,7 @@ export default function CotizadorPage() {
         {/* ── Right column: Resumen — premium sticky card ── */}
         <div className="xl:col-span-1">
           <div className={`${cx.card} p-6 xl:sticky xl:top-6`}>
-            <h3 className="text-lg font-semibold text-stone-900 mb-5">Resumen</h3>
+            <h3 className="text-lg font-semibold text-stone-900 mb-5">Resumen<InfoTip text="El costo neto incluye insumos + empaque. El margen define tu ganancia. El precio sugerido redondea a un valor comercial (.90 o .00)." /></h3>
 
             {tipoPresentacion === 'entero' ? (
               <>
