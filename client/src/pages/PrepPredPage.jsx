@@ -7,6 +7,47 @@ import SearchableSelect from '../components/SearchableSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { Plus, Save, X, Trash2, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 
+const CONVERSIONES = {
+  g: { kg: 1000, g: 1, mg: 0.001, oz: 28.3495 },
+  kg: { g: 0.001, kg: 1, oz: 0.0283495 },
+  ml: { L: 1000, ml: 1, l: 1000 },
+  L: { ml: 0.001, L: 1, l: 1 },
+  l: { ml: 0.001, L: 1, l: 1 },
+  uni: { uni: 1 },
+  oz: { g: 0.0352739, kg: 35.274, oz: 1 },
+};
+
+function convertirUnidad(valor, deUnidad, aUnidad) {
+  if (!deUnidad || !aUnidad || deUnidad === aUnidad) return valor;
+  const grupo = CONVERSIONES[aUnidad];
+  if (grupo && grupo[deUnidad]) return valor * grupo[deUnidad];
+  const grupoRev = CONVERSIONES[deUnidad];
+  if (grupoRev && grupoRev[aUnidad]) return valor / grupoRev[aUnidad];
+  return valor;
+}
+
+function getUnidadesCompatibles(unidadBase) {
+  if (!unidadBase) return ['g', 'kg', 'ml', 'L', 'uni', 'oz'];
+  const grupos = [
+    ['g', 'kg', 'oz'],
+    ['ml', 'L'],
+    ['uni'],
+  ];
+  for (const grupo of grupos) {
+    if (grupo.includes(unidadBase) || grupo.includes(unidadBase.toLowerCase())) {
+      return grupo;
+    }
+  }
+  return [unidadBase];
+}
+
+function costoEnUsoUnidad(ins) {
+  const factor = (ins.uso_unidad && ins.uso_unidad !== ins.unidad_medida)
+    ? convertirUnidad(1, ins.unidad_medida, ins.uso_unidad)
+    : 1;
+  return factor > 0 ? (Number(ins.costo_unitario) || 0) / factor : (Number(ins.costo_unitario) || 0);
+}
+
 let tmpId = 0;
 const newId = () => `tmp-${++tmpId}`;
 
@@ -39,7 +80,7 @@ export default function PrepPredPage() {
 
   const startNew = () => {
     setEditingId('new');
-    setEditData({ nombre: '', capacidad: '', unidad: '', insumos: [{ _id: newId(), insumo_id: null, nombre: '', cantidad: '', costo_unitario: 0, unidad_medida: '' }] });
+    setEditData({ nombre: '', capacidad: '', unidad: '', insumos: [{ _id: newId(), insumo_id: null, nombre: '', cantidad: '', costo_unitario: 0, unidad_medida: '', uso_unidad: '' }] });
   };
 
   const startEdit = (prep) => {
@@ -58,6 +99,7 @@ export default function PrepPredPage() {
           cantidad: parseFloat(i.cantidad) || '',
           costo_unitario: cu,
           unidad_medida: i.unidad_medida || '',
+          uso_unidad: i.uso_unidad || i.unidad_medida || '',
         };
       }),
     });
@@ -71,7 +113,7 @@ export default function PrepPredPage() {
   const addInsumo = () => {
     setEditData((prev) => ({
       ...prev,
-      insumos: [...prev.insumos, { _id: newId(), insumo_id: null, nombre: '', cantidad: '', costo_unitario: 0, unidad_medida: '' }],
+      insumos: [...prev.insumos, { _id: newId(), insumo_id: null, nombre: '', cantidad: '', costo_unitario: 0, unidad_medida: '', uso_unidad: '' }],
     }));
   };
 
@@ -84,7 +126,7 @@ export default function PrepPredPage() {
     setEditData((prev) => ({
       ...prev,
       insumos: prev.insumos.map((i) =>
-        i._id === iid ? { ...i, insumo_id: cat.id, nombre: cat.nombre, costo_unitario: costoUnit, unidad_medida: cat.unidad_medida || '' } : i
+        i._id === iid ? { ...i, insumo_id: cat.id, nombre: cat.nombre, costo_unitario: costoUnit, unidad_medida: cat.unidad_medida || '', uso_unidad: cat.unidad_medida || '' } : i
       ),
     }));
   };
@@ -211,14 +253,22 @@ export default function PrepPredPage() {
                           placeholder="0"
                           className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
                         />
-                        <span className="text-zinc-500 text-xs">{ins.unidad_medida || ''}</span>
+                        <select
+                          value={ins.uso_unidad || ins.unidad_medida || ''}
+                          onChange={(e) => updateInsumo(ins._id, 'uso_unidad', e.target.value)}
+                          className="w-10 bg-transparent text-zinc-500 text-xs text-center focus:outline-none appearance-none cursor-pointer"
+                        >
+                          {getUnidadesCompatibles(ins.unidad_medida).map((u) => (
+                            <option key={u} value={u}>{u}</option>
+                          ))}
+                        </select>
                       </div>
                     </td>
                     <td className="py-2 px-2 text-sm text-zinc-400 text-center">
-                      {formatCurrency(ins.costo_unitario)}
+                      {formatCurrency(costoEnUsoUnidad(ins))}
                     </td>
                     <td className="py-2 px-2 text-sm text-white font-medium text-right">
-                      {formatCurrency((Number(ins.costo_unitario) || 0) * (Number(ins.cantidad) || 0))}
+                      {formatCurrency(costoEnUsoUnidad(ins) * (Number(ins.cantidad) || 0))}
                     </td>
                     <td className="py-2 pl-2">
                       <button onClick={() => removeInsumo(ins._id)} className={cx.btnIcon + ' hover:text-red-400'}>
@@ -252,12 +302,20 @@ export default function PrepPredPage() {
                         placeholder="0"
                         className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
                       />
-                      <span className="text-zinc-500 text-xs">{ins.unidad_medida || ''}</span>
+                      <select
+                        value={ins.uso_unidad || ins.unidad_medida || ''}
+                        onChange={(e) => updateInsumo(ins._id, 'uso_unidad', e.target.value)}
+                        className="w-10 bg-transparent text-zinc-500 text-xs text-center focus:outline-none appearance-none cursor-pointer"
+                      >
+                        {getUnidadesCompatibles(ins.unidad_medida).map((u) => (
+                          <option key={u} value={u}>{u}</option>
+                        ))}
+                      </select>
                     </div>
                   </div>
                   <div className="text-xs text-zinc-400 text-right flex-1">
-                    <p>Unit: {formatCurrency(ins.costo_unitario)}</p>
-                    <p className="text-white font-medium">{formatCurrency((Number(ins.costo_unitario) || 0) * (Number(ins.cantidad) || 0))}</p>
+                    <p>Unit: {formatCurrency(costoEnUsoUnidad(ins))}</p>
+                    <p className="text-white font-medium">{formatCurrency(costoEnUsoUnidad(ins) * (Number(ins.cantidad) || 0))}</p>
                   </div>
                   <button onClick={() => removeInsumo(ins._id)} className={cx.btnIcon + ' hover:text-red-400'}>
                     <Trash2 size={14} />
@@ -273,7 +331,7 @@ export default function PrepPredPage() {
               <div className="text-right">
                 <span className="text-zinc-500 text-xs">Costo total: </span>
                 <span className="text-[#FA7B21] font-semibold text-sm">
-                  {formatCurrency(editData.insumos.reduce((s, i) => s + (Number(i.costo_unitario) || 0) * (Number(i.cantidad) || 0), 0))}
+                  {formatCurrency(editData.insumos.reduce((s, i) => s + costoEnUsoUnidad(i) * (Number(i.cantidad) || 0), 0))}
                 </span>
               </div>
             </div>

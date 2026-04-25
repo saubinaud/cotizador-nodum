@@ -47,11 +47,25 @@ router.post('/', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Nombre, cantidad_presentacion y precio_presentacion son requeridos' });
     }
 
+    const nombreNorm = nombre.trim().charAt(0).toUpperCase() + nombre.trim().slice(1).toLowerCase();
+
+    const dup = await pool.query(
+      'SELECT id, nombre, cantidad_presentacion, unidad_medida, precio_presentacion FROM insumos WHERE LOWER(nombre) = LOWER($1) AND usuario_id = $2',
+      [nombreNorm, req.user.id]
+    );
+    if (dup.rows.length > 0) {
+      return res.status(409).json({
+        success: false,
+        error: `Ya existe un insumo llamado "${dup.rows[0].nombre}" (${dup.rows[0].cantidad_presentacion} ${dup.rows[0].unidad_medida})`,
+        existing: dup.rows[0],
+      });
+    }
+
     const result = await pool.query(
       `INSERT INTO insumos (usuario_id, nombre, unidad_medida, cantidad_presentacion, precio_presentacion)
        VALUES ($1, $2, $3, $4, $5)
        RETURNING *`,
-      [req.user.id, nombre, unidad_medida || 'g', cantidad_presentacion, precio_presentacion]
+      [req.user.id, nombreNorm, unidad_medida || 'g', cantidad_presentacion, precio_presentacion]
     );
 
     try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'insumo', result.rows[0].id, 'crear', JSON.stringify({ nombre })]); } catch (_) {}
@@ -66,7 +80,11 @@ router.post('/', async (req, res) => {
 // PUT /api/insumos/:id
 router.put('/:id', async (req, res) => {
   try {
-    const { nombre, unidad_medida, cantidad_presentacion, precio_presentacion } = req.body;
+    let { nombre, unidad_medida, cantidad_presentacion, precio_presentacion } = req.body;
+
+    if (nombre) {
+      nombre = nombre.trim().charAt(0).toUpperCase() + nombre.trim().slice(1).toLowerCase();
+    }
 
     const existing = await pool.query(
       'SELECT precio_presentacion, cantidad_presentacion FROM insumos WHERE id = $1 AND usuario_id = $2',

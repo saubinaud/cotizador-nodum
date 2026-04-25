@@ -24,7 +24,11 @@ export function useCalculadorCostos(preparaciones = [], materiales = [], margen 
     // Cost for THE WHOLE PRODUCT from preparations
     const costoInsumosProducto = preparaciones.reduce((sum, prep) => {
       const prepCost = (prep.insumos || []).reduce((s, ins) => {
-        return s + (Number(ins.costo_unitario) || 0) * (Number(ins.cantidad) || 0);
+        const factor = (ins.uso_unidad && ins.uso_unidad !== ins.unidad_medida)
+          ? convertirUnidad(1, ins.unidad_medida || '', ins.uso_unidad || '')
+          : 1;
+        const cu = factor > 0 ? (Number(ins.costo_unitario) || 0) / factor : (Number(ins.costo_unitario) || 0);
+        return s + cu * (Number(ins.cantidad) || 0);
       }, 0);
 
       const rendimiento = Number(prep.capacidad) || 0;

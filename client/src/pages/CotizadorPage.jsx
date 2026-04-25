@@ -38,6 +38,28 @@ function convertirUnidad(valor, deUnidad, aUnidad) {
   return valor;
 }
 
+function getUnidadesCompatibles(unidadBase) {
+  if (!unidadBase) return ['g', 'kg', 'ml', 'L', 'uni', 'oz'];
+  const grupos = [
+    ['g', 'kg', 'oz'],
+    ['ml', 'L'],
+    ['uni'],
+  ];
+  for (const grupo of grupos) {
+    if (grupo.includes(unidadBase) || grupo.includes(unidadBase.toLowerCase())) {
+      return grupo;
+    }
+  }
+  return [unidadBase];
+}
+
+function costoEnUsoUnidad(ins) {
+  const factor = (ins.uso_unidad && ins.uso_unidad !== ins.unidad_medida)
+    ? convertirUnidad(1, ins.unidad_medida, ins.uso_unidad)
+    : 1;
+  return factor > 0 ? (Number(ins.costo_unitario) || 0) / factor : (Number(ins.costo_unitario) || 0);
+}
+
 function InfoTip({ text }) {
   return (
     <span className="relative group inline-flex ml-1 cursor-help">
@@ -59,6 +81,7 @@ const emptyInsumoRow = () => ({
   nombre: '',
   cantidad: '',
   costo_unitario: 0,
+  uso_unidad: '',
 });
 
 const emptyPreparacion = () => ({
@@ -151,6 +174,7 @@ export default function CotizadorPage() {
                   insumo_id: ins.insumo_id,
                   nombre: ins.nombre || '',
                   unidad_medida: ins.unidad_medida || '',
+                  uso_unidad: ins.uso_unidad || ins.unidad_medida || '',
                   cantidad: parseFloat(ins.cantidad_usada || ins.cantidad) || '',
                   costo_unitario: cu,
                 };
@@ -204,6 +228,7 @@ export default function CotizadorPage() {
           insumo_id: ins.insumo_id,
           nombre: ins.nombre || '',
           unidad_medida: ins.unidad_medida || '',
+          uso_unidad: ins.unidad_medida || '',
           cantidad: parseFloat(ins.cantidad) || '',
           costo_unitario: cu,
         };
@@ -295,6 +320,7 @@ export default function CotizadorPage() {
       nombre: catalogItem.nombre,
       costo_unitario: costoUnit,
       unidad_medida: catalogItem.unidad_medida,
+      uso_unidad: catalogItem.unidad_medida,
     });
   };
 
@@ -404,7 +430,7 @@ export default function CotizadorPage() {
   // Prep subtotal
   const prepSubtotal = useCallback((prep) => {
     return (prep.insumos || []).reduce(
-      (s, i) => s + (Number(i.costo_unitario) || 0) * (Number(i.cantidad) || 0),
+      (s, i) => s + costoEnUsoUnidad(i) * (Number(i.cantidad) || 0),
       0
     );
   }, []);
@@ -681,10 +707,18 @@ export default function CotizadorPage() {
                                 placeholder="Cant."
                                 className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
                               />
-                              <span className="text-zinc-500 text-xs">{ins.unidad_medida || ''}</span>
-                              <span className="text-zinc-500 text-xs">x {formatCurrency(ins.costo_unitario)}</span>
+                              <select
+                                value={ins.uso_unidad || ins.unidad_medida || ''}
+                                onChange={(e) => updateInsumo(prep._id, ins._id, { uso_unidad: e.target.value })}
+                                className="w-10 bg-transparent text-zinc-500 text-xs text-center focus:outline-none appearance-none cursor-pointer"
+                              >
+                                {getUnidadesCompatibles(ins.unidad_medida).map((u) => (
+                                  <option key={u} value={u}>{u}</option>
+                                ))}
+                              </select>
+                              <span className="text-zinc-500 text-xs">x {formatCurrency(costoEnUsoUnidad(ins))}</span>
                               <span className="ml-auto text-white text-sm font-medium">
-                                {formatCurrency((Number(ins.costo_unitario) || 0) * (Number(ins.cantidad) || 0))}
+                                {formatCurrency(costoEnUsoUnidad(ins) * (Number(ins.cantidad) || 0))}
                               </span>
                               <button onClick={() => removeInsumo(prep._id, ins._id)} className={cx.btnIcon + ' hover:text-red-400'}>
                                 <Trash2 size={14} />
@@ -725,14 +759,22 @@ export default function CotizadorPage() {
                                     placeholder="0"
                                     className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
                                   />
-                                  <span className="text-zinc-500 text-xs">{ins.unidad_medida || ''}</span>
+                                  <select
+                                    value={ins.uso_unidad || ins.unidad_medida || ''}
+                                    onChange={(e) => updateInsumo(prep._id, ins._id, { uso_unidad: e.target.value })}
+                                    className="w-10 bg-transparent text-zinc-500 text-xs text-center focus:outline-none appearance-none cursor-pointer"
+                                  >
+                                    {getUnidadesCompatibles(ins.unidad_medida).map((u) => (
+                                      <option key={u} value={u}>{u}</option>
+                                    ))}
+                                  </select>
                                 </div>
                               </td>
                               <td className="py-2 px-2 text-sm text-zinc-400 text-center">
-                                {formatCurrency(ins.costo_unitario)}
+                                {formatCurrency(costoEnUsoUnidad(ins))}
                               </td>
                               <td className="py-2 px-2 text-sm text-white font-medium text-right">
-                                {formatCurrency((Number(ins.costo_unitario) || 0) * (Number(ins.cantidad) || 0))}
+                                {formatCurrency(costoEnUsoUnidad(ins) * (Number(ins.cantidad) || 0))}
                               </td>
                               <td className="py-2 pl-2">
                                 <button onClick={() => removeInsumo(prep._id, ins._id)} className={cx.btnIcon + ' hover:text-red-400'}>
@@ -785,7 +827,7 @@ export default function CotizadorPage() {
                     </thead>
                     <tbody>
                       {preparaciones.filter(p => p.nombre).map((prep) => {
-                        const costoPrep = (prep.insumos || []).reduce((s, i) => s + (Number(i.costo_unitario) || 0) * (Number(i.cantidad) || 0), 0);
+                        const costoPrep = (prep.insumos || []).reduce((s, i) => s + costoEnUsoUnidad(i) * (Number(i.cantidad) || 0), 0);
                         const rendimiento = Number(prep.capacidad) || 0;
                         const cantPorUni = Number(prep.cantidad_por_unidad) || 0;
                         const cantEnUnidadPrep = convertirUnidad(cantPorUni, prep.porcion_unidad || prep.unidad, prep.unidad);
@@ -822,7 +864,7 @@ export default function CotizadorPage() {
                   {/* Mobile cards */}
                   <div className="space-y-3 lg:hidden">
                     {preparaciones.filter(p => p.nombre).map((prep) => {
-                      const costoPrep = (prep.insumos || []).reduce((s, i) => s + (Number(i.costo_unitario) || 0) * (Number(i.cantidad) || 0), 0);
+                      const costoPrep = (prep.insumos || []).reduce((s, i) => s + costoEnUsoUnidad(i) * (Number(i.cantidad) || 0), 0);
                       const rendimiento = Number(prep.capacidad) || 0;
                       const cantPorUni = Number(prep.cantidad_por_unidad) || 0;
                       const cantEnUnidadPrep = convertirUnidad(cantPorUni, prep.porcion_unidad || prep.unidad, prep.unidad);
