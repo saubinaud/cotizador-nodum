@@ -274,139 +274,177 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {filtered.length === 0 && !loading ? (
-        <div className={`${cx.card} p-12 text-center`}>
-          <Package size={40} className="mx-auto text-zinc-700 mb-3" />
-          <p className="text-zinc-400 text-sm">
-            {products.length === 0
-              ? 'Aun no tienes productos. Crea tu primer cotizacion.'
-              : 'No se encontraron productos.'}
-          </p>
-        </div>
-      ) : (
-        <>
-          {/* Gallery view */}
-          {viewMode === 'gallery' && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filtered.map((p) => (
-                <div key={p.id} className={`${cx.card} overflow-hidden cursor-pointer group relative`} onClick={() => handleDetail(p)}>
-                  {p.imagen_url ? (
-                    <div className="aspect-[4/3] bg-zinc-800 overflow-hidden">
-                      <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                    </div>
-                  ) : (
-                    <div className="aspect-[4/3] bg-zinc-800 flex items-center justify-center">
-                      <Package size={32} className="text-zinc-700" />
-                    </div>
-                  )}
-                  <div className="p-3">
-                    <h3 className="text-white text-sm font-medium truncate">{p.nombre}</h3>
-                    <div className="flex justify-between items-center mt-2">
-                      <span className="text-zinc-500 text-xs">Margen: {formatPercent(p.margen)}</span>
-                      <span className="text-[#FA7B21] font-bold text-sm">{formatCurrency(p.precio_final)}</span>
-                    </div>
+      {(() => {
+        const presentacionesEnteras = filtered.filter((p) => p.tipo_presentacion === 'entero');
+        const productosUnidad = filtered.filter((p) => p.tipo_presentacion !== 'entero');
+
+        const renderGalleryGrid = (prods) => (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {prods.map((p) => (
+              <div key={p.id} className={`${cx.card} overflow-hidden cursor-pointer group relative`} onClick={() => handleDetail(p)}>
+                {p.tipo_presentacion === 'entero' && p.unidades_por_producto > 1 && (
+                  <span className="absolute top-2 left-2 bg-[#FA7B21] text-white text-[10px] font-bold px-2 py-0.5 rounded-lg z-10">
+                    {p.unidades_por_producto} porciones
+                  </span>
+                )}
+                {p.imagen_url ? (
+                  <div className="aspect-[4/3] bg-zinc-800 overflow-hidden">
+                    <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
                   </div>
-                  {/* Action buttons */}
-                  <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                    <button onClick={() => handleDuplicate(p)} className="bg-zinc-900/80 backdrop-blur rounded-lg p-1.5 text-zinc-400 hover:text-white" title="Duplicar">
-                      <Copy size={13} />
-                    </button>
-                    <button onClick={() => handleHistory(p)} className="bg-zinc-900/80 backdrop-blur rounded-lg p-1.5 text-zinc-400 hover:text-white" title="Historial">
-                      <History size={13} />
-                    </button>
-                    <button onClick={() => setDeleteTarget(p)} className="bg-zinc-900/80 backdrop-blur rounded-lg p-1.5 text-zinc-400 hover:text-red-400" title="Eliminar">
-                      <Trash2 size={13} />
-                    </button>
+                ) : (
+                  <div className="aspect-[4/3] bg-zinc-800 flex items-center justify-center">
+                    <Package size={32} className="text-zinc-700" />
+                  </div>
+                )}
+                <div className="p-3">
+                  <h3 className="text-white text-sm font-medium truncate">{p.nombre}</h3>
+                  <div className="flex justify-between items-center mt-2">
+                    <span className="text-zinc-500 text-xs">Margen: {formatPercent(p.margen)}</span>
+                    <span className="text-[#FA7B21] font-bold text-sm">{formatCurrency(p.precio_final)}</span>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
+                {/* Action buttons */}
+                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => handleDuplicate(p)} className="bg-zinc-900/80 backdrop-blur rounded-lg p-1.5 text-zinc-400 hover:text-white" title="Duplicar">
+                    <Copy size={13} />
+                  </button>
+                  <button onClick={() => handleHistory(p)} className="bg-zinc-900/80 backdrop-blur rounded-lg p-1.5 text-zinc-400 hover:text-white" title="Historial">
+                    <History size={13} />
+                  </button>
+                  <button onClick={() => setDeleteTarget(p)} className="bg-zinc-900/80 backdrop-blur rounded-lg p-1.5 text-zinc-400 hover:text-red-400" title="Eliminar">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        );
 
-          {/* Table view */}
-          {viewMode === 'table' && (
-            <>
-              {/* Mobile cards */}
-              <div className="space-y-3 lg:hidden">
-                {filtered.map((p) => (
-                  <div key={p.id} className={`${cx.card} p-4`}>
-                    <div className="flex justify-between items-start mb-3">
-                      <div>
-                        <h3 className="text-white font-medium text-sm">{p.nombre}</h3>
-                        <p className="text-zinc-500 text-xs mt-0.5">{formatDate(p.updated_at)}</p>
-                      </div>
-                      <span className="text-[#FA7B21] font-bold text-lg">
-                        {formatCurrency(p.precio_final)}
-                      </span>
-                    </div>
-                    <div className="flex gap-4 text-xs text-zinc-400 mb-3">
-                      <span>Costo: {formatCurrency(p.costo_neto)}</span>
-                      <span>Margen: {formatPercent(p.margen)}</span>
-                    </div>
-                    <div className="flex gap-2 border-t border-zinc-800 pt-3">
-                      <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}>
-                        <Pencil size={13} /> Editar
-                      </button>
-                      <button onClick={() => handleDuplicate(p)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}>
-                        <Copy size={13} /> Duplicar
-                      </button>
-                      <button onClick={() => handleHistory(p)} className={cx.btnGhost + ' flex items-center justify-center gap-1'}>
-                        <History size={13} />
-                      </button>
-                      <button onClick={() => setDeleteTarget(p)} className={cx.btnDanger + ' flex items-center justify-center gap-1'}>
-                        <Trash2 size={13} />
-                      </button>
-                    </div>
+        const renderMobileCards = (prods) => (
+          <div className="space-y-3 lg:hidden">
+            {prods.map((p) => (
+              <div key={p.id} className={`${cx.card} p-4`}>
+                <div className="flex justify-between items-start mb-3">
+                  <div>
+                    <h3 className="text-white font-medium text-sm">{p.nombre}</h3>
+                    <p className="text-zinc-500 text-xs mt-0.5">{formatDate(p.updated_at)}</p>
                   </div>
-                ))}
+                  <span className="text-[#FA7B21] font-bold text-lg">
+                    {formatCurrency(p.precio_final)}
+                  </span>
+                </div>
+                <div className="flex gap-4 text-xs text-zinc-400 mb-3">
+                  <span>Costo: {formatCurrency(p.costo_neto)}</span>
+                  <span>Margen: {formatPercent(p.margen)}</span>
+                </div>
+                <div className="flex gap-2 border-t border-zinc-800 pt-3">
+                  <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}>
+                    <Pencil size={13} /> Editar
+                  </button>
+                  <button onClick={() => handleDuplicate(p)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}>
+                    <Copy size={13} /> Duplicar
+                  </button>
+                  <button onClick={() => handleHistory(p)} className={cx.btnGhost + ' flex items-center justify-center gap-1'}>
+                    <History size={13} />
+                  </button>
+                  <button onClick={() => setDeleteTarget(p)} className={cx.btnDanger + ' flex items-center justify-center gap-1'}>
+                    <Trash2 size={13} />
+                  </button>
+                </div>
               </div>
+            ))}
+          </div>
+        );
 
-              {/* Desktop table */}
-              <div className={`${cx.card} hidden lg:block overflow-hidden`}>
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-zinc-800">
-                      <th className={cx.th}>Producto</th>
-                      <th className={cx.th}>Costo Neto</th>
-                      <th className={cx.th}>Margen</th>
-                      <th className={cx.th}>Precio Final</th>
-                      <th className={cx.th}>Actualizado</th>
-                      <th className={cx.th + ' text-right'}>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filtered.map((p) => (
-                      <tr key={p.id} className={cx.tr}>
-                        <td className={cx.td + ' text-white font-medium'}>{p.nombre}</td>
-                        <td className={cx.td + ' text-zinc-300'}>{formatCurrency(p.costo_neto)}</td>
-                        <td className={cx.td + ' text-zinc-300'}>{formatPercent(p.margen)}</td>
-                        <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(p.precio_final)}</td>
-                        <td className={cx.td + ' text-zinc-500'}>{formatDate(p.updated_at)}</td>
-                        <td className={cx.td + ' text-right'}>
-                          <div className="flex justify-end gap-1">
-                            <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnIcon} title="Editar">
-                              <Pencil size={15} />
-                            </button>
-                            <button onClick={() => handleDuplicate(p)} className={cx.btnIcon} title="Duplicar">
-                              <Copy size={15} />
-                            </button>
-                            <button onClick={() => handleHistory(p)} className={cx.btnIcon} title="Historial">
-                              <History size={15} />
-                            </button>
-                            <button onClick={() => setDeleteTarget(p)} className={cx.btnIcon + ' hover:text-red-400'} title="Eliminar">
-                              <Trash2 size={15} />
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
+        const renderTable = (prods) => (
+          <div className={`${cx.card} hidden lg:block overflow-hidden`}>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-zinc-800">
+                  <th className={cx.th}>Producto</th>
+                  <th className={cx.th}>Tipo</th>
+                  <th className={cx.th}>Costo Neto</th>
+                  <th className={cx.th}>Margen</th>
+                  <th className={cx.th}>Precio Final</th>
+                  <th className={cx.th}>Actualizado</th>
+                  <th className={cx.th + ' text-right'}>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {prods.map((p) => (
+                  <tr key={p.id} className={cx.tr}>
+                    <td className={cx.td + ' text-white font-medium'}>{p.nombre}</td>
+                    <td className={cx.td + ' text-zinc-400 text-xs'}>
+                      {p.tipo_presentacion === 'entero'
+                        ? `Entero${p.unidades_por_producto > 1 ? ` (${p.unidades_por_producto})` : ''}`
+                        : 'Unidad'}
+                    </td>
+                    <td className={cx.td + ' text-zinc-300'}>{formatCurrency(p.costo_neto)}</td>
+                    <td className={cx.td + ' text-zinc-300'}>{formatPercent(p.margen)}</td>
+                    <td className={cx.td + ' text-[#FA7B21] font-semibold'}>{formatCurrency(p.precio_final)}</td>
+                    <td className={cx.td + ' text-zinc-500'}>{formatDate(p.updated_at)}</td>
+                    <td className={cx.td + ' text-right'}>
+                      <div className="flex justify-end gap-1">
+                        <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnIcon} title="Editar">
+                          <Pencil size={15} />
+                        </button>
+                        <button onClick={() => handleDuplicate(p)} className={cx.btnIcon} title="Duplicar">
+                          <Copy size={15} />
+                        </button>
+                        <button onClick={() => handleHistory(p)} className={cx.btnIcon} title="Historial">
+                          <History size={15} />
+                        </button>
+                        <button onClick={() => setDeleteTarget(p)} className={cx.btnIcon + ' hover:text-red-400'} title="Eliminar">
+                          <Trash2 size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+
+        const renderSection = (prods, label) => {
+          if (prods.length === 0) return null;
+          return (
+            <div className={label === 'Presentaciones enteras' ? 'mb-8' : ''}>
+              <div className="flex items-center gap-2 mb-4">
+                <span className="text-xs font-semibold text-zinc-400 uppercase tracking-wider">{label}</span>
+                <span className="text-xs text-zinc-600">({prods.length})</span>
               </div>
-            </>
-          )}
-        </>
-      )}
+              {viewMode === 'gallery' && renderGalleryGrid(prods)}
+              {viewMode === 'table' && (
+                <>
+                  {renderMobileCards(prods)}
+                  {renderTable(prods)}
+                </>
+              )}
+            </div>
+          );
+        };
+
+        if (filtered.length === 0 && !loading) {
+          return (
+            <div className={`${cx.card} p-12 text-center`}>
+              <Package size={40} className="mx-auto text-zinc-700 mb-3" />
+              <p className="text-zinc-400 text-sm">
+                {products.length === 0
+                  ? 'Aun no tienes productos. Crea tu primer cotizacion.'
+                  : 'No se encontraron productos.'}
+              </p>
+            </div>
+          );
+        }
+
+        return (
+          <>
+            {renderSection(presentacionesEnteras, 'Presentaciones enteras')}
+            {renderSection(productosUnidad, 'Por unidad')}
+          </>
+        );
+      })()}
 
       <ConfirmDialog
         open={!!deleteTarget}
