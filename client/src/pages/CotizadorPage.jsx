@@ -66,10 +66,10 @@ function costoEnUsoUnidad(ins) {
 function InfoTip({ text }) {
   return (
     <span className="relative group inline-flex ml-1 cursor-help">
-      <span className="w-4 h-4 rounded-full bg-stone-200 text-stone-500 text-[10px] font-bold inline-flex items-center justify-center group-hover:bg-[var(--accent)] group-hover:text-white transition-colors">?</span>
-      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-700 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-56 text-center z-50 leading-relaxed">
+      <span className="w-4 h-4 rounded-full bg-stone-100 text-stone-400 text-[10px] font-bold inline-flex items-center justify-center group-hover:bg-[var(--accent)] group-hover:text-white transition-colors">?</span>
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-stone-800 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-56 text-center z-50 leading-relaxed">
         {text}
-        <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-stone-700" />
+        <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-stone-800" />
       </span>
     </span>
   );
@@ -578,7 +578,7 @@ export default function CotizadorPage() {
                       value={mat.cantidad}
                       onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
                       placeholder="1"
-                      className="w-full bg-stone-100 rounded-lg px-3 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                      className="w-full bg-stone-50 rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                     />
                     <span className="text-stone-400 text-xs">{mat.unidad_medida || ''}</span>
                   </div>
@@ -638,9 +638,9 @@ export default function CotizadorPage() {
         <div className="xl:col-span-2 space-y-6">
           {/* Product name */}
           <div className="flex items-center gap-3 mb-3">
-            <span className="w-7 h-7 rounded-lg bg-[var(--accent)] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
+            <span className="text-stone-400 text-sm font-bold mr-1">1.</span>
             <div>
-              <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider">Producto</h3>
+              <h3 className="text-base font-bold text-stone-800">Producto</h3>
               <p className="text-xs text-stone-400">Define el nombre y tipo de tu producto</p>
             </div>
             <InfoTip text="Si vendes un producto entero (ej: torta de 8 porciones), selecciona 'Producto entero' e indica cuantas porciones tiene." />
@@ -674,9 +674,9 @@ export default function CotizadorPage() {
           {/* Preparaciones */}
           <div>
             <div className="flex items-center gap-3 mb-3">
-              <span className="w-7 h-7 rounded-lg bg-[var(--accent)] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+              <span className="text-stone-400 text-sm font-bold mr-1">2.</span>
               <div className="flex-1">
-                <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider">Preparaciones</h3>
+                <h3 className="text-base font-bold text-stone-800">Preparaciones</h3>
                 <p className="text-xs text-stone-400">Crea las recetas base con sus insumos y rendimiento</p>
               </div>
               <InfoTip text="Cada preparacion es una receta base (masa, relleno, etc). Indica cuanto rinde en total. Puedes usar preparaciones predeterminadas guardadas previamente." />
@@ -707,63 +707,66 @@ export default function CotizadorPage() {
               {preparaciones.map((prep) => (
                 <div key={prep._id} className={cx.card}>
                   {/* Prep header */}
-                  <div className="flex items-end gap-2 p-4 border-b border-stone-200">
-                    <GripVertical size={16} className="text-stone-300 flex-shrink-0 mb-2" />
-                    <div className="flex-1">
-                      <label className={cx.label}>Nombre</label>
-                      <input
-                        type="text"
-                        value={prep.nombre}
-                        onChange={(e) => updatePreparacion(prep._id, 'nombre', e.target.value)}
-                        placeholder="Nombre preparacion"
-                        className="w-full bg-transparent text-stone-800 text-sm font-medium placeholder:text-stone-400 focus:outline-none"
-                      />
-                    </div>
-                    <div className="w-20">
-                      <label className={cx.label}>Rendimiento<InfoTip text="Cuanto produce esta preparacion en total. Ej: esta masa rinde 500g, esta mezcla rinde 1 litro." /></label>
-                      <input
-                        type="number"
-                        value={prep.capacidad}
-                        onChange={(e) => updatePreparacion(prep._id, 'capacidad', e.target.value)}
-                        placeholder="0"
-                        className="w-full bg-stone-100 rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
-                      />
-                    </div>
-                    <div className="w-16">
-                      <label className={cx.label}>Unidad</label>
-                      <select
-                        value={prep.unidad}
-                        onChange={(e) => updatePreparacion(prep._id, 'unidad', e.target.value)}
-                        className="w-full bg-stone-100 rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30 appearance-none"
-                      >
-                        <option value="">--</option>
-                        <option value="g">g</option>
-                        <option value="kg">kg</option>
-                        <option value="ml">ml</option>
-                        <option value="L">L</option>
-                        <option value="uni">uni</option>
-                        <option value="oz">oz</option>
-                      </select>
-                    </div>
-                    <div className="text-right min-w-[80px] mb-1">
-                      <p className="text-[10px] text-stone-400">Costo total</p>
-                      <p className="text-[var(--accent)] font-semibold text-sm">{formatCurrency(prepSubtotal(prep))}</p>
-                    </div>
-                    <button onClick={() => toggleCollapse(prep._id)} className={cx.btnIcon + ' mb-1'}>
-                      {prep.collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                    </button>
-                    <button
-                      onClick={() => saveAsPredeterminada(prep)}
-                      className={cx.btnIcon + ' hover:text-emerald-600 mb-1'}
-                      title="Guardar como predeterminada"
-                    >
-                      <BookmarkPlus size={15} />
-                    </button>
-                    {preparaciones.length > 1 && (
-                      <button onClick={() => removePreparacion(prep._id)} className={cx.btnIcon + ' hover:text-rose-600 mb-1'}>
-                        <Trash2 size={15} />
+                  <div className="p-4 border-b border-stone-200 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <GripVertical size={16} className="text-stone-300 flex-shrink-0" />
+                      <div className="flex-1">
+                        <input
+                          type="text"
+                          value={prep.nombre}
+                          onChange={(e) => updatePreparacion(prep._id, 'nombre', e.target.value)}
+                          placeholder="Nombre preparacion"
+                          className="w-full bg-transparent text-stone-800 text-sm font-medium placeholder:text-stone-400 focus:outline-none"
+                        />
+                      </div>
+                      <button onClick={() => toggleCollapse(prep._id)} className={cx.btnIcon}>
+                        {prep.collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                       </button>
-                    )}
+                      <button
+                        onClick={() => saveAsPredeterminada(prep)}
+                        className={cx.btnIcon + ' hover:text-teal-600'}
+                        title="Guardar como predeterminada"
+                      >
+                        <BookmarkPlus size={15} />
+                      </button>
+                      {preparaciones.length > 1 && (
+                        <button onClick={() => removePreparacion(prep._id)} className={cx.btnIcon + ' hover:text-rose-600'}>
+                          <Trash2 size={15} />
+                        </button>
+                      )}
+                    </div>
+                    <div className="flex items-end gap-3 pl-6">
+                      <div className="w-20">
+                        <label className={cx.label}>Rendimiento<InfoTip text="Cuanto produce esta preparacion en total. Ej: esta masa rinde 500g, esta mezcla rinde 1 litro." /></label>
+                        <input
+                          type="number"
+                          value={prep.capacidad}
+                          onChange={(e) => updatePreparacion(prep._id, 'capacidad', e.target.value)}
+                          placeholder="0"
+                          className="w-full bg-stone-50 rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
+                        />
+                      </div>
+                      <div className="w-16">
+                        <label className={cx.label}>Unidad</label>
+                        <select
+                          value={prep.unidad}
+                          onChange={(e) => updatePreparacion(prep._id, 'unidad', e.target.value)}
+                          className="w-full bg-stone-50 rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400 appearance-none"
+                        >
+                          <option value="">--</option>
+                          <option value="g">g</option>
+                          <option value="kg">kg</option>
+                          <option value="ml">ml</option>
+                          <option value="L">L</option>
+                          <option value="uni">uni</option>
+                          <option value="oz">oz</option>
+                        </select>
+                      </div>
+                      <div className="text-right min-w-[80px]">
+                        <p className="text-[10px] text-stone-400">Costo total</p>
+                        <p className="text-[var(--accent)] font-semibold text-sm">{formatCurrency(prepSubtotal(prep))}</p>
+                      </div>
+                    </div>
                   </div>
 
                   {/* Insumos table */}
@@ -837,7 +840,7 @@ export default function CotizadorPage() {
                                     value={ins.cantidad}
                                     onChange={(e) => updateInsumo(prep._id, ins._id, { cantidad: e.target.value })}
                                     placeholder="0"
-                                    className="w-full bg-stone-100 rounded-lg px-3 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                                    className="w-full bg-stone-50 rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                                   />
                                   <select
                                     value={ins.uso_unidad || ins.unidad_medida || ''}
@@ -882,9 +885,9 @@ export default function CotizadorPage() {
           {/* Porciones */}
           <div>
             <div className="flex items-center gap-3 mb-3">
-              <span className="w-7 h-7 rounded-lg bg-[var(--accent)] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
+              <span className="text-stone-400 text-sm font-bold mr-1">3.</span>
               <div>
-                <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider">Composicion del producto</h3>
+                <h3 className="text-base font-bold text-stone-800">Composicion del producto</h3>
                 <p className="text-xs text-stone-400">Define cuanto de cada preparacion usas para hacer un producto completo</p>
               </div>
               <InfoTip text="Indica cuantos gramos/ml de cada preparacion necesitas para hacer UN producto completo. El sistema calculara automaticamente cuantos productos puedes hacer por tanda y el costo." />
@@ -992,9 +995,9 @@ export default function CotizadorPage() {
           {/* Empaque / Materiales */}
           <div>
             <div className="flex items-center gap-3 mb-3">
-              <span className="w-7 h-7 rounded-lg bg-[var(--accent)] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">4</span>
+              <span className="text-stone-400 text-sm font-bold mr-1">4.</span>
               <div>
-                <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider">Empaque / Materiales</h3>
+                <h3 className="text-base font-bold text-stone-800">Empaque / Materiales</h3>
                 <p className="text-xs text-stone-400">{tipoPresentacion === 'entero' ? 'Materiales de empaque para el producto entero y por porcion' : 'Materiales de empaque para tu producto'}</p>
               </div>
               <InfoTip text={tipoPresentacion === 'entero' ? "Separa el empaque del producto entero (caja grande) del empaque por porcion (cajita individual). El costo por porcion se multiplica automaticamente por la cantidad de porciones." : "Agrega los materiales de empaque que necesitas para presentar tu producto."} />
@@ -1067,10 +1070,10 @@ export default function CotizadorPage() {
 
         {/* Right column: cost summary (sticky) */}
         <div className="xl:col-span-1">
-          <div className={`${cx.card} p-5 xl:sticky xl:top-6 space-y-4`}>
+          <div className={`${cx.card} p-6 xl:sticky xl:top-6 space-y-4`}>
             <div className="flex items-center gap-2 mb-1">
-              <span className="w-6 h-6 rounded-lg bg-[var(--accent)] text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">5</span>
-              <h3 className="text-sm font-semibold text-stone-600 uppercase tracking-wider">Resumen</h3>
+              <span className="text-stone-400 text-sm font-bold mr-1">5.</span>
+              <h3 className="text-base font-bold text-stone-800">Resumen</h3>
               <InfoTip text="El costo neto incluye insumos + empaque. El margen define tu ganancia. El precio sugerido redondea a un valor comercial atractivo (.90 o .00)." />
             </div>
 
@@ -1142,7 +1145,7 @@ export default function CotizadorPage() {
                   </div>
                   <div className="flex justify-between items-baseline">
                     <span className="text-stone-400 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
-                    <span className="text-lg font-semibold text-emerald-600">{formatCurrency(precioComercial(costos.precioFinal))}</span>
+                    <span className="text-lg font-semibold text-teal-600">{formatCurrency(precioComercial(costos.precioFinal))}</span>
                   </div>
                 </div>
 
@@ -1169,7 +1172,7 @@ export default function CotizadorPage() {
                   </div>
                   <div className="flex justify-between items-baseline">
                     <span className="text-stone-400 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
-                    <span className="text-sm font-semibold text-emerald-600">{formatCurrency(precioComercial(costos.precioFinalPorcion))}</span>
+                    <span className="text-sm font-semibold text-teal-600">{formatCurrency(precioComercial(costos.precioFinalPorcion))}</span>
                   </div>
                 </div>
               </>
@@ -1233,7 +1236,7 @@ export default function CotizadorPage() {
                   </div>
                   <div className="flex justify-between items-baseline mt-1">
                     <span className="text-stone-400 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
-                    <span className="text-lg font-semibold text-emerald-600">{formatCurrency(precioComercial(costos.precioFinal))}</span>
+                    <span className="text-lg font-semibold text-teal-600">{formatCurrency(precioComercial(costos.precioFinal))}</span>
                   </div>
                 </div>
               </>

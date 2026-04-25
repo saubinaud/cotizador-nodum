@@ -252,7 +252,7 @@ export default function AdminUsuariosPage() {
               </div>
               <div className="flex items-center gap-2">
                 {u.rol === 'admin' && <span className={cx.badge('bg-violet-50 text-violet-600')}>admin</span>}
-                <span className={cx.badge(u.estado === 'activo' ? 'bg-emerald-50 text-emerald-600' : 'bg-rose-50 text-rose-600')}>
+                <span className={cx.badge(u.estado === 'activo' ? 'bg-teal-50 text-teal-600' : 'bg-rose-50 text-rose-600')}>
                   {u.estado}
                 </span>
               </div>
@@ -287,7 +287,7 @@ export default function AdminUsuariosPage() {
               </button>
               <button
                 onClick={() => toggleStatus(u)}
-                className={`${u.estado === 'activo' ? cx.btnDanger : cx.btnGhost + ' text-emerald-600'} flex-1 flex items-center justify-center gap-1`}
+                className={`${u.estado === 'activo' ? cx.btnDanger : cx.btnGhost + ' text-teal-600'} flex-1 flex items-center justify-center gap-1`}
               >
                 {u.estado === 'activo' ? <><Ban size={13} /> Suspender</> : <><CheckCircle size={13} /> Reactivar</>}
               </button>
@@ -327,7 +327,7 @@ export default function AdminUsuariosPage() {
                 <td className={cx.td + ' text-stone-400'}>{formatDate(u.created_at)}</td>
                 <td className={cx.td}>
                   <div className="flex items-center gap-2">
-                    <span className={cx.badge(u.estado === 'activo' ? 'bg-emerald-50 text-emerald-600' : u.estado === 'pendiente' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600')}>
+                    <span className={cx.badge(u.estado === 'activo' ? 'bg-teal-50 text-teal-600' : u.estado === 'pendiente' ? 'bg-amber-50 text-amber-600' : 'bg-rose-50 text-rose-600')}>
                       {u.estado}
                     </span>
                     {u.estado === 'pendiente' && u.onboarding_token && (
@@ -347,7 +347,7 @@ export default function AdminUsuariosPage() {
                     </button>
                     <button
                       onClick={() => toggleStatus(u)}
-                      className={u.estado === 'activo' ? cx.btnDanger : cx.btnGhost + ' text-emerald-600'}
+                      className={u.estado === 'activo' ? cx.btnDanger : cx.btnGhost + ' text-teal-600'}
                     >
                       {u.estado === 'activo' ? 'Suspender' : 'Reactivar'}
                     </button>

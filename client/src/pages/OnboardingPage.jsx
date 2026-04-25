@@ -142,8 +142,8 @@ export default function OnboardingPage() {
     return (
       <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
         <div className={`${cx.card} p-8 max-w-sm w-full text-center`}>
-          <div className="w-12 h-12 rounded-full bg-emerald-50 flex items-center justify-center mx-auto mb-4">
-            <span className="text-emerald-600 text-2xl">&#10003;</span>
+          <div className="w-12 h-12 rounded-full bg-teal-50 flex items-center justify-center mx-auto mb-4">
+            <span className="text-teal-600 text-2xl">&#10003;</span>
           </div>
           <h2 className="text-stone-800 text-lg font-semibold mb-2">Registro completado</h2>
           <p className="text-stone-500 text-sm">Redirigiendo al login...</p>

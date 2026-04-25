@@ -14,7 +14,7 @@ const iconMap = {
 };
 
 const colorMap = {
-  crear: 'text-emerald-600 bg-green-500/10',
+  crear: 'text-teal-600 bg-teal-500/10',
   actualizar: 'text-blue-400 bg-blue-500/10',
   eliminar: 'text-rose-600 bg-rose-50',
   login: 'text-amber-600 bg-amber-50',

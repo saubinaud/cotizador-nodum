@@ -141,7 +141,7 @@ export default function ProyeccionPage() {
         {metaGanancia && totalGanancia > 0 && (
           <div className="mt-3 text-xs text-stone-400">
             {totalGanancia >= Number(metaGanancia) ? (
-              <span className="text-emerald-600">Meta alcanzada con las cantidades actuales</span>
+              <span className="text-teal-600">Meta alcanzada con las cantidades actuales</span>
             ) : (
               <span className="text-amber-600">
                 Falta {formatCurrency(Number(metaGanancia) - totalGanancia)} para alcanzar la meta
@@ -168,7 +168,7 @@ export default function ProyeccionPage() {
                 <div key={p.id} className={`${cx.card} p-4 space-y-3`}>
                   <div className="flex justify-between items-start">
                     <h3 className="text-stone-800 font-medium text-sm">{p.nombre}</h3>
-                    <span className={`text-xs font-semibold ${gUni > 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                    <span className={`text-xs font-semibold ${gUni > 0 ? 'text-teal-600' : 'text-rose-600'}`}>
                       {formatCurrency(gUni)}/uni
                     </span>
                   </div>
@@ -204,7 +204,7 @@ export default function ProyeccionPage() {
                   {cant > 0 && (
                     <div className="grid grid-cols-2 gap-2 text-xs border-t border-stone-200 pt-2">
                       <div className="text-stone-500">Ingreso: <span className="text-stone-800">{formatCurrency(ingreso)}</span></div>
-                      <div className="text-stone-500">Ganancia: <span className={ganancia >= 0 ? 'text-emerald-600' : 'text-rose-600'}>{formatCurrency(ganancia)}</span></div>
+                      <div className="text-stone-500">Ganancia: <span className={ganancia >= 0 ? 'text-teal-600' : 'text-rose-600'}>{formatCurrency(ganancia)}</span></div>
                     </div>
                   )}
                 </div>
@@ -239,7 +239,7 @@ export default function ProyeccionPage() {
                       <td className={cx.td + ' text-stone-500'}>{formatCurrency(p.costo_neto)}</td>
                       <td className={cx.td + ' text-stone-500'}>{formatCurrency(p.precio_final)}</td>
                       <td className={cx.td}>
-                        <span className={gUni > 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                        <span className={gUni > 0 ? 'text-teal-600' : 'text-rose-600'}>
                           {formatCurrency(gUni)}
                         </span>
                       </td>
@@ -266,7 +266,7 @@ export default function ProyeccionPage() {
                       </td>
                       <td className={cx.td + ' text-right text-stone-800'}>{formatCurrency(ingreso)}</td>
                       <td className={cx.td + ' text-right'}>
-                        <span className={ganancia >= 0 ? 'text-emerald-600' : 'text-rose-600'}>
+                        <span className={ganancia >= 0 ? 'text-teal-600' : 'text-rose-600'}>
                           {formatCurrency(ganancia)}
                         </span>
                       </td>
@@ -301,7 +301,7 @@ export default function ProyeccionPage() {
             </div>
             <div>
               <p className="text-stone-400 text-[10px] uppercase tracking-widest font-semibold mb-1">Ganancia</p>
-              <p className={`text-lg font-bold ${totalGanancia >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+              <p className={`text-lg font-bold ${totalGanancia >= 0 ? 'text-teal-600' : 'text-rose-600'}`}>
                 {formatCurrency(totalGanancia)}
               </p>
             </div>
