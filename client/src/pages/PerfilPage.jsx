@@ -4,6 +4,7 @@ import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { User, Lock, Save, Pencil, X, Upload, Loader2 } from 'lucide-react';
+import CustomSelect from '../components/CustomSelect';
 import { PAISES, getPaisByCode } from '../config/paises';
 import { API_BASE } from '../config/api';
 
@@ -214,21 +215,20 @@ export default function PerfilPage() {
             </div>
             <div>
               <label className={cx.label}>Tipo de negocio</label>
-              <select
+              <CustomSelect
                 value={profileForm.tipo_negocio}
-                onChange={(e) => {
-                  const val = e.target.value;
+                onChange={(val) => {
                   setProfileForm((prev) => ({
                     ...prev,
                     tipo_negocio: val,
                     ...(val === 'informal' ? { igv_rate: 0 } : {}),
                   }));
                 }}
-                className={cx.select}
-              >
-                <option value="formal">Formal (paga IGV)</option>
-                <option value="informal">Informal (no paga IGV)</option>
-              </select>
+                options={[
+                  { value: 'formal', label: 'Formal (paga IGV)' },
+                  { value: 'informal', label: 'Informal (no paga IGV)' },
+                ]}
+              />
             </div>
             <div className="grid grid-cols-2 gap-4">
               {profileForm.tipo_negocio !== 'informal' && (
@@ -245,17 +245,11 @@ export default function PerfilPage() {
               )}
               <div>
                 <label className={cx.label}>Pais</label>
-                <select
+                <CustomSelect
                   value={profileForm.pais}
-                  onChange={(e) => setProfileForm({ ...profileForm, pais: e.target.value })}
-                  className={cx.input}
-                >
-                  {PAISES.map((p) => (
-                    <option key={p.code} value={p.code}>
-                      {p.name} ({p.simbolo})
-                    </option>
-                  ))}
-                </select>
+                  onChange={(v) => setProfileForm({ ...profileForm, pais: v })}
+                  options={PAISES.map(p => ({ value: p.code, label: `${p.name} (${p.simbolo})` }))}
+                />
               </div>
             </div>
             <div className="flex gap-2">

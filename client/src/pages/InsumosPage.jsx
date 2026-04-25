@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency } from '../utils/format';
 import ConfirmDialog from '../components/ConfirmDialog';
+import CustomSelect from '../components/CustomSelect';
 import { Plus, Save, X, Trash2, Pencil, Search } from 'lucide-react';
 
 const UNIDADES = ['g', 'ml', 'uni', 'oz', 'kg', 'L'];
@@ -178,9 +179,11 @@ export default function InsumosPage() {
                 <input type="text" value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} onBlur={(e) => { const v = e.target.value.trim(); if (v) setEditData({ ...editData, nombre: v.charAt(0).toUpperCase() + v.slice(1) }); }} placeholder="Nombre" className={cx.input} autoFocus />
                 <div className="grid grid-cols-3 gap-2">
                   <input type="number" value={editData.cantidad_presentacion} onChange={(e) => setEditData({ ...editData, cantidad_presentacion: e.target.value })} placeholder="Cantidad" className={cx.input} />
-                  <select value={editData.unidad_medida} onChange={(e) => setEditData({ ...editData, unidad_medida: e.target.value })} className={cx.select}>
-                    {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
-                  </select>
+                  <CustomSelect
+                    value={editData.unidad_medida}
+                    onChange={(v) => setEditData({ ...editData, unidad_medida: v })}
+                    options={UNIDADES.map(u => ({ value: u, label: u }))}
+                  />
                   <input type="number" step="0.01" value={editData.precio_presentacion} onChange={(e) => setEditData({ ...editData, precio_presentacion: e.target.value })} placeholder="Precio" className={cx.input} />
                 </div>
                 <div className="flex gap-2">
@@ -230,9 +233,11 @@ export default function InsumosPage() {
                     <td className={cx.td}><input type="text" value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} onBlur={(e) => { const v = e.target.value.trim(); if (v) setEditData({ ...editData, nombre: v.charAt(0).toUpperCase() + v.slice(1) }); }} className={cx.input} autoFocus /></td>
                     <td className={cx.td}><input type="number" value={editData.cantidad_presentacion} onChange={(e) => setEditData({ ...editData, cantidad_presentacion: e.target.value })} className={cx.input} /></td>
                     <td className={cx.td}>
-                      <select value={editData.unidad_medida} onChange={(e) => setEditData({ ...editData, unidad_medida: e.target.value })} className={cx.select}>
-                        {UNIDADES.map((u) => <option key={u} value={u}>{u}</option>)}
-                      </select>
+                      <CustomSelect
+                        value={editData.unidad_medida}
+                        onChange={(v) => setEditData({ ...editData, unidad_medida: v })}
+                        options={UNIDADES.map(u => ({ value: u, label: u }))}
+                      />
                     </td>
                     <td className={cx.td}><input type="number" step="0.01" value={editData.precio_presentacion} onChange={(e) => setEditData({ ...editData, precio_presentacion: e.target.value })} className={cx.input} /></td>
                     <td className={cx.td + ' text-[var(--accent)] font-semibold'}>{formatCurrency(costoUnitario(editData))}</td>

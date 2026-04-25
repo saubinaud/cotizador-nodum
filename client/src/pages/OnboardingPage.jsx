@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../config/api';
 import { cx } from '../styles/tokens';
+import CustomSelect from '../components/CustomSelect';
 import { Calculator, Loader2 } from 'lucide-react';
 
 
@@ -227,39 +228,29 @@ export default function OnboardingPage() {
 
           <div>
             <label className={cx.label}>Pais</label>
-            <select
+            <CustomSelect
               value={form.pais}
-              onChange={(e) => {
-                const code = e.target.value;
-                setForm((prev) => ({ ...prev, pais: code }));
-              }}
-              className={cx.input}
-            >
-              {paises.map((p) => (
-                <option key={p.code} value={p.code}>
-                  {p.nombre} ({p.simbolo} {p.moneda})
-                </option>
-              ))}
-            </select>
+              onChange={(code) => setForm((prev) => ({ ...prev, pais: code }))}
+              options={paises.map(p => ({ value: p.code, label: `${p.nombre} (${p.simbolo} ${p.moneda})` }))}
+            />
           </div>
 
           <div>
             <label className={cx.label}>Tipo de negocio</label>
-            <select
+            <CustomSelect
               value={form.tipo_negocio}
-              onChange={(e) => {
-                const val = e.target.value;
+              onChange={(val) => {
                 setForm((prev) => ({
                   ...prev,
                   tipo_negocio: val,
                   ...(val === 'informal' ? { igv_rate: '0' } : { igv_rate: '18' }),
                 }));
               }}
-              className={cx.input}
-            >
-              <option value="formal">Formal (paga IGV)</option>
-              <option value="informal">Informal (no paga IGV)</option>
-            </select>
+              options={[
+                { value: 'formal', label: 'Formal (paga IGV)' },
+                { value: 'informal', label: 'Informal (no paga IGV)' },
+              ]}
+            />
           </div>
 
           {form.tipo_negocio !== 'informal' && (

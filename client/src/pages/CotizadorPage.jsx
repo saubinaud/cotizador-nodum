@@ -7,6 +7,7 @@ import { useCalculadorCostos } from '../hooks/useCalculadorCostos';
 import { cx } from '../styles/tokens';
 import { formatCurrency, precioComercial } from '../utils/format';
 import SearchableSelect from '../components/SearchableSelect';
+import CustomSelect from '../components/CustomSelect';
 import {
   Plus,
   Trash2,
@@ -533,7 +534,7 @@ export default function CotizadorPage() {
                   value={mat.cantidad}
                   onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
                   placeholder="Cant."
-                  className="w-20 bg-white rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                  className="w-20 bg-white rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
                 />
                 <span className="text-stone-400 text-xs">{mat.unidad_medida || ''}</span>
                 <span className="text-stone-400 text-xs">x {formatCurrency(mat.precio)}</span>
@@ -646,10 +647,14 @@ export default function CotizadorPage() {
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={cx.label}>Tipo<InfoTip text="'Por unidad' si vendes items individuales. 'Presentacion entera' si vendes algo divisible (torta, bandeja, etc)." /></label>
-                    <select value={tipoPresentacion} onChange={(e) => setTipoPresentacion(e.target.value)} className={cx.select}>
-                      <option value="unidad">Por unidad</option>
-                      <option value="entero">Prod. entero</option>
-                    </select>
+                    <CustomSelect
+                      value={tipoPresentacion}
+                      onChange={setTipoPresentacion}
+                      options={[
+                        { value: 'unidad', label: 'Por unidad' },
+                        { value: 'entero', label: 'Prod. entero' },
+                      ]}
+                    />
                   </div>
                   {tipoPresentacion === 'entero' && (
                     <div>
@@ -721,15 +726,20 @@ export default function CotizadorPage() {
                         </div>
                         <div>
                           <label className={cx.label}>Unidad</label>
-                          <select value={prep.unidad} onChange={(e) => updatePreparacion(prep._id, 'unidad', e.target.value)} className={cx.select}>
-                            <option value="">--</option>
-                            <option value="g">g</option>
-                            <option value="kg">kg</option>
-                            <option value="ml">ml</option>
-                            <option value="L">L</option>
-                            <option value="uni">uni</option>
-                            <option value="oz">oz</option>
-                          </select>
+                          <CustomSelect
+                            value={prep.unidad}
+                            onChange={(v) => updatePreparacion(prep._id, 'unidad', v)}
+                            options={[
+                              { value: '', label: '--' },
+                              { value: 'g', label: 'g' },
+                              { value: 'kg', label: 'kg' },
+                              { value: 'ml', label: 'ml' },
+                              { value: 'L', label: 'L' },
+                              { value: 'uni', label: 'uni' },
+                              { value: 'oz', label: 'oz' },
+                            ]}
+                            placeholder="--"
+                          />
                         </div>
                       </div>
 
@@ -749,17 +759,14 @@ export default function CotizadorPage() {
                                 value={ins.cantidad}
                                 onChange={(e) => updateInsumo(prep._id, ins._id, { cantidad: e.target.value })}
                                 placeholder="Cant."
-                                className="w-20 bg-white rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                                className="w-20 bg-white rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
                               />
-                              <select
+                              <CustomSelect
                                 value={ins.uso_unidad || ins.unidad_medida || ''}
-                                onChange={(e) => updateInsumo(prep._id, ins._id, { uso_unidad: e.target.value })}
-                                className="w-10 bg-transparent text-stone-400 text-xs text-center focus:outline-none appearance-none cursor-pointer"
-                              >
-                                {getUnidadesCompatibles(ins.unidad_medida).map((u) => (
-                                  <option key={u} value={u}>{u}</option>
-                                ))}
-                              </select>
+                                onChange={(v) => updateInsumo(prep._id, ins._id, { uso_unidad: v })}
+                                options={getUnidadesCompatibles(ins.unidad_medida).map(u => ({ value: u, label: u }))}
+                                className="w-14"
+                              />
                               <span className="text-stone-400 text-xs">x {formatCurrency(costoEnUsoUnidad(ins))}</span>
                               <span className="ml-auto text-stone-800 text-sm font-medium">
                                 {formatCurrency(costoEnUsoUnidad(ins) * (Number(ins.cantidad) || 0))}
@@ -803,15 +810,12 @@ export default function CotizadorPage() {
                                     placeholder="0"
                                     className="w-full bg-stone-50 rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                                   />
-                                  <select
+                                  <CustomSelect
                                     value={ins.uso_unidad || ins.unidad_medida || ''}
-                                    onChange={(e) => updateInsumo(prep._id, ins._id, { uso_unidad: e.target.value })}
-                                    className="w-10 bg-transparent text-stone-400 text-xs text-center focus:outline-none appearance-none cursor-pointer"
-                                  >
-                                    {getUnidadesCompatibles(ins.unidad_medida).map((u) => (
-                                      <option key={u} value={u}>{u}</option>
-                                    ))}
-                                  </select>
+                                    onChange={(v) => updateInsumo(prep._id, ins._id, { uso_unidad: v })}
+                                    options={getUnidadesCompatibles(ins.unidad_medida).map(u => ({ value: u, label: u }))}
+                                    className="w-14"
+                                  />
                                 </div>
                               </td>
                               <td className="py-2 px-2 text-sm text-stone-500 text-center">
@@ -896,18 +900,19 @@ export default function CotizadorPage() {
                             <td className={cx.td}>
                               <div className="flex items-center gap-1">
                                 <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className={cx.input + ' w-20 text-center'} placeholder="0" />
-                                <select
+                                <CustomSelect
                                   value={prep.porcion_unidad || prep.unidad || ''}
-                                  onChange={(e) => updatePreparacion(prep._id, 'porcion_unidad', e.target.value)}
-                                  className="w-12 bg-white rounded-lg px-1 py-1.5 text-stone-500 text-xs text-center focus:outline-none appearance-none"
-                                >
-                                  <option value="g">g</option>
-                                  <option value="kg">kg</option>
-                                  <option value="ml">ml</option>
-                                  <option value="L">L</option>
-                                  <option value="uni">uni</option>
-                                  <option value="oz">oz</option>
-                                </select>
+                                  onChange={(v) => updatePreparacion(prep._id, 'porcion_unidad', v)}
+                                  options={[
+                                    { value: 'g', label: 'g' },
+                                    { value: 'kg', label: 'kg' },
+                                    { value: 'ml', label: 'ml' },
+                                    { value: 'L', label: 'L' },
+                                    { value: 'uni', label: 'uni' },
+                                    { value: 'oz', label: 'oz' },
+                                  ]}
+                                  className="w-14"
+                                />
                               </div>
                             </td>
                             <td className={cx.td + ' text-stone-600'}>{alcanzaPara > 0 ? `${alcanzaPara} productos` : '--'}</td>
@@ -937,18 +942,19 @@ export default function CotizadorPage() {
                               <label className={cx.label}>Para el producto</label>
                               <div className="flex items-center gap-1">
                                 <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-20 bg-white rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" placeholder="0" />
-                                <select
+                                <CustomSelect
                                   value={prep.porcion_unidad || prep.unidad || ''}
-                                  onChange={(e) => updatePreparacion(prep._id, 'porcion_unidad', e.target.value)}
-                                  className="w-12 bg-stone-50 rounded-lg px-1 py-1.5 text-stone-500 text-xs text-center focus:outline-none appearance-none"
-                                >
-                                  <option value="g">g</option>
-                                  <option value="kg">kg</option>
-                                  <option value="ml">ml</option>
-                                  <option value="L">L</option>
-                                  <option value="uni">uni</option>
-                                  <option value="oz">oz</option>
-                                </select>
+                                  onChange={(v) => updatePreparacion(prep._id, 'porcion_unidad', v)}
+                                  options={[
+                                    { value: 'g', label: 'g' },
+                                    { value: 'kg', label: 'kg' },
+                                    { value: 'ml', label: 'ml' },
+                                    { value: 'L', label: 'L' },
+                                    { value: 'uni', label: 'uni' },
+                                    { value: 'oz', label: 'oz' },
+                                  ]}
+                                  className="w-14"
+                                />
                               </div>
                             </div>
                             <div className="text-xs text-stone-500">

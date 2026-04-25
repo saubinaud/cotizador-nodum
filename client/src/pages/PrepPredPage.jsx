@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency } from '../utils/format';
 import SearchableSelect from '../components/SearchableSelect';
+import CustomSelect from '../components/CustomSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { Plus, Save, X, Trash2, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 
@@ -265,15 +266,20 @@ export default function PrepPredPage() {
             </div>
             <div>
               <label className={cx.label}>Unidad</label>
-              <select value={editData.unidad} onChange={(e) => setEditData({ ...editData, unidad: e.target.value })} className={cx.select}>
-                <option value="">Seleccionar</option>
-                <option value="g">g</option>
-                <option value="ml">ml</option>
-                <option value="uni">uni</option>
-                <option value="oz">oz</option>
-                <option value="kg">kg</option>
-                <option value="L">L</option>
-              </select>
+              <CustomSelect
+                value={editData.unidad}
+                onChange={(v) => setEditData({ ...editData, unidad: v })}
+                options={[
+                  { value: '', label: 'Seleccionar' },
+                  { value: 'g', label: 'g' },
+                  { value: 'ml', label: 'ml' },
+                  { value: 'uni', label: 'uni' },
+                  { value: 'oz', label: 'oz' },
+                  { value: 'kg', label: 'kg' },
+                  { value: 'L', label: 'L' },
+                ]}
+                placeholder="Seleccionar"
+              />
             </div>
           </div>
 
@@ -311,15 +317,12 @@ export default function PrepPredPage() {
                           placeholder="0"
                           className="w-full bg-stone-100 rounded-lg px-3 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
                         />
-                        <select
+                        <CustomSelect
                           value={ins.uso_unidad || ins.unidad_medida || ''}
-                          onChange={(e) => updateInsumo(ins._id, 'uso_unidad', e.target.value)}
-                          className="w-10 bg-transparent text-stone-400 text-xs text-center focus:outline-none appearance-none cursor-pointer"
-                        >
-                          {getUnidadesCompatibles(ins.unidad_medida).map((u) => (
-                            <option key={u} value={u}>{u}</option>
-                          ))}
-                        </select>
+                          onChange={(v) => updateInsumo(ins._id, 'uso_unidad', v)}
+                          options={getUnidadesCompatibles(ins.unidad_medida).map(u => ({ value: u, label: u }))}
+                          className="w-14"
+                        />
                       </div>
                     </td>
                     <td className="py-2 px-2 text-sm text-stone-500 text-center">
@@ -358,17 +361,14 @@ export default function PrepPredPage() {
                         value={ins.cantidad}
                         onChange={(e) => updateInsumo(ins._id, 'cantidad', e.target.value)}
                         placeholder="0"
-                        className="w-20 bg-white rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                        className="w-20 bg-white rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
                       />
-                      <select
+                      <CustomSelect
                         value={ins.uso_unidad || ins.unidad_medida || ''}
-                        onChange={(e) => updateInsumo(ins._id, 'uso_unidad', e.target.value)}
-                        className="w-10 bg-transparent text-stone-400 text-xs text-center focus:outline-none appearance-none cursor-pointer"
-                      >
-                        {getUnidadesCompatibles(ins.unidad_medida).map((u) => (
-                          <option key={u} value={u}>{u}</option>
-                        ))}
-                      </select>
+                        onChange={(v) => updateInsumo(ins._id, 'uso_unidad', v)}
+                        options={getUnidadesCompatibles(ins.unidad_medida).map(u => ({ value: u, label: u }))}
+                        className="w-14"
+                      />
                     </div>
                   </div>
                   <div className="text-xs text-stone-500 text-right flex-1">
