@@ -655,13 +655,12 @@ export default function CotizadorPage() {
                     ]}
                   />
                 </div>
-                  {tipoPresentacion === 'entero' && (
-                    <div>
-                      <label className={cx.label}>Porciones</label>
-                      <input type="number" min="1" value={unidadesPorProducto} onChange={(e) => setUnidadesPorProducto(Math.max(1, parseInt(e.target.value) || 1))} className={cx.input} />
-                    </div>
-                  )}
-                </div>
+                {tipoPresentacion === 'entero' && (
+                  <div>
+                    <label className={cx.label}>Porciones</label>
+                    <input type="number" min="1" value={unidadesPorProducto} onChange={(e) => setUnidadesPorProducto(Math.max(1, parseInt(e.target.value) || 1))} className={cx.input} />
+                  </div>
+                )}
               </div>
               {/* Imagen URL as small icon toggle — hidden by default, shown inline */}
               {imagenUrl ? (
