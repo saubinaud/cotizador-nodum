@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
@@ -7,7 +7,7 @@ import { formatCurrency } from '../utils/format';
 import CustomSelect from '../components/CustomSelect';
 import {
   UtensilsCrossed, TrendingUp, TrendingDown, Percent,
-  Receipt, ShoppingCart, Target, ArrowRight,
+  Receipt, ShoppingCart, Target, ArrowUpRight, ArrowDownRight,
 } from 'lucide-react';
 
 const MESES = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
@@ -28,7 +28,7 @@ function fmt(n) {
 
 function pct(n, total) {
   if (!total || total === 0) return '';
-  return `(${((n / total) * 100).toFixed(1)}%)`;
+  return `${((n / total) * 100).toFixed(1)}%`;
 }
 
 export default function PLResumenPage() {
@@ -43,7 +43,6 @@ export default function PLResumenPage() {
   const [loadingData, setLoadingData] = useState(false);
   const [creatingPeriodo, setCreatingPeriodo] = useState(false);
 
-  // Load periodos on mount
   useEffect(() => {
     api.get('/pl/periodos').then((res) => {
       const pers = res.data || [];
@@ -53,7 +52,6 @@ export default function PLResumenPage() {
     }).catch(() => setLoading(false));
   }, []);
 
-  // Load P&L data when periodo changes
   const loadResumen = async (pid) => {
     if (!pid) return;
     setLoadingData(true);
@@ -92,7 +90,6 @@ export default function PLResumenPage() {
     }
   };
 
-  // Loading skeleton
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto pb-12 space-y-4">
@@ -105,7 +102,6 @@ export default function PLResumenPage() {
     );
   }
 
-  // No periods
   if (periodos.length === 0) {
     return (
       <div className="max-w-7xl mx-auto pb-12">
@@ -150,16 +146,19 @@ export default function PLResumenPage() {
           <div className={cx.skeleton + ' h-96'} />
         </div>
       ) : !hasData ? (
-        /* Empty state */
+        /* Empty state — actionable */
         <div className={`${cx.card} p-12 text-center`}>
-          <Receipt size={40} className="text-stone-300 mx-auto mb-4" />
-          <p className="text-stone-600 text-sm font-medium mb-2">Sin datos en este periodo</p>
-          <p className="text-stone-400 text-xs mb-6">
-            Registra ventas y gastos para ver tu estado de resultados.
+          <Receipt size={48} className="text-stone-200 mx-auto mb-6" />
+          <p className="text-stone-700 text-base font-semibold mb-2">Aun no hay datos en este periodo</p>
+          <p className="text-stone-400 text-sm mb-8 max-w-sm mx-auto">
+            Registra ventas, compras y gastos para generar tu estado de resultados automaticamente.
           </p>
-          <div className="flex items-center justify-center gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
             <button onClick={() => navigate('/pl/ventas')} className={cx.btnPrimary + ' flex items-center gap-2'}>
               <ShoppingCart size={14} /> Registrar ventas
+            </button>
+            <button onClick={() => navigate('/pl/compras')} className={cx.btnSecondary + ' flex items-center gap-2'}>
+              <Receipt size={14} /> Registrar compras
             </button>
             <button onClick={() => navigate('/pl/gastos')} className={cx.btnSecondary + ' flex items-center gap-2'}>
               <Receipt size={14} /> Registrar gastos
@@ -176,6 +175,7 @@ export default function PLResumenPage() {
               value={`${data.kpis.food_cost_pct}%`}
               color={data.kpis.food_cost_pct > 35 ? 'red' : data.kpis.food_cost_pct <= 30 ? 'green' : 'neutral'}
               sub="Insumos / Ingresos"
+              trend={data.kpis.food_cost_pct <= 30 ? 'down' : data.kpis.food_cost_pct > 35 ? 'up' : null}
             />
             <KpiCard
               icon={<TrendingUp size={16} />}
@@ -183,6 +183,7 @@ export default function PLResumenPage() {
               value={`${data.kpis.margen_bruto_pct}%`}
               color={data.kpis.margen_bruto_pct > 0 ? 'green' : data.kpis.margen_bruto_pct < 0 ? 'red' : 'neutral'}
               sub={fmt(data.utilidad_bruta)}
+              trend={data.kpis.margen_bruto_pct > 0 ? 'up' : data.kpis.margen_bruto_pct < 0 ? 'down' : null}
             />
             <KpiCard
               icon={<Percent size={16} />}
@@ -190,6 +191,7 @@ export default function PLResumenPage() {
               value={`${data.kpis.margen_neto_pct}%`}
               color={data.kpis.margen_neto_pct > 0 ? 'green' : data.kpis.margen_neto_pct < 0 ? 'red' : 'neutral'}
               sub={fmt(data.utilidad_neta)}
+              trend={data.kpis.margen_neto_pct > 0 ? 'up' : data.kpis.margen_neto_pct < 0 ? 'down' : null}
             />
             <KpiCard
               icon={<Receipt size={16} />}
@@ -200,103 +202,164 @@ export default function PLResumenPage() {
             />
           </div>
 
-          {/* P&L Statement */}
-          <div className={cx.card}>
-            <div className="p-6">
-              {/* INGRESOS */}
-              <SectionHeader label="Ingresos" />
-              <LineItem label="Ventas brutas" amount={data.ingresos.brutos} />
-              <LineItem label="Descuentos" amount={-data.ingresos.descuentos} negative />
-              <div className="border-t border-stone-200 my-2" />
-              <SubtotalLine label="Ingresos netos" amount={data.ingresos.netos} />
+          {/* P&L Statement — Accounting grade */}
+          <div className={`${cx.card} overflow-hidden`}>
+            {/* INGRESOS */}
+            <div className="px-6 py-4 bg-stone-50 border-b border-stone-100">
+              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Ingresos</p>
+            </div>
+            <div className="px-6 py-3 space-y-2">
+              <PLRow label="Ventas brutas" amount={data.ingresos.brutos} indent />
+              <PLRow label="Descuentos" amount={-data.ingresos.descuentos} negative indent />
+            </div>
+            <div className="px-6 py-3 border-t border-stone-200 bg-stone-50/50">
+              <div className="flex justify-between text-sm font-bold">
+                <span className="text-stone-700">Ingresos netos</span>
+                <span className="text-stone-900 tabular-nums">{fmt(data.ingresos.netos)}</span>
+              </div>
+            </div>
 
-              <div className="h-6" />
+            {/* COSTO DE VENTAS */}
+            <div className="px-6 py-4 bg-stone-50 border-t border-b border-stone-100">
+              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Costo de ventas</p>
+            </div>
+            <div className="px-6 py-3 space-y-2">
+              <PLRow label="Insumos (food cost)" amount={data.cogs.insumos} indent note={pct(data.cogs.insumos, ingresosNetos)} />
+              <PLRow label="Empaque" amount={data.cogs.empaque} indent />
+            </div>
+            <div className="px-6 py-3 border-t border-stone-200 bg-stone-50/50">
+              <div className="flex justify-between text-sm font-bold">
+                <span className="text-stone-700">Total COGS</span>
+                <span className="text-stone-900 tabular-nums">{fmt(data.cogs.total)}</span>
+              </div>
+            </div>
 
-              {/* COSTO DE VENTAS */}
-              <SectionHeader label="Costo de ventas" />
-              <LineItem label="Insumos (food cost)" amount={data.cogs.insumos} note={pct(data.cogs.insumos, ingresosNetos)} />
-              <LineItem label="Empaque" amount={data.cogs.empaque} />
-              <div className="border-t border-stone-200 my-2" />
-              <SubtotalLine label="Total COGS" amount={data.cogs.total} />
-
-              {data.cogs_real && data.cogs_real.total > 0 && (
-                <div className="mt-2 pt-2 border-t border-stone-100">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-stone-400 italic">COGS real (compras)</span>
-                    <span className="text-stone-500">{fmt(data.cogs_real.total)}</span>
+            {/* COGS real comparison */}
+            {data.cogs_real && data.cogs_real.total > 0 && (
+              <div className="px-6 py-3 border-t border-stone-100">
+                <div className="flex justify-between text-sm">
+                  <span className="text-stone-400 italic pl-4">COGS real (compras)</span>
+                  <span className="text-stone-500 tabular-nums">{fmt(data.cogs_real.total)}</span>
+                </div>
+                {data.cogs.total > 0 && (
+                  <div className="flex justify-between text-xs mt-1">
+                    <span className="text-stone-400 pl-4">Diferencia vs teorico</span>
+                    <span className={`tabular-nums ${data.cogs_real.total > data.cogs.total ? 'text-rose-500' : 'text-teal-600'}`}>
+                      {data.cogs_real.total > data.cogs.total ? '+' : ''}{fmt(data.cogs_real.total - data.cogs.total)}
+                    </span>
                   </div>
-                  {data.cogs.total > 0 && (
-                    <div className="flex justify-between text-xs mt-1">
-                      <span className="text-stone-400">Diferencia vs teorico</span>
-                      <span className={data.cogs_real.total > data.cogs.total ? 'text-rose-500' : 'text-teal-600'}>
-                        {data.cogs_real.total > data.cogs.total ? '+' : ''}{fmt(data.cogs_real.total - data.cogs.total)}
-                      </span>
-                    </div>
+                )}
+              </div>
+            )}
+
+            {/* UTILIDAD BRUTA — highlighted */}
+            <div className="px-6 py-4 border-t-2 border-stone-300 bg-[var(--accent-light)]">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-stone-800">Utilidad bruta</span>
+                <div className="text-right">
+                  <span className="text-xl font-bold text-stone-900 tabular-nums">{fmt(data.utilidad_bruta)}</span>
+                  {ingresosNetos > 0 && (
+                    <span className="text-xs text-stone-500 ml-2">({pct(data.utilidad_bruta, ingresosNetos)})</span>
                   )}
                 </div>
-              )}
+              </div>
+            </div>
 
-              {/* UTILIDAD BRUTA */}
-              <GrandTotal label="Utilidad Bruta" amount={data.utilidad_bruta} pctNote={pct(data.utilidad_bruta, ingresosNetos)} />
+            {/* GASTOS OPERATIVOS */}
+            <div className="px-6 py-4 bg-stone-50 border-t border-b border-stone-100">
+              <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Gastos operativos</p>
+            </div>
+            <div className="px-6 py-3 space-y-2">
+              <PLRow label="Gastos fijos" amount={data.gastos.fijos} indent />
+              <PLRow label="Gastos variables" amount={data.gastos.variables} indent />
+            </div>
+            <div className="px-6 py-3 border-t border-stone-200 bg-stone-50/50">
+              <div className="flex justify-between text-sm font-bold">
+                <span className="text-stone-700">Total gastos</span>
+                <span className="text-stone-900 tabular-nums">{fmt(data.gastos.total)}</span>
+              </div>
+            </div>
 
-              {/* GASTOS OPERATIVOS */}
-              <SectionHeader label="Gastos operativos" />
-              <LineItem label="Gastos fijos" amount={data.gastos.fijos} />
-              <LineItem label="Gastos variables" amount={data.gastos.variables} />
-              <div className="border-t border-stone-200 my-2" />
-              <SubtotalLine label="Total gastos" amount={data.gastos.total} />
+            {/* UTILIDAD OPERATIVA */}
+            <div className="px-6 py-4 border-t-2 border-stone-300">
+              <div className="flex justify-between items-center">
+                <span className="font-bold text-stone-800">Utilidad operativa</span>
+                <div className="text-right">
+                  <span className={`text-lg font-bold tabular-nums ${parseFloat(data.utilidad_operativa) >= 0 ? 'text-stone-900' : 'text-rose-600'}`}>
+                    {fmt(data.utilidad_operativa)}
+                  </span>
+                  {ingresosNetos > 0 && (
+                    <span className="text-xs text-stone-500 ml-2">({pct(data.utilidad_operativa, ingresosNetos)})</span>
+                  )}
+                </div>
+              </div>
+            </div>
 
-              {/* UTILIDAD OPERATIVA */}
-              <GrandTotal label="Utilidad Operativa" amount={data.utilidad_operativa} pctNote={pct(data.utilidad_operativa, ingresosNetos)} />
+            {/* IMPUESTOS */}
+            {data.impuestos > 0 && (
+              <>
+                <div className="px-6 py-4 bg-stone-50 border-t border-b border-stone-100">
+                  <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Impuestos</p>
+                </div>
+                <div className="px-6 py-3 space-y-2">
+                  <PLRow label="IGV / Impuestos" amount={data.impuestos} indent />
+                </div>
+              </>
+            )}
 
-              {/* IMPUESTOS */}
-              {data.impuestos > 0 && (
-                <>
-                  <SectionHeader label="Impuestos" />
-                  <LineItem label="IGV / Impuestos" amount={data.impuestos} />
-                </>
-              )}
-
-              {/* UTILIDAD NETA */}
-              <GrandTotal label="Utilidad Neta" amount={data.utilidad_neta} pctNote={pct(data.utilidad_neta, ingresosNetos)} final />
+            {/* UTILIDAD NETA — BIG, prominent */}
+            <div className="px-6 py-5 border-t-2 border-stone-400">
+              <div className="flex justify-between items-baseline">
+                <span className="text-lg font-bold text-stone-900">Utilidad neta</span>
+                <div className="text-right">
+                  <span className={`text-2xl font-bold tabular-nums ${parseFloat(data.utilidad_neta) >= 0 ? 'text-teal-600' : 'text-rose-600'}`}>
+                    {fmt(data.utilidad_neta)}
+                  </span>
+                  {ingresosNetos > 0 && (
+                    <p className="text-xs text-stone-400 mt-0.5">Margen: {pct(data.utilidad_neta, ingresosNetos)}</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Top Productos */}
+          {/* Top Productos — mini-table pattern */}
           {data.top_productos && data.top_productos.length > 0 && (
             <div className={cx.card}>
               <div className="p-6">
                 <h3 className="text-lg font-semibold text-stone-900 mb-4">Top Productos</h3>
 
-                {/* Desktop table */}
-                <div className="hidden sm:block overflow-x-auto">
-                  <table className="w-full">
-                    <thead>
-                      <tr className="border-b border-stone-100">
-                        <th className={cx.th + ' w-10'}>#</th>
-                        <th className={cx.th}>Producto</th>
-                        <th className={cx.th + ' text-right'}>Unidades</th>
-                        <th className={cx.th + ' text-right'}>Ingresos</th>
-                        <th className={cx.th + ' text-right'}>Utilidad</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.top_productos.map((p, i) => {
-                        const util = parseFloat(p.utilidad);
-                        return (
-                          <tr key={p.id} className={cx.tr}>
-                            <td className={cx.td + ' text-stone-400 font-medium'}>{i + 1}</td>
-                            <td className={cx.td + ' font-medium text-stone-900'}>{p.nombre}</td>
-                            <td className={cx.td + ' text-right text-stone-600'}>{parseInt(p.unidades)}</td>
-                            <td className={cx.td + ' text-right text-stone-600'}>{fmt(p.ingresos)}</td>
-                            <td className={cx.td + ' text-right font-semibold ' + (util >= 0 ? 'text-teal-700' : 'text-rose-600')}>
-                              {fmt(util)}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+                {/* Desktop table — bordered, bg-stone-50 header */}
+                <div className="hidden sm:block">
+                  <div className="border border-stone-100 rounded-lg overflow-hidden">
+                    <table className="w-full">
+                      <thead>
+                        <tr className="bg-stone-50">
+                          <th className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 text-left px-4 py-3 w-10">#</th>
+                          <th className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 text-left px-4 py-3">Producto</th>
+                          <th className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 text-right px-4 py-3">Unidades</th>
+                          <th className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 text-right px-4 py-3">Ingresos</th>
+                          <th className="text-[11px] font-semibold uppercase tracking-wider text-stone-400 text-right px-4 py-3">Utilidad</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {data.top_productos.map((p, i) => {
+                          const util = parseFloat(p.utilidad);
+                          return (
+                            <tr key={p.id} className="border-t border-stone-100 hover:bg-stone-50/50">
+                              <td className="px-4 py-3.5 text-sm text-stone-400 font-medium">{i + 1}</td>
+                              <td className="px-4 py-3.5 text-sm font-medium text-stone-900">{p.nombre}</td>
+                              <td className="px-4 py-3.5 text-sm text-right text-stone-600 tabular-nums">{parseInt(p.unidades)}</td>
+                              <td className="px-4 py-3.5 text-sm text-right text-stone-600 tabular-nums">{fmt(p.ingresos)}</td>
+                              <td className={'px-4 py-3.5 text-sm text-right font-semibold tabular-nums ' + (util >= 0 ? 'text-teal-700' : 'text-rose-600')}>
+                                {fmt(util)}
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
 
                 {/* Mobile cards */}
@@ -312,7 +375,7 @@ export default function PLResumenPage() {
                             <p className="text-[11px] text-stone-400">{parseInt(p.unidades)} uds &middot; {fmt(p.ingresos)}</p>
                           </div>
                         </div>
-                        <span className={'text-sm font-semibold flex-shrink-0 ml-3 ' + (util >= 0 ? 'text-teal-700' : 'text-rose-600')}>
+                        <span className={'text-sm font-semibold flex-shrink-0 ml-3 tabular-nums ' + (util >= 0 ? 'text-teal-700' : 'text-rose-600')}>
                           {fmt(util)}
                         </span>
                       </div>
@@ -346,7 +409,7 @@ export default function PLResumenPage() {
 
 /* ─── Sub-components ────────────────────────────────────── */
 
-function KpiCard({ icon, label, value, color, sub }) {
+function KpiCard({ icon, label, value, color, sub, trend }) {
   const colorMap = {
     green: 'text-teal-700',
     red: 'text-rose-600',
@@ -357,63 +420,39 @@ function KpiCard({ icon, label, value, color, sub }) {
     red: 'bg-rose-50',
     neutral: 'bg-stone-100',
   };
+  const tintMap = {
+    green: 'bg-teal-50/40',
+    red: 'bg-rose-50/40',
+    neutral: '',
+  };
   return (
-    <div className={`${cx.card} p-5`}>
+    <div className={`${cx.card} p-5 ${tintMap[color]}`}>
       <div className="flex items-center gap-2 mb-3">
         <span className={`p-1.5 rounded-lg ${bgMap[color]}`}>
           <span className={colorMap[color]}>{icon}</span>
         </span>
         <span className="text-xs font-semibold text-stone-500 tracking-wide uppercase">{label}</span>
       </div>
-      <p className={`text-2xl font-bold ${colorMap[color]}`}>{value}</p>
+      <div className="flex items-center gap-1.5">
+        <p className={`text-3xl font-bold ${colorMap[color]}`}>{value}</p>
+        {trend === 'up' && <ArrowUpRight size={16} className="text-teal-600" />}
+        {trend === 'down' && <ArrowDownRight size={16} className="text-rose-500" />}
+      </div>
       {sub && <p className="text-xs text-stone-400 mt-1">{sub}</p>}
     </div>
   );
 }
 
-function SectionHeader({ label }) {
-  return (
-    <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mt-6 mb-3 first:mt-0">
-      {label}
-    </p>
-  );
-}
-
-function LineItem({ label, amount, negative, note }) {
+function PLRow({ label, amount, negative, indent, note }) {
   const val = parseFloat(amount) || 0;
   const isNeg = negative || val < 0;
   return (
-    <div className="flex items-center justify-between py-1.5 px-1">
-      <span className="text-sm text-stone-700">{label}</span>
+    <div className="flex justify-between text-sm">
+      <span className={`text-stone-600 ${indent ? 'pl-4' : ''}`}>{label}</span>
       <div className="flex items-center gap-2">
         {note && <span className="text-xs text-stone-400">{note}</span>}
-        <span className={`text-sm tabular-nums ${isNeg ? 'text-rose-600' : 'text-stone-800'}`}>
+        <span className={`font-medium tabular-nums ${isNeg ? 'text-rose-500' : 'text-stone-800'}`}>
           {isNeg && val !== 0 ? '-' : ''}{fmt(Math.abs(val))}
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function SubtotalLine({ label, amount }) {
-  return (
-    <div className="flex items-center justify-between py-2 px-1">
-      <span className="text-sm font-semibold text-stone-800">{label}</span>
-      <span className="text-sm font-semibold text-stone-900 tabular-nums">{fmt(amount)}</span>
-    </div>
-  );
-}
-
-function GrandTotal({ label, amount, pctNote, final: isFinal }) {
-  const val = parseFloat(amount) || 0;
-  const isNeg = val < 0;
-  return (
-    <div className={`flex items-center justify-between py-3 px-1 my-3 ${isFinal ? 'border-t-2 border-b-2 border-stone-900' : 'border-t-2 border-stone-300'}`}>
-      <span className={`${isFinal ? 'text-lg' : 'text-base'} font-bold text-stone-900`}>{label}</span>
-      <div className="flex items-center gap-2">
-        {pctNote && <span className="text-xs text-stone-400">{pctNote}</span>}
-        <span className={`${isFinal ? 'text-lg' : 'text-base'} font-bold tabular-nums ${isNeg ? 'text-rose-600' : 'text-stone-900'}`}>
-          {fmt(val)}
         </span>
       </div>
     </div>

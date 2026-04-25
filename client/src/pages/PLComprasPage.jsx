@@ -149,7 +149,7 @@ export default function PLComprasPage() {
       : Number(ins.precio_presentacion) || 0;
     setItems((prev) => prev.map((item, i) => {
       if (i !== idx) return item;
-      return { ...item, insumo_id: ins.id, unidad: ins.unidad_medida || ins.unidad || '', precio_unitario: precioSugerido.toFixed(4), _precio_catalogo: precioSugerido };
+      return { ...item, insumo_id: ins.id, unidad: ins.unidad_medida || ins.unidad || '', precio_unitario: parseFloat(precioSugerido.toFixed(2)), _precio_catalogo: precioSugerido };
     }));
   };
 
@@ -159,7 +159,7 @@ export default function PLComprasPage() {
       : Number(mat.precio_presentacion) || 0;
     setItems((prev) => prev.map((item, i) => {
       if (i !== idx) return item;
-      return { ...item, material_id: mat.id, unidad: mat.unidad_medida || mat.unidad || '', precio_unitario: precioSugerido.toFixed(4), _precio_catalogo: precioSugerido };
+      return { ...item, material_id: mat.id, unidad: mat.unidad_medida || mat.unidad || '', precio_unitario: parseFloat(precioSugerido.toFixed(2)), _precio_catalogo: precioSugerido };
     }));
   };
 
@@ -361,33 +361,73 @@ export default function PLComprasPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {compra.items.map((it) => (
+                          {compra.items.map((it) => {
+                            const variation = (() => {
+                              const catItem = it.insumo_id ? insumos.find(ins => ins.id === it.insumo_id)
+                                : it.material_id ? materiales.find(m => m.id === it.material_id) : null;
+                              if (!catItem) return null;
+                              const catPrice = Number(catItem.cantidad_presentacion) > 0
+                                ? Number(catItem.precio_presentacion) / Number(catItem.cantidad_presentacion) : 0;
+                              if (catPrice <= 0) return null;
+                              const diff = ((parseFloat(it.precio_unitario) / catPrice) - 1) * 100;
+                              if (Math.abs(diff) < 0.5) return null;
+                              return diff;
+                            })();
+                            return (
                             <tr key={it.id} className={cx.tr}>
                               <td className={cx.td + ' font-medium text-stone-900'}>{it.item_nombre || it.nombre_item || '-'}</td>
                               <td className={cx.td + ' text-right text-stone-600'}>{parseFloat(it.cantidad)}</td>
                               <td className={cx.td + ' text-center text-stone-500'}>{it.unidad || '-'}</td>
-                              <td className={cx.td + ' text-right text-stone-600'}>{formatCurrency(it.precio_unitario)}</td>
-                              <td className={cx.td + ' text-right font-semibold text-stone-900'}>{formatCurrency(it.total)}</td>
+                              <td className={cx.td + ' text-right text-stone-600'}>{formatCurrency(parseFloat(it.precio_unitario).toFixed(2))}</td>
+                              <td className={cx.td + ' text-right'}>
+                                <span className="font-semibold text-stone-900">{formatCurrency(parseFloat(it.total).toFixed(2))}</span>
+                                {variation !== null && (
+                                  <span className={`ml-1.5 text-[10px] ${variation > 0 ? 'text-rose-500' : 'text-teal-600'}`}>
+                                    {variation > 0 ? '+' : ''}{variation.toFixed(1)}%
+                                  </span>
+                                )}
+                              </td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
                     {/* Mobile */}
                     <div className="sm:hidden space-y-2">
-                      {compra.items.map((it) => (
+                      {compra.items.map((it) => {
+                        const variation = (() => {
+                          const catItem = it.insumo_id ? insumos.find(ins => ins.id === it.insumo_id)
+                            : it.material_id ? materiales.find(m => m.id === it.material_id) : null;
+                          if (!catItem) return null;
+                          const catPrice = Number(catItem.cantidad_presentacion) > 0
+                            ? Number(catItem.precio_presentacion) / Number(catItem.cantidad_presentacion) : 0;
+                          if (catPrice <= 0) return null;
+                          const diff = ((parseFloat(it.precio_unitario) / catPrice) - 1) * 100;
+                          if (Math.abs(diff) < 0.5) return null;
+                          return diff;
+                        })();
+                        return (
                         <div key={it.id} className="flex items-center justify-between py-2 pl-7">
                           <div className="min-w-0">
                             <p className="text-sm font-medium text-stone-800 truncate">{it.item_nombre || it.nombre_item || '-'}</p>
                             <p className="text-[11px] text-stone-400">
-                              {parseFloat(it.cantidad)} {it.unidad || ''} x {formatCurrency(it.precio_unitario)}
+                              {parseFloat(it.cantidad)} {it.unidad || ''} x {formatCurrency(parseFloat(it.precio_unitario).toFixed(2))}
                             </p>
                           </div>
-                          <span className="text-sm font-semibold text-stone-900 flex-shrink-0 ml-3">
-                            {formatCurrency(it.total)}
-                          </span>
+                          <div className="flex items-center gap-1.5 flex-shrink-0 ml-3">
+                            <span className="text-sm font-semibold text-stone-900">
+                              {formatCurrency(parseFloat(it.total).toFixed(2))}
+                            </span>
+                            {variation !== null && (
+                              <span className={`text-[10px] ${variation > 0 ? 'text-rose-500' : 'text-teal-600'}`}>
+                                {variation > 0 ? '+' : ''}{variation.toFixed(1)}%
+                              </span>
+                            )}
+                          </div>
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                     {compra.nota && (
                       <p className="text-xs text-stone-400 mt-3 pl-7">Nota: {compra.nota}</p>

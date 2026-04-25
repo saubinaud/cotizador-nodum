@@ -54,9 +54,10 @@ export default function PLVentasPage() {
     fecha: todayStr(),
     cantidad: 1,
     precio_unitario: '',
-    descuento: '',
     nota: '',
   });
+  const [descuentoTipo, setDescuentoTipo] = useState('none');
+  const [descuentoValor, setDescuentoValor] = useState('');
 
   // Load periodos + productos on mount
   useEffect(() => {
@@ -119,6 +120,19 @@ export default function PLVentasPage() {
     }
   };
 
+  // Discount calculation
+  const calcDescuento = () => {
+    const val = parseFloat(descuentoValor) || 0;
+    const cant = parseInt(form.cantidad) || 1;
+    const precio = parseFloat(form.precio_unitario) || 0;
+    switch (descuentoTipo) {
+      case 'total': return val;
+      case 'unit': return val * cant;
+      case 'percent': return (precio * cant) * (val / 100);
+      default: return 0;
+    }
+  };
+
   // Open modal for new venta
   const openNewVenta = () => {
     setEditingVenta(null);
@@ -127,23 +141,31 @@ export default function PLVentasPage() {
       fecha: todayStr(),
       cantidad: 1,
       precio_unitario: '',
-      descuento: '',
       nota: '',
     });
+    setDescuentoTipo('none');
+    setDescuentoValor('');
     setModalOpen(true);
   };
 
   // Open modal for editing
   const openEditVenta = (v) => {
     setEditingVenta(v);
+    const desc = parseFloat(v.descuento) || 0;
     setForm({
       producto_id: v.producto_id,
       fecha: v.fecha ? v.fecha.slice(0, 10) : todayStr(),
       cantidad: v.cantidad,
       precio_unitario: parseFloat(v.precio_unitario) || '',
-      descuento: parseFloat(v.descuento) || '',
       nota: v.nota || '',
     });
+    if (desc > 0) {
+      setDescuentoTipo('total');
+      setDescuentoValor(String(desc));
+    } else {
+      setDescuentoTipo('none');
+      setDescuentoValor('');
+    }
     setModalOpen(true);
   };
 
@@ -160,9 +182,9 @@ export default function PLVentasPage() {
   const formTotal = useMemo(() => {
     const precio = parseFloat(form.precio_unitario) || 0;
     const cant = parseInt(form.cantidad) || 0;
-    const desc = parseFloat(form.descuento) || 0;
+    const desc = calcDescuento();
     return (precio * cant) - desc;
-  }, [form.precio_unitario, form.cantidad, form.descuento]);
+  }, [form.precio_unitario, form.cantidad, descuentoTipo, descuentoValor]);
 
   // Save venta
   const saveVenta = async () => {
@@ -171,11 +193,12 @@ export default function PLVentasPage() {
       return;
     }
     try {
+      const descuentoTotal = calcDescuento();
       if (editingVenta) {
         await api.put(`/pl/ventas/${editingVenta.id}`, {
           cantidad: form.cantidad,
           precio_unitario: form.precio_unitario,
-          descuento: form.descuento || 0,
+          descuento: descuentoTotal,
           nota: form.nota,
         });
         toast.success('Venta actualizada');
@@ -186,7 +209,7 @@ export default function PLVentasPage() {
           fecha: form.fecha,
           cantidad: form.cantidad,
           precio_unitario: form.precio_unitario || undefined,
-          descuento: form.descuento || 0,
+          descuento: descuentoTotal,
           nota: form.nota,
         });
         toast.success('Venta registrada');
@@ -475,15 +498,36 @@ export default function PLVentasPage() {
 
                 {/* Discount */}
                 <div>
-                  <label className={cx.label}>Descuento (total)</label>
-                  <input
-                    type="number"
-                    value={form.descuento}
-                    onChange={(e) => setForm((f) => ({ ...f, descuento: e.target.value }))}
-                    step="0.01"
-                    className={cx.input}
-                    placeholder="0.00"
-                  />
+                  <label className={cx.label}>Descuento</label>
+                  <div className="flex gap-2">
+                    <CustomSelect
+                      value={descuentoTipo}
+                      onChange={setDescuentoTipo}
+                      options={[
+                        { value: 'none', label: 'Sin descuento' },
+                        { value: 'total', label: 'Monto fijo' },
+                        { value: 'unit', label: 'Por unidad' },
+                        { value: 'percent', label: 'Porcentaje' },
+                      ]}
+                      className="w-40"
+                    />
+                    {descuentoTipo !== 'none' && (
+                      <input
+                        type="number"
+                        value={descuentoValor}
+                        onChange={(e) => setDescuentoValor(e.target.value)}
+                        className={cx.input + ' w-28'}
+                        placeholder={descuentoTipo === 'percent' ? '10' : '5.00'}
+                        min="0"
+                        step="0.01"
+                      />
+                    )}
+                  </div>
+                  {descuentoTipo !== 'none' && calcDescuento() > 0 && (
+                    <p className="text-[11px] text-stone-400 mt-1">
+                      Descuento total: {formatCurrency(calcDescuento())}
+                    </p>
+                  )}
                 </div>
 
                 {/* Note */}
