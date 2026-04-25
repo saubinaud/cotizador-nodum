@@ -95,12 +95,26 @@ router.post('/', async (req, res) => {
       }
     }
 
-    const costos = calcularCostos({
-      insumos: allInsumos,
-      costo_empaque,
-      margen: parseFloat(margen) || 0,
-      igv_rate,
-    });
+    // Use pre-calculated costs from frontend (includes porciones logic)
+    const costos = {
+      costo_insumos: round4(parseFloat(req.body.costoInsumos || req.body.costoInsumosProducto) || 0),
+      costo_empaque: round4(parseFloat(req.body.costoEmpaque || req.body.costoEmpaqueEntero) || costo_empaque),
+      costo_neto: round4(parseFloat(req.body.costoNeto) || 0),
+      precio_venta: round4(parseFloat(req.body.precioVenta) || 0),
+      precio_final: round4(parseFloat(req.body.precioFinal) || 0),
+    };
+
+    // Fallback: if frontend didn't send costs, calculate from costo_linea sum
+    if (!costos.costo_neto) {
+      const sumRes = await client.query(
+        `SELECT COALESCE(SUM(ppi.costo_linea), 0) as total FROM producto_prep_insumos ppi JOIN producto_preparaciones pp ON pp.id = ppi.producto_preparacion_id WHERE pp.producto_id = $1`,
+        [producto.id]
+      );
+      costos.costo_insumos = round4(parseFloat(sumRes.rows[0].total));
+      costos.costo_neto = round4(costos.costo_insumos + costos.costo_empaque);
+      costos.precio_venta = margenDecimal < 1 ? round4(costos.costo_neto / (1 - margenDecimal)) : costos.costo_neto;
+      costos.precio_final = round4(costos.precio_venta * (1 + igv_rate));
+    }
 
     await client.query(
       `UPDATE productos SET
@@ -340,12 +354,26 @@ router.put('/:id', async (req, res) => {
     }
 
     const effectiveMargen = margenDecimal !== undefined ? margenDecimal : parseFloat(existing.rows[0].margen) || 0;
-    const costos = calcularCostos({
-      insumos: allInsumos,
-      costo_empaque,
-      margen: effectiveMargen,
-      igv_rate,
-    });
+
+    // Use pre-calculated costs from frontend (includes porciones logic)
+    const costos = {
+      costo_insumos: round4(parseFloat(req.body.costoInsumos || req.body.costoInsumosProducto) || 0),
+      costo_empaque: round4(parseFloat(req.body.costoEmpaque || req.body.costoEmpaqueEntero) || costo_empaque),
+      costo_neto: round4(parseFloat(req.body.costoNeto) || 0),
+      precio_venta: round4(parseFloat(req.body.precioVenta) || 0),
+      precio_final: round4(parseFloat(req.body.precioFinal) || 0),
+    };
+
+    if (!costos.costo_neto) {
+      const sumRes = await client.query(
+        `SELECT COALESCE(SUM(ppi.costo_linea), 0) as total FROM producto_prep_insumos ppi JOIN producto_preparaciones pp ON pp.id = ppi.producto_preparacion_id WHERE pp.producto_id = $1`,
+        [req.params.id]
+      );
+      costos.costo_insumos = round4(parseFloat(sumRes.rows[0].total));
+      costos.costo_neto = round4(costos.costo_insumos + costos.costo_empaque);
+      costos.precio_venta = effectiveMargen < 1 ? round4(costos.costo_neto / (1 - effectiveMargen)) : costos.costo_neto;
+      costos.precio_final = round4(costos.precio_venta * (1 + igv_rate));
+    }
 
     await client.query(
       `UPDATE productos SET
