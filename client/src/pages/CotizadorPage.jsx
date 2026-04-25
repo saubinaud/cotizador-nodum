@@ -639,23 +639,22 @@ export default function CotizadorPage() {
           <div>
             <h3 className="text-lg font-semibold text-stone-900 mb-4">Producto</h3>
             <div className={`${cx.card} p-6`}>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                <div className="sm:col-span-2">
+              <div className={`grid gap-4 ${tipoPresentacion === 'entero' ? 'grid-cols-1 sm:grid-cols-4' : 'grid-cols-1 sm:grid-cols-3'}`}>
+                <div className={tipoPresentacion === 'entero' ? 'sm:col-span-2' : ''}>
                   <label className={cx.label}>Nombre del producto</label>
-                  <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={cx.input + ' text-base'} placeholder="Ej: Cheesecake de fresa" autoFocus />
+                  <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={cx.input} placeholder="Ej: Cheesecake de fresa" autoFocus />
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className={cx.label}>Tipo<InfoTip text="'Por unidad' si vendes items individuales. 'Presentacion entera' si vendes algo divisible (torta, bandeja, etc)." /></label>
-                    <CustomSelect
-                      value={tipoPresentacion}
-                      onChange={setTipoPresentacion}
-                      options={[
-                        { value: 'unidad', label: 'Por unidad' },
-                        { value: 'entero', label: 'Prod. entero' },
-                      ]}
-                    />
-                  </div>
+                <div>
+                  <label className={cx.label}>Presentacion<InfoTip text="'Por unidad' si vendes items individuales. 'Presentacion entera' si vendes algo divisible (torta, bandeja, etc)." /></label>
+                  <CustomSelect
+                    value={tipoPresentacion}
+                    onChange={setTipoPresentacion}
+                    options={[
+                      { value: 'unidad', label: 'Por unidad' },
+                      { value: 'entero', label: 'Presentacion entera' },
+                    ]}
+                  />
+                </div>
                   {tipoPresentacion === 'entero' && (
                     <div>
                       <label className={cx.label}>Porciones</label>
