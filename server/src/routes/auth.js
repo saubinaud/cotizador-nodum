@@ -133,32 +133,34 @@ router.post('/cambiar-password', auth, async (req, res) => {
 // PUT /api/auth/perfil
 router.put('/perfil', auth, async (req, res) => {
   try {
-    const { nombre, nombre_comercial, ruc, razon_social, igv_rate, pais, moneda } = req.body;
+    const { nombre, nombre_comercial, ruc, razon_social, igv_rate: rawIgv, pais, moneda } = req.body;
+    // Normalize IGV: frontend sends integer (18), DB needs decimal (0.18)
+    const igvDecimal = rawIgv != null ? (Number(rawIgv) > 1 ? Number(rawIgv) / 100 : Number(rawIgv)) : null;
+
     const result = await pool.query(
       `UPDATE usuarios SET
         nombre = COALESCE($1, nombre),
         nombre_comercial = COALESCE($2, nombre_comercial),
         ruc = COALESCE($3, ruc),
         razon_social = COALESCE($4, razon_social),
-        igv_rate = COALESCE($5, igv_rate),
+        igv_rate = COALESCE($5::numeric, igv_rate),
         pais = COALESCE($6, pais),
         moneda = COALESCE($7, moneda),
         updated_at = NOW()
        WHERE id = $8
        RETURNING id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, ruc, razon_social, permisos, pais, moneda, logo_url`,
-      [nombre || null, nombre_comercial || null, ruc || null, razon_social || null, igv_rate || null, pais || null, moneda || null, req.user.id]
+      [nombre || null, nombre_comercial || null, ruc || null, razon_social || null, igvDecimal, pais || null, moneda || null, req.user.id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
     }
 
     // If IGV changed, cascade to all products
-    if (igv_rate) {
-      const igvDecimal = Number(igv_rate) > 1 ? Number(igv_rate) / 100 : Number(igv_rate);
+    if (igvDecimal != null) {
       await pool.query(
         `UPDATE productos SET
-          igv_rate = $1,
-          precio_final = precio_venta * (1 + $1),
+          igv_rate = $1::numeric,
+          precio_final = ROUND(precio_venta * (1 + $1::numeric), 4),
           updated_at = NOW()
          WHERE usuario_id = $2`,
         [igvDecimal, req.user.id]
