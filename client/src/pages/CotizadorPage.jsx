@@ -283,7 +283,7 @@ export default function CotizadorPage() {
           insumo_id: ins.insumo_id,
           nombre: ins.nombre || '',
           unidad_medida: ins.unidad_medida || '',
-          uso_unidad: ins.unidad_medida || '',
+          uso_unidad: ins.uso_unidad || ins.unidad_medida || '',
           cantidad: parseFloat(ins.cantidad) || '',
           costo_unitario: cu,
         };
