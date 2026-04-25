@@ -11,7 +11,7 @@ router.use(auth);
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { nombre, margen, preparaciones, materiales, imagen_url } = req.body;
+    const { nombre, margen, preparaciones, materiales, imagen_url, tipo_presentacion, unidades_por_producto } = req.body;
 
     if (!nombre) {
       return res.status(400).json({ success: false, error: 'Nombre es requerido' });
@@ -24,10 +24,10 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN');
 
     const prodRes = await client.query(
-      `INSERT INTO productos (usuario_id, nombre, margen, igv_rate, imagen_url)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO productos (usuario_id, nombre, margen, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [req.user.id, nombre, margenDecimal, igv_rate, imagen_url || null]
+      [req.user.id, nombre, margenDecimal, igv_rate, imagen_url || null, tipo_presentacion || 'unidad', parseInt(unidades_por_producto) || 1]
     );
     const producto = prodRes.rows[0];
 
@@ -35,9 +35,9 @@ router.post('/', async (req, res) => {
     if (preparaciones && preparaciones.length > 0) {
       for (const prep of preparaciones) {
         const prepRes = await client.query(
-          `INSERT INTO producto_preparaciones (producto_id, nombre, orden, capacidad, unidad_capacidad)
-           VALUES ($1, $2, $3, $4, $5) RETURNING id`,
-          [producto.id, prep.nombre, prep.orden || 0, prep.capacidad || null, prep.unidad || null]
+          `INSERT INTO producto_preparaciones (producto_id, nombre, orden, capacidad, unidad_capacidad, cantidad_por_unidad)
+           VALUES ($1, $2, $3, $4, $5, $6) RETURNING id`,
+          [producto.id, prep.nombre, prep.orden || 0, prep.capacidad || null, prep.unidad || null, prep.cantidad_por_unidad || null]
         );
         const prepId = prepRes.rows[0].id;
 
@@ -126,7 +126,7 @@ router.get('/', async (req, res) => {
     const result = await pool.query(
       `SELECT id, nombre, margen, igv_rate,
               costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final,
-              imagen_url, created_at, updated_at
+              imagen_url, tipo_presentacion, unidades_por_producto, created_at, updated_at
        FROM productos
        WHERE usuario_id = $1
        ORDER BY nombre ASC`,
@@ -192,7 +192,7 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { nombre, margen, preparaciones, materiales, imagen_url } = req.body;
+    const { nombre, margen, preparaciones, materiales, imagen_url, tipo_presentacion, unidades_por_producto } = req.body;
 
     const existing = await client.query(
       'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
@@ -215,9 +215,11 @@ router.put('/:id', async (req, res) => {
         margen = COALESCE($2, margen),
         igv_rate = $3,
         imagen_url = COALESCE($5, imagen_url),
+        tipo_presentacion = COALESCE($6, tipo_presentacion),
+        unidades_por_producto = COALESCE($7, unidades_por_producto),
         updated_at = NOW()
        WHERE id = $4`,
-      [nombre, margenDecimal, igv_rate, req.params.id, imagen_url]
+      [nombre, margenDecimal, igv_rate, req.params.id, imagen_url, tipo_presentacion, unidades_por_producto ? parseInt(unidades_por_producto) : undefined]
     );
 
     let allInsumos = [];
@@ -234,8 +236,8 @@ router.put('/:id', async (req, res) => {
       if (preparaciones && preparaciones.length > 0) {
         for (const prep of preparaciones) {
           const prepRes = await client.query(
-            'INSERT INTO producto_preparaciones (producto_id, nombre, orden, capacidad, unidad_capacidad) VALUES ($1, $2, $3, $4, $5) RETURNING id',
-            [req.params.id, prep.nombre, prep.orden || 0, prep.capacidad || null, prep.unidad || null]
+            'INSERT INTO producto_preparaciones (producto_id, nombre, orden, capacidad, unidad_capacidad, cantidad_por_unidad) VALUES ($1, $2, $3, $4, $5, $6) RETURNING id',
+            [req.params.id, prep.nombre, prep.orden || 0, prep.capacidad || null, prep.unidad || null, prep.cantidad_por_unidad || null]
           );
           const prepId = prepRes.rows[0].id;
 

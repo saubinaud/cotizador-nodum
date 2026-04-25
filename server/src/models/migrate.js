@@ -27,10 +27,18 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS permisos JSONB NOT NULL DEFAULT '["dashboard","cotizador","insumos","materiales","preparaciones","empaques","proyeccion"]'::jsonb
     `);
 
-    // productos — add imagen_url column if missing
+    // productos — add imagen_url, tipo_presentacion, unidades_por_producto
     await client.query(`
       ALTER TABLE productos
-        ADD COLUMN IF NOT EXISTS imagen_url TEXT
+        ADD COLUMN IF NOT EXISTS imagen_url TEXT,
+        ADD COLUMN IF NOT EXISTS tipo_presentacion VARCHAR(20) NOT NULL DEFAULT 'unidad',
+        ADD COLUMN IF NOT EXISTS unidades_por_producto INTEGER NOT NULL DEFAULT 1
+    `);
+
+    // producto_preparaciones — add cantidad_por_unidad for porciones
+    await client.query(`
+      ALTER TABLE producto_preparaciones
+        ADD COLUMN IF NOT EXISTS cantidad_por_unidad NUMERIC(12,4)
     `);
 
     console.log('[migrate] OK');

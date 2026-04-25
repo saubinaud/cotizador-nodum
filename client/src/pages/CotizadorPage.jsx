@@ -34,6 +34,7 @@ const emptyPreparacion = () => ({
   nombre: '',
   capacidad: '',
   unidad: '',
+  cantidad_por_unidad: '',
   insumos: [emptyInsumoRow()],
   collapsed: false,
 });
@@ -60,6 +61,8 @@ export default function CotizadorPage() {
   const [margen, setMargen] = useState(50);
   // igv_rate in DB is decimal (0.18), hook expects integer (18)
   const [igvRate, setIgvRate] = useState(user?.igv_rate ? Math.round(user.igv_rate * 100) : 18);
+  const [tipoPresentacion, setTipoPresentacion] = useState('unidad');
+  const [unidadesPorProducto, setUnidadesPorProducto] = useState(1);
   const [saving, setSaving] = useState(false);
   const [loadingProduct, setLoadingProduct] = useState(!!id);
 
@@ -67,7 +70,7 @@ export default function CotizadorPage() {
   const [catalogMateriales, setCatalogMateriales] = useState([]);
   const [catalogPreps, setCatalogPreps] = useState([]);
 
-  const costos = useCalculadorCostos(preparaciones, materiales, margen, igvRate);
+  const costos = useCalculadorCostos(preparaciones, materiales, margen, igvRate, tipoPresentacion, unidadesPorProducto);
 
   // Load catalogs
   useEffect(() => {
@@ -85,6 +88,8 @@ export default function CotizadorPage() {
         const p = data.data || data;
         setNombre(p.nombre || '');
         setImagenUrl(p.imagen_url || '');
+        setTipoPresentacion(p.tipo_presentacion || 'unidad');
+        setUnidadesPorProducto(parseInt(p.unidades_por_producto) || 1);
         // DB stores decimals (0.5, 0.18), UI uses integers (50, 18)
         setMargen(p.margen ? Math.round(p.margen * 100) : 50);
         setIgvRate(p.igv_rate ? Math.round(p.igv_rate * 100) : (user?.igv_rate ? Math.round(user.igv_rate * 100) : 18));
@@ -97,6 +102,7 @@ export default function CotizadorPage() {
               nombre: prep.nombre || '',
               capacidad: parseFloat(prep.capacidad) || '',
               unidad: prep.unidad_capacidad || prep.unidad || '',
+              cantidad_por_unidad: parseFloat(prep.cantidad_por_unidad) || '',
               collapsed: false,
               insumos: (prep.insumos || []).map((ins) => {
                 const cu = Number(ins.cantidad_presentacion) > 0
@@ -269,10 +275,12 @@ export default function CotizadorPage() {
   // --- Reset ---
   const handleReset = () => {
     setNombre('');
-    setImagenUrl('');
     setPreparaciones([emptyPreparacion()]);
     setMateriales([]);
     setMargen(50);
+    setTipoPresentacion('unidad');
+    setUnidadesPorProducto(1);
+    setImagenUrl('');
   };
 
   // --- Save ---
@@ -288,11 +296,14 @@ export default function CotizadorPage() {
         imagen_url: imagenUrl.trim() || null,
         margen,          // backend normalizes integer% → decimal
         igv_rate: igvRate / 100,
+        tipo_presentacion: tipoPresentacion,
+        unidades_por_producto: tipoPresentacion === 'entero' ? unidadesPorProducto : 1,
         preparaciones: preparaciones.map((p) => ({
           id: p.id,
           nombre: p.nombre,
           capacidad: p.capacidad,
           unidad: p.unidad,
+          cantidad_por_unidad: Number(p.cantidad_por_unidad) || null,
           insumos: p.insumos
             .filter((i) => i.insumo_id)
             .map((i) => ({
@@ -370,29 +381,53 @@ export default function CotizadorPage() {
         {/* Left column: main form */}
         <div className="xl:col-span-2 space-y-6">
           {/* Product name */}
-          <div className={`${cx.card} p-5 space-y-3`}>
-            <div>
-              <label className={cx.label}>Nombre del producto</label>
-              <input
-                type="text"
-                value={nombre}
-                onChange={(e) => setNombre(e.target.value)}
-                className={cx.input + ' text-lg'}
-                placeholder="Ej: Cheesecake de fresa 8 porciones"
-                autoFocus
-              />
+          <div className={`${cx.card} p-5`}>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label className={cx.label}>Nombre del producto</label>
+                <input
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  className={cx.input + ' text-lg'}
+                  placeholder="Ej: Cheesecake de fresa"
+                  autoFocus
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className={cx.label}>Presentacion</label>
+                  <select
+                    value={tipoPresentacion}
+                    onChange={(e) => setTipoPresentacion(e.target.value)}
+                    className={cx.select}
+                  >
+                    <option value="unidad">Por unidad</option>
+                    <option value="entero">Producto entero</option>
+                  </select>
+                </div>
+                {tipoPresentacion === 'entero' && (
+                  <div>
+                    <label className={cx.label}>Unidades por producto</label>
+                    <input
+                      type="number"
+                      min="1"
+                      value={unidadesPorProducto}
+                      onChange={(e) => setUnidadesPorProducto(Math.max(1, parseInt(e.target.value) || 1))}
+                      className={cx.input}
+                    />
+                  </div>
+                )}
+              </div>
             </div>
             <div>
-              <label className={cx.label + ' flex items-center gap-1.5'}>
-                <ImageIcon size={14} className="text-zinc-500" />
-                Imagen del producto (URL)
-              </label>
+              <label className={cx.label}>Imagen URL (opcional)</label>
               <input
-                type="url"
+                type="text"
                 value={imagenUrl}
                 onChange={(e) => setImagenUrl(e.target.value)}
                 className={cx.input}
-                placeholder="https://ejemplo.com/imagen.jpg"
+                placeholder="https://..."
               />
             </div>
           </div>
@@ -426,43 +461,52 @@ export default function CotizadorPage() {
               {preparaciones.map((prep) => (
                 <div key={prep._id} className={cx.card}>
                   {/* Prep header */}
-                  <div className="flex items-center gap-2 p-4 border-b border-zinc-800">
-                    <GripVertical size={16} className="text-zinc-700 flex-shrink-0" />
-                    <input
-                      type="text"
-                      value={prep.nombre}
-                      onChange={(e) => updatePreparacion(prep._id, 'nombre', e.target.value)}
-                      placeholder="Nombre preparacion"
-                      className="flex-1 bg-transparent text-white text-sm font-medium placeholder:text-zinc-600 focus:outline-none"
-                    />
-                    <input
-                      type="number"
-                      value={prep.capacidad}
-                      onChange={(e) => updatePreparacion(prep._id, 'capacidad', e.target.value)}
-                      placeholder="Capacidad"
-                      className="w-20 bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
-                    />
-                    <select
-                      value={prep.unidad}
-                      onChange={(e) => updatePreparacion(prep._id, 'unidad', e.target.value)}
-                      className="w-16 bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30 appearance-none"
-                    >
-                      <option value="">—</option>
-                      <option value="g">g</option>
-                      <option value="kg">kg</option>
-                      <option value="ml">ml</option>
-                      <option value="l">l</option>
-                      <option value="uni">uni</option>
-                      <option value="oz">oz</option>
-                    </select>
-                    <span className="text-[#FA7B21] font-semibold text-sm min-w-[80px] text-right">
+                  <div className="flex items-end gap-2 p-4 border-b border-zinc-800">
+                    <GripVertical size={16} className="text-zinc-700 flex-shrink-0 mb-2" />
+                    <div className="flex-1">
+                      <label className={cx.label}>Nombre</label>
+                      <input
+                        type="text"
+                        value={prep.nombre}
+                        onChange={(e) => updatePreparacion(prep._id, 'nombre', e.target.value)}
+                        placeholder="Nombre preparacion"
+                        className="w-full bg-transparent text-white text-sm font-medium placeholder:text-zinc-600 focus:outline-none"
+                      />
+                    </div>
+                    <div className="w-20">
+                      <label className={cx.label}>Rendimiento</label>
+                      <input
+                        type="number"
+                        value={prep.capacidad}
+                        onChange={(e) => updatePreparacion(prep._id, 'capacidad', e.target.value)}
+                        placeholder="0"
+                        className="w-full bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                      />
+                    </div>
+                    <div className="w-16">
+                      <label className={cx.label}>Unidad</label>
+                      <select
+                        value={prep.unidad}
+                        onChange={(e) => updatePreparacion(prep._id, 'unidad', e.target.value)}
+                        className="w-full bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30 appearance-none"
+                      >
+                        <option value="">--</option>
+                        <option value="g">g</option>
+                        <option value="kg">kg</option>
+                        <option value="ml">ml</option>
+                        <option value="l">l</option>
+                        <option value="uni">uni</option>
+                        <option value="oz">oz</option>
+                      </select>
+                    </div>
+                    <span className="text-[#FA7B21] font-semibold text-sm min-w-[80px] text-right mb-1">
                       {formatCurrency(prepSubtotal(prep))}
                     </span>
-                    <button onClick={() => toggleCollapse(prep._id)} className={cx.btnIcon}>
+                    <button onClick={() => toggleCollapse(prep._id)} className={cx.btnIcon + ' mb-1'}>
                       {prep.collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                     </button>
                     {preparaciones.length > 1 && (
-                      <button onClick={() => removePreparacion(prep._id)} className={cx.btnIcon + ' hover:text-red-400'}>
+                      <button onClick={() => removePreparacion(prep._id)} className={cx.btnIcon + ' hover:text-red-400 mb-1'}>
                         <Trash2 size={15} />
                       </button>
                     )}
@@ -562,6 +606,87 @@ export default function CotizadorPage() {
                   )}
                 </div>
               ))}
+            </div>
+          </div>
+
+          {/* Porciones */}
+          <div>
+            <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">
+              Porciones por unidad
+            </h3>
+            <div className={`${cx.card} p-4`}>
+              {preparaciones.filter(p => p.nombre).length === 0 ? (
+                <p className="text-zinc-500 text-sm text-center py-4">Agrega preparaciones arriba para definir porciones</p>
+              ) : (
+                <>
+                  {/* Desktop table */}
+                  <table className="w-full hidden lg:table">
+                    <thead>
+                      <tr>
+                        <th className={cx.th}>Preparacion</th>
+                        <th className={cx.th}>Rendimiento</th>
+                        <th className={cx.th + ' w-32'}>Por unidad</th>
+                        <th className={cx.th}>Alcanza para</th>
+                        <th className={cx.th + ' text-right'}>Costo/uni</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {preparaciones.filter(p => p.nombre).map((prep) => {
+                        const costoPrep = (prep.insumos || []).reduce((s, i) => s + (Number(i.costo_unitario) || 0) * (Number(i.cantidad) || 0), 0);
+                        const rendimiento = Number(prep.capacidad) || 0;
+                        const cantPorUni = Number(prep.cantidad_por_unidad) || 0;
+                        const alcanzaPara = rendimiento > 0 && cantPorUni > 0 ? Math.floor(rendimiento / cantPorUni) : 0;
+                        const costoPorUni = rendimiento > 0 && cantPorUni > 0 ? (costoPrep / rendimiento) * cantPorUni : costoPrep;
+                        return (
+                          <tr key={prep._id} className="border-b border-zinc-800/50 last:border-0">
+                            <td className={cx.td + ' text-white font-medium'}>{prep.nombre}</td>
+                            <td className={cx.td + ' text-zinc-400'}>{rendimiento > 0 ? `${rendimiento} ${prep.unidad || ''}` : '--'}</td>
+                            <td className={cx.td}>
+                              <div className="flex items-center gap-1">
+                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className={cx.input + ' w-20 text-center'} placeholder="0" />
+                                <span className="text-zinc-500 text-xs">{prep.unidad || ''}</span>
+                              </div>
+                            </td>
+                            <td className={cx.td + ' text-zinc-300'}>{alcanzaPara > 0 ? `${alcanzaPara} uni` : '--'}</td>
+                            <td className={cx.td + ' text-right text-[#FA7B21] font-semibold'}>{formatCurrency(costoPorUni)}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  {/* Mobile cards */}
+                  <div className="space-y-3 lg:hidden">
+                    {preparaciones.filter(p => p.nombre).map((prep) => {
+                      const costoPrep = (prep.insumos || []).reduce((s, i) => s + (Number(i.costo_unitario) || 0) * (Number(i.cantidad) || 0), 0);
+                      const rendimiento = Number(prep.capacidad) || 0;
+                      const cantPorUni = Number(prep.cantidad_por_unidad) || 0;
+                      const alcanzaPara = rendimiento > 0 && cantPorUni > 0 ? Math.floor(rendimiento / cantPorUni) : 0;
+                      const costoPorUni = rendimiento > 0 && cantPorUni > 0 ? (costoPrep / rendimiento) * cantPorUni : costoPrep;
+                      return (
+                        <div key={prep._id} className="bg-zinc-800 rounded-xl p-3 space-y-2">
+                          <div className="flex justify-between items-center">
+                            <span className="text-white text-sm font-medium">{prep.nombre}</span>
+                            <span className="text-zinc-400 text-xs">{rendimiento > 0 ? `Rinde: ${rendimiento} ${prep.unidad || ''}` : ''}</span>
+                          </div>
+                          <div className="flex gap-3 items-center">
+                            <div>
+                              <label className={cx.label}>Por unidad</label>
+                              <div className="flex items-center gap-1">
+                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30" placeholder="0" />
+                                <span className="text-zinc-500 text-xs">{prep.unidad || ''}</span>
+                              </div>
+                            </div>
+                            <div className="text-xs text-zinc-400">
+                              {alcanzaPara > 0 && <p>Alcanza: {alcanzaPara} uni</p>}
+                              <p className="text-[#FA7B21] font-semibold">{formatCurrency(costoPorUni)}/uni</p>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
@@ -677,10 +802,24 @@ export default function CotizadorPage() {
             </h3>
 
             <div className="space-y-3">
-              <div className="flex justify-between text-sm">
-                <span className="text-zinc-400">Costo insumos</span>
-                <span className="text-white">{formatCurrency(costos.costoInsumos)}</span>
-              </div>
+              {tipoPresentacion === 'entero' && (
+                <>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">Costo insumos/uni</span>
+                    <span className="text-white">{formatCurrency(costos.costoInsumosPorUnidad)}</span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-zinc-400">&times; {unidadesPorProducto} unidades</span>
+                    <span className="text-white">{formatCurrency(costos.costoInsumos)}</span>
+                  </div>
+                </>
+              )}
+              {tipoPresentacion !== 'entero' && (
+                <div className="flex justify-between text-sm">
+                  <span className="text-zinc-400">Costo insumos</span>
+                  <span className="text-white">{formatCurrency(costos.costoInsumos)}</span>
+                </div>
+              )}
               <div className="flex justify-between text-sm">
                 <span className="text-zinc-400">Costo empaque</span>
                 <span className="text-white">{formatCurrency(costos.costoEmpaque)}</span>
