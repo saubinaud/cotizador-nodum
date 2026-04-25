@@ -20,7 +20,7 @@ export default function CustomSelect({ options = [], value, onChange, placeholde
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-800 text-[13px] text-left flex items-center justify-between gap-2 focus:outline-none focus:border-stone-500 transition-colors duration-150"
+        className="w-full px-4 py-2.5 bg-white border border-stone-300 rounded-lg text-stone-800 text-sm text-left flex items-center justify-between gap-2 focus:outline-none focus:border-stone-500 transition-colors duration-150"
       >
         <span className={selected ? 'text-stone-800' : 'text-stone-400'}>
           {selected ? selected.label : placeholder}

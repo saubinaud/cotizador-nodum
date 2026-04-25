@@ -534,7 +534,7 @@ export default function CotizadorPage() {
                   value={mat.cantidad}
                   onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
                   placeholder="Cant."
-                  className="w-24 bg-white rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                  className="w-28 bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                 />
                 <span className="text-stone-400 text-xs">{mat.unidad_medida || ''}</span>
                 <span className="text-stone-400 text-xs">x {formatCurrency(mat.precio)}</span>
@@ -620,7 +620,7 @@ export default function CotizadorPage() {
   }, [catalogPreps, preparaciones]);
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-7xl mx-auto">
       {/* Page header — clean, Apple-style */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-stone-900">
@@ -759,7 +759,7 @@ export default function CotizadorPage() {
                                 value={ins.cantidad}
                                 onChange={(e) => updateInsumo(prep._id, ins._id, { cantidad: e.target.value })}
                                 placeholder="Cant."
-                                className="w-24 bg-white rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                                className="w-28 bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                               />
                               <CustomSelect
                                 value={ins.uso_unidad || ins.unidad_medida || ''}
@@ -899,7 +899,7 @@ export default function CotizadorPage() {
                             <td className={cx.td + ' text-stone-500'}>{rendimiento > 0 ? `${rendimiento} ${prep.unidad || ''}` : '--'}</td>
                             <td className={cx.td}>
                               <div className="flex items-center gap-1">
-                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className={cx.input + ' w-24 text-center'} placeholder="0" />
+                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className={cx.input + ' w-full text-center'} placeholder="0" />
                                 <CustomSelect
                                   value={prep.porcion_unidad || prep.unidad || ''}
                                   onChange={(v) => updatePreparacion(prep._id, 'porcion_unidad', v)}
@@ -941,7 +941,7 @@ export default function CotizadorPage() {
                             <div>
                               <label className={cx.label}>Para el producto</label>
                               <div className="flex items-center gap-1">
-                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-24 bg-white rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" placeholder="0" />
+                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-28 bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" placeholder="0" />
                                 <CustomSelect
                                   value={prep.porcion_unidad || prep.unidad || ''}
                                   onChange={(v) => updatePreparacion(prep._id, 'porcion_unidad', v)}
@@ -1088,7 +1088,7 @@ export default function CotizadorPage() {
                       type="number"
                       value={margen}
                       onChange={(e) => setMargen(Math.min(90, Math.max(0, Number(e.target.value) || 0)))}
-                      className="w-20 bg-stone-50 rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                      className="w-20 bg-stone-50 rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                     />
                     <span className="text-stone-400 text-sm">%</span>
                   </div>
@@ -1122,7 +1122,7 @@ export default function CotizadorPage() {
                   <label className={cx.label}>Margen por porcion</label>
                   <div className="flex items-center gap-3 mt-1">
                     <input type="range" min="0" max="90" step="1" value={margenPorcion} onChange={(e) => setMargenPorcion(Number(e.target.value))} className="flex-1 accent-[var(--accent)] h-1.5" />
-                    <input type="number" value={margenPorcion} onChange={(e) => setMargenPorcion(Math.min(90, Math.max(0, Number(e.target.value) || 0)))} className="w-20 bg-stone-50 rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" />
+                    <input type="number" value={margenPorcion} onChange={(e) => setMargenPorcion(Math.min(90, Math.max(0, Number(e.target.value) || 0)))} className="w-20 bg-stone-50 rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400" />
                     <span className="text-stone-400 text-sm">%</span>
                   </div>
                 </div>
@@ -1178,7 +1178,7 @@ export default function CotizadorPage() {
                       type="number"
                       value={margen}
                       onChange={(e) => setMargen(Math.min(90, Math.max(0, Number(e.target.value) || 0)))}
-                      className="w-20 bg-stone-50 rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                      className="w-20 bg-stone-50 rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                     />
                     <span className="text-stone-400 text-sm">%</span>
                   </div>
