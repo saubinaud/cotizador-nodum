@@ -18,6 +18,18 @@ import {
   ImageIcon,
 } from 'lucide-react';
 
+function InfoTip({ text }) {
+  return (
+    <span className="relative group inline-flex ml-1 cursor-help">
+      <span className="w-4 h-4 rounded-full bg-zinc-700 text-zinc-400 text-[10px] font-bold inline-flex items-center justify-center group-hover:bg-[#FA7B21] group-hover:text-white transition-colors">?</span>
+      <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-3 py-2 bg-zinc-700 text-white text-xs rounded-lg shadow-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none w-56 text-center z-50 leading-relaxed">
+        {text}
+        <span className="absolute top-full left-1/2 -translate-x-1/2 -mt-1 border-4 border-transparent border-t-zinc-700" />
+      </span>
+    </span>
+  );
+}
+
 let tempId = 0;
 const newTempId = () => `temp-${++tempId}`;
 
@@ -475,6 +487,14 @@ export default function CotizadorPage() {
         {/* Left column: main form */}
         <div className="xl:col-span-2 space-y-6">
           {/* Product name */}
+          <div className="flex items-center gap-3 mb-3">
+            <span className="w-7 h-7 rounded-lg bg-[#FA7B21] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">1</span>
+            <div>
+              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Producto</h3>
+              <p className="text-xs text-zinc-500">Define el nombre y tipo de tu producto</p>
+            </div>
+            <InfoTip text="Si vendes un producto entero (ej: torta de 8 porciones), selecciona 'Producto entero' e indica cuantas porciones tiene." />
+          </div>
           <div className={`${cx.card} p-5`}>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
               <div>
@@ -490,7 +510,7 @@ export default function CotizadorPage() {
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className={cx.label}>Presentacion</label>
+                  <label className={cx.label}>Presentacion<InfoTip text="'Por unidad' si vendes items individuales. 'Producto entero' si vendes algo divisible (torta, bandeja, etc)." /></label>
                   <select
                     value={tipoPresentacion}
                     onChange={(e) => setTipoPresentacion(e.target.value)}
@@ -528,10 +548,13 @@ export default function CotizadorPage() {
 
           {/* Preparaciones */}
           <div>
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">
-                Preparaciones
-              </h3>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="w-7 h-7 rounded-lg bg-[#FA7B21] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">2</span>
+              <div className="flex-1">
+                <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Preparaciones</h3>
+                <p className="text-xs text-zinc-500">Crea las recetas base con sus insumos y rendimiento</p>
+              </div>
+              <InfoTip text="Cada preparacion es una receta base (masa, relleno, etc). Indica cuanto rinde en total. Puedes usar preparaciones predeterminadas guardadas previamente." />
               <div className="flex items-center gap-2">
                 {catalogPreps.length > 0 && (
                   <div className="w-56">
@@ -568,7 +591,7 @@ export default function CotizadorPage() {
                       />
                     </div>
                     <div className="w-20">
-                      <label className={cx.label}>Rendimiento</label>
+                      <label className={cx.label}>Rendimiento<InfoTip text="Cuanto produce esta preparacion en total. Ej: esta masa rinde 500g, esta mezcla rinde 1 litro." /></label>
                       <input
                         type="number"
                         value={prep.capacidad}
@@ -593,9 +616,10 @@ export default function CotizadorPage() {
                         <option value="oz">oz</option>
                       </select>
                     </div>
-                    <span className="text-[#FA7B21] font-semibold text-sm min-w-[80px] text-right mb-1">
-                      {formatCurrency(prepSubtotal(prep))}
-                    </span>
+                    <div className="text-right min-w-[80px] mb-1">
+                      <p className="text-[10px] text-zinc-500">Costo total</p>
+                      <p className="text-[#FA7B21] font-semibold text-sm">{formatCurrency(prepSubtotal(prep))}</p>
+                    </div>
                     <button onClick={() => toggleCollapse(prep._id)} className={cx.btnIcon + ' mb-1'}>
                       {prep.collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
                     </button>
@@ -705,12 +729,17 @@ export default function CotizadorPage() {
 
           {/* Porciones */}
           <div>
-            <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">
-              Composicion del producto
-            </h3>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="w-7 h-7 rounded-lg bg-[#FA7B21] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">3</span>
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Composicion del producto</h3>
+                <p className="text-xs text-zinc-500">Define cuanto de cada preparacion usas para hacer un producto completo</p>
+              </div>
+              <InfoTip text="Indica cuantos gramos/ml de cada preparacion necesitas para hacer UN producto completo. El sistema calculara automaticamente cuantos productos puedes hacer por tanda y el costo." />
+            </div>
             <div className={`${cx.card} p-4`}>
               {preparaciones.filter(p => p.nombre).length === 0 ? (
-                <p className="text-zinc-500 text-sm text-center py-4">Agrega preparaciones arriba para definir porciones</p>
+                <p className="text-zinc-500 text-sm text-center py-4">Primero agrega tus preparaciones en el paso 2. Aqui se calculara automaticamente cuanto necesitas de cada una.</p>
               ) : (
                 <>
                   {/* Desktop table */}
@@ -786,9 +815,14 @@ export default function CotizadorPage() {
 
           {/* Empaque / Materiales */}
           <div>
-            <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider mb-3">
-              Empaque / Materiales
-            </h3>
+            <div className="flex items-center gap-3 mb-3">
+              <span className="w-7 h-7 rounded-lg bg-[#FA7B21] text-white text-xs font-bold flex items-center justify-center flex-shrink-0">4</span>
+              <div>
+                <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Empaque / Materiales</h3>
+                <p className="text-xs text-zinc-500">{tipoPresentacion === 'entero' ? 'Materiales de empaque para el producto entero y por porcion' : 'Materiales de empaque para tu producto'}</p>
+              </div>
+              <InfoTip text={tipoPresentacion === 'entero' ? "Separa el empaque del producto entero (caja grande) del empaque por porcion (cajita individual). El costo por porcion se multiplica automaticamente por la cantidad de porciones." : "Agrega los materiales de empaque que necesitas para presentar tu producto."} />
+            </div>
 
             {tipoPresentacion === 'entero' ? (
               <>
@@ -837,9 +871,11 @@ export default function CotizadorPage() {
         {/* Right column: cost summary (sticky) */}
         <div className="xl:col-span-1">
           <div className={`${cx.card} p-5 xl:sticky xl:top-6 space-y-4`}>
-            <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">
-              Resumen de Costos
-            </h3>
+            <div className="flex items-center gap-2 mb-1">
+              <span className="w-6 h-6 rounded-lg bg-[#FA7B21] text-white text-[10px] font-bold flex items-center justify-center flex-shrink-0">5</span>
+              <h3 className="text-sm font-semibold text-zinc-300 uppercase tracking-wider">Resumen</h3>
+              <InfoTip text="El costo neto incluye insumos + empaque. El margen define tu ganancia. El precio sugerido redondea a un valor comercial atractivo (.90 o .00)." />
+            </div>
 
             {tipoPresentacion === 'entero' ? (
               <>
@@ -869,7 +905,7 @@ export default function CotizadorPage() {
 
                 {/* Margen slider */}
                 <div>
-                  <label className={cx.label}>Margen</label>
+                  <label className={cx.label}>Margen<InfoTip text="Porcentaje de ganancia sobre el costo. 50% significa que el costo es la mitad del precio de venta." /></label>
                   <div className="flex items-center gap-3">
                     <input
                       type="range"
@@ -906,7 +942,7 @@ export default function CotizadorPage() {
                     <span className="text-2xl font-bold text-[#FA7B21]">{formatCurrency(costos.precioFinal)}</span>
                   </div>
                   <div className="flex justify-between items-baseline">
-                    <span className="text-zinc-500 text-xs">Sugerido</span>
+                    <span className="text-zinc-500 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
                     <span className="text-lg font-semibold text-green-400">{formatCurrency(precioComercial(costos.precioFinal))}</span>
                   </div>
                 </div>
@@ -923,7 +959,7 @@ export default function CotizadorPage() {
                     <span className="text-lg font-bold text-[#FA7B21]">{formatCurrency(costos.precioFinalPorcion)}</span>
                   </div>
                   <div className="flex justify-between items-baseline">
-                    <span className="text-zinc-500 text-xs">Sugerido</span>
+                    <span className="text-zinc-500 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
                     <span className="text-sm font-semibold text-green-400">{formatCurrency(precioComercial(costos.precioFinalPorcion))}</span>
                   </div>
                 </div>
@@ -947,7 +983,7 @@ export default function CotizadorPage() {
 
                 {/* Margen slider */}
                 <div>
-                  <label className={cx.label}>Margen</label>
+                  <label className={cx.label}>Margen<InfoTip text="Porcentaje de ganancia sobre el costo. 50% significa que el costo es la mitad del precio de venta." /></label>
                   <div className="flex items-center gap-3">
                     <input
                       type="range"
@@ -985,7 +1021,7 @@ export default function CotizadorPage() {
                     <span className="text-2xl font-bold text-[#FA7B21]">{formatCurrency(costos.precioFinal)}</span>
                   </div>
                   <div className="flex justify-between items-baseline mt-1">
-                    <span className="text-zinc-500 text-xs">Sugerido</span>
+                    <span className="text-zinc-500 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
                     <span className="text-lg font-semibold text-green-400">{formatCurrency(precioComercial(costos.precioFinal))}</span>
                   </div>
                 </div>
