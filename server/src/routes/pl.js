@@ -264,4 +264,165 @@ router.delete('/ventas/:id', async (req, res) => {
   }
 });
 
+// ==================== GASTOS ====================
+
+// GET /api/pl/gastos/resumen?periodo_id=X — summary by category
+// PUT THIS BEFORE /:id ROUTES
+router.get('/gastos/resumen', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+
+    const result = await pool.query(
+      `SELECT
+        cg.id AS categoria_id, cg.nombre AS categoria_nombre, cg.tipo AS categoria_tipo,
+        COALESCE(SUM(g.monto), 0) AS total
+       FROM categorias_gasto cg
+       LEFT JOIN gastos g ON g.categoria_id = cg.id AND g.periodo_id = $1
+       WHERE cg.usuario_id = $2 AND cg.activa = true
+       GROUP BY cg.id, cg.nombre, cg.tipo
+       ORDER BY cg.orden, cg.nombre`,
+      [periodo_id, req.user.id]
+    );
+
+    const fijos = result.rows.filter(r => r.categoria_tipo === 'fijo').reduce((s, r) => s + parseFloat(r.total), 0);
+    const variables = result.rows.filter(r => r.categoria_tipo === 'variable').reduce((s, r) => s + parseFloat(r.total), 0);
+
+    return res.json({ success: true, data: {
+      categorias: result.rows,
+      total_fijos: fijos,
+      total_variables: variables,
+      total: fijos + variables,
+    }});
+  } catch (err) {
+    console.error('Gastos resumen error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// GET /api/pl/gastos?periodo_id=X
+router.get('/gastos', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+
+    const result = await pool.query(
+      `SELECT g.*, cg.nombre AS categoria_nombre, cg.tipo AS categoria_tipo
+       FROM gastos g
+       JOIN categorias_gasto cg ON cg.id = g.categoria_id
+       WHERE g.periodo_id = $1
+       ORDER BY g.fecha DESC, g.created_at DESC`,
+      [periodo_id]
+    );
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('List gastos error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// POST /api/pl/gastos/copiar-recurrentes — copy recurring expenses from previous period
+router.post('/gastos/copiar-recurrentes', async (req, res) => {
+  try {
+    const { periodo_id } = req.body;
+    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+
+    // Get previous period
+    const currentPeriod = await pool.query('SELECT * FROM periodos WHERE id = $1 AND usuario_id = $2', [periodo_id, req.user.id]);
+    if (currentPeriod.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+
+    const prevPeriod = await pool.query(
+      'SELECT id FROM periodos WHERE usuario_id = $1 AND fecha_fin < $2 ORDER BY fecha_fin DESC LIMIT 1',
+      [req.user.id, currentPeriod.rows[0].fecha_inicio]
+    );
+
+    if (prevPeriod.rows.length === 0) {
+      // No previous period — use category defaults
+      const cats = await pool.query(
+        'SELECT id, monto_default FROM categorias_gasto WHERE usuario_id = $1 AND recurrente = true AND monto_default IS NOT NULL AND monto_default > 0',
+        [req.user.id]
+      );
+      let count = 0;
+      for (const cat of cats.rows) {
+        await pool.query(
+          'INSERT INTO gastos (periodo_id, categoria_id, fecha, monto, descripcion) VALUES ($1, $2, $3, $4, $5)',
+          [periodo_id, cat.id, currentPeriod.rows[0].fecha_inicio, cat.monto_default, 'Gasto recurrente (default)']
+        );
+        count++;
+      }
+      return res.json({ success: true, data: { copied: count, source: 'defaults' } });
+    }
+
+    // Copy from previous period — only recurring categories
+    const prevGastos = await pool.query(
+      `SELECT g.categoria_id, g.monto, g.descripcion
+       FROM gastos g
+       JOIN categorias_gasto cg ON cg.id = g.categoria_id
+       WHERE g.periodo_id = $1 AND cg.recurrente = true`,
+      [prevPeriod.rows[0].id]
+    );
+
+    let count = 0;
+    for (const gasto of prevGastos.rows) {
+      await pool.query(
+        'INSERT INTO gastos (periodo_id, categoria_id, fecha, monto, descripcion) VALUES ($1, $2, $3, $4, $5)',
+        [periodo_id, gasto.categoria_id, currentPeriod.rows[0].fecha_inicio, gasto.monto, gasto.descripcion]
+      );
+      count++;
+    }
+
+    return res.json({ success: true, data: { copied: count, source: 'previous_period' } });
+  } catch (err) {
+    console.error('Copy recurring error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// POST /api/pl/gastos
+router.post('/gastos', async (req, res) => {
+  try {
+    const { periodo_id, categoria_id, fecha, monto, descripcion } = req.body;
+    if (!periodo_id || !categoria_id || !fecha || !monto) {
+      return res.status(400).json({ success: false, error: 'periodo_id, categoria_id, fecha y monto son requeridos' });
+    }
+
+    const result = await pool.query(
+      'INSERT INTO gastos (periodo_id, categoria_id, fecha, monto, descripcion) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [periodo_id, categoria_id, fecha, monto, descripcion || null]
+    );
+    return res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Create gasto error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// PUT /api/pl/gastos/:id
+router.put('/gastos/:id', async (req, res) => {
+  try {
+    const { categoria_id, monto, descripcion } = req.body;
+    const result = await pool.query(
+      'UPDATE gastos SET categoria_id = COALESCE($1, categoria_id), monto = COALESCE($2, monto), descripcion = $3 WHERE id = $4 RETURNING *',
+      [categoria_id, monto, descripcion, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Gasto no encontrado' });
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Update gasto error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// DELETE /api/pl/gastos/:id
+router.delete('/gastos/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM gastos WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Gasto no encontrado' });
+    return res.json({ success: true, data: { message: 'Gasto eliminado' } });
+  } catch (err) {
+    console.error('Delete gasto error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
 module.exports = router;
