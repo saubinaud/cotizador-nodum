@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
@@ -141,11 +141,11 @@ export default function PLTimelinePage() {
   }, []);
 
   // Load transacciones + balance when periodo changes
-  const loadData = useCallback(async (pid) => {
+  const loadData = async (pid, tipo) => {
     if (!pid) return;
     setLoadingTx(true);
     try {
-      const tipoParam = filterTipo ? `&tipo=${filterTipo}` : '';
+      const tipoParam = tipo ? `&tipo=${tipo}` : '';
       const [txRes, balRes] = await Promise.all([
         api.get(`/pl/transacciones?periodo_id=${pid}${tipoParam}`),
         api.get(`/pl/transacciones/balance?periodo_id=${pid}`),
@@ -156,11 +156,11 @@ export default function PLTimelinePage() {
       toast.error('Error cargando transacciones');
     }
     setLoadingTx(false);
-  }, [filterTipo]);
+  };
 
   useEffect(() => {
-    if (periodoId) loadData(periodoId);
-  }, [periodoId, filterTipo, loadData]);
+    if (periodoId) loadData(periodoId, filterTipo);
+  }, [periodoId, filterTipo]); // eslint-disable-line
 
   // Group by date
   const grouped = useMemo(() => {
@@ -222,7 +222,7 @@ export default function PLTimelinePage() {
       toast.success('Transaccion registrada');
       setModalOpen(false);
       resetForm();
-      loadData(periodoId);
+      loadData(periodoId, filterTipo);
     } catch (e) {
       toast.error(e.message);
     }
@@ -245,7 +245,7 @@ export default function PLTimelinePage() {
       await api.del(`/pl/transacciones/${deleteTarget.id}`);
       toast.success('Transaccion eliminada');
       setDeleteTarget(null);
-      loadData(periodoId);
+      loadData(periodoId, filterTipo);
     } catch (e) {
       toast.error(e.message);
     }
