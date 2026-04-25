@@ -5,7 +5,7 @@ import { cx } from '../styles/tokens';
 import { formatCurrency } from '../utils/format';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
-import { Plus, Save, Trash2, Pencil } from 'lucide-react';
+import { Plus, Save, Trash2, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
 
 let tmpId = 0;
 const newId = () => `tmp-${++tmpId}`;
@@ -20,6 +20,7 @@ export default function EmpaquePredPage() {
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [collapsed, setCollapsed] = useState({});
 
   useEffect(() => {
     loadEmpaques();
@@ -41,7 +42,7 @@ export default function EmpaquePredPage() {
     setEditingId('new');
     setEditData({
       nombre: '',
-      materiales: [{ _id: newId(), material_id: null, nombre: '', cantidad: '1', precio: 0 }],
+      materiales: [{ _id: newId(), material_id: null, nombre: '', cantidad: '1', precio: 0, unidad_medida: '' }],
     });
   };
 
@@ -49,7 +50,18 @@ export default function EmpaquePredPage() {
     setEditingId(emp.id);
     setEditData({
       nombre: emp.nombre,
-      materiales: (emp.materiales || []).map((m) => ({ ...m, _id: newId() })),
+      materiales: (emp.materiales || []).map((m) => {
+        const precio = Number(m.cantidad_presentacion) > 0
+          ? Number(m.precio_presentacion) / Number(m.cantidad_presentacion)
+          : Number(m.precio) || 0;
+        return {
+          ...m,
+          _id: newId(),
+          cantidad: parseFloat(m.cantidad) || 1,
+          precio,
+          unidad_medida: m.unidad_medida || '',
+        };
+      }),
     });
   };
 
@@ -61,7 +73,7 @@ export default function EmpaquePredPage() {
   const addMaterial = () => {
     setEditData((prev) => ({
       ...prev,
-      materiales: [...prev.materiales, { _id: newId(), material_id: null, nombre: '', cantidad: '1', precio: 0 }],
+      materiales: [...prev.materiales, { _id: newId(), material_id: null, nombre: '', cantidad: '1', precio: 0, unidad_medida: '' }],
     }));
   };
 
@@ -70,10 +82,13 @@ export default function EmpaquePredPage() {
   };
 
   const selectMaterial = (mid, cat) => {
+    const precio = Number(cat.cantidad_presentacion) > 0
+      ? Number(cat.precio_presentacion) / Number(cat.cantidad_presentacion)
+      : Number(cat.precio_presentacion) || 0;
     setEditData((prev) => ({
       ...prev,
       materiales: prev.materiales.map((m) =>
-        m._id === mid ? { ...m, material_id: cat.id, nombre: cat.nombre, precio: Number(cat.cantidad_presentacion) > 0 ? Number(cat.precio_presentacion) / Number(cat.cantidad_presentacion) : Number(cat.precio_presentacion) || 0 } : m
+        m._id === mid ? { ...m, material_id: cat.id, nombre: cat.nombre, precio, unidad_medida: cat.unidad_medida || '' } : m
       ),
     }));
   };
@@ -138,41 +153,123 @@ export default function EmpaquePredPage() {
         </button>
       </div>
 
+      {/* Edit/create form */}
       {editData && (
         <div className={`${cx.card} p-5 mb-6 border-[#FA7B21]`}>
           <div className="mb-4">
             <label className={cx.label}>Nombre del empaque</label>
-            <input type="text" value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} className={cx.input} autoFocus />
+            <input
+              type="text"
+              value={editData.nombre}
+              onChange={(e) => setEditData({ ...editData, nombre: e.target.value })}
+              onBlur={(e) => { const v = e.target.value.trim(); if (v) setEditData({ ...editData, nombre: v.charAt(0).toUpperCase() + v.slice(1) }); }}
+              className={cx.input}
+              autoFocus
+            />
           </div>
 
-          <h4 className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-2">Materiales</h4>
-          <div className="space-y-2 mb-3">
+          <h4 className="text-xs text-zinc-500 uppercase tracking-wider font-semibold mb-3">Materiales</h4>
+
+          {/* Desktop table */}
+          <div className="hidden lg:block mb-3">
+            <table className="w-full">
+              <thead>
+                <tr>
+                  <th className={cx.th + ' w-2/5'}>Material</th>
+                  <th className={cx.th + ' w-1/6'}>Cantidad</th>
+                  <th className={cx.th + ' w-1/6'}>Precio Unit.</th>
+                  <th className={cx.th + ' w-1/6 text-right'}>Subtotal</th>
+                  <th className={cx.th + ' w-10'}></th>
+                </tr>
+              </thead>
+              <tbody>
+                {editData.materiales.map((mat) => (
+                  <tr key={mat._id} className="border-b border-zinc-800/50 last:border-0">
+                    <td className="py-2 pr-2">
+                      <SearchableSelect
+                        options={catalogMateriales}
+                        value={mat.material_id}
+                        onChange={(item) => selectMaterial(mat._id, item)}
+                        placeholder="Seleccionar material..."
+                      />
+                    </td>
+                    <td className="py-2 px-2">
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          value={mat.cantidad}
+                          onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
+                          placeholder="1"
+                          className="w-full bg-zinc-800 rounded-lg px-3 py-2 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                        />
+                        <span className="text-zinc-500 text-xs">{mat.unidad_medida || ''}</span>
+                      </div>
+                    </td>
+                    <td className="py-2 px-2 text-sm text-zinc-400 text-center">
+                      {formatCurrency(mat.precio)}
+                    </td>
+                    <td className="py-2 px-2 text-sm text-white font-medium text-right">
+                      {formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}
+                    </td>
+                    <td className="py-2 pl-2">
+                      <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-red-400'}>
+                        <Trash2 size={14} />
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile cards */}
+          <div className="space-y-3 lg:hidden mb-3">
             {editData.materiales.map((mat) => (
-              <div key={mat._id} className="flex gap-2 items-center">
-                <div className="flex-1">
-                  <SearchableSelect
-                    options={catalogMateriales}
-                    value={mat.material_id}
-                    onChange={(item) => selectMaterial(mat._id, item)}
-                    placeholder="Seleccionar material..."
-                  />
-                </div>
-                <input
-                  type="number"
-                  value={mat.cantidad}
-                  onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
-                  placeholder="Cant."
-                  className="w-20 bg-zinc-800 rounded-lg px-2 py-2.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+              <div key={mat._id} className="bg-zinc-800 rounded-xl p-3 space-y-2">
+                <SearchableSelect
+                  options={catalogMateriales}
+                  value={mat.material_id}
+                  onChange={(item) => selectMaterial(mat._id, item)}
+                  placeholder="Seleccionar material..."
                 />
-                <span className="text-zinc-500 text-xs w-20 text-right">
-                  {formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}
-                </span>
-                <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-red-400'}>
-                  <Trash2 size={14} />
-                </button>
+                <div className="flex gap-2 items-center">
+                  <div>
+                    <label className={cx.label}>Cantidad</label>
+                    <div className="flex items-center gap-1">
+                      <input
+                        type="number"
+                        value={mat.cantidad}
+                        onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
+                        placeholder="1"
+                        className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30"
+                      />
+                      <span className="text-zinc-500 text-xs">{mat.unidad_medida || ''}</span>
+                    </div>
+                  </div>
+                  <div className="text-xs text-zinc-400 text-right flex-1">
+                    <p>Unit: {formatCurrency(mat.precio)}</p>
+                    <p className="text-white font-medium">{formatCurrency((Number(mat.precio) || 0) * (Number(mat.cantidad) || 0))}</p>
+                  </div>
+                  <button onClick={() => removeMaterial(mat._id)} className={cx.btnIcon + ' hover:text-red-400'}>
+                    <Trash2 size={14} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
+
+          {/* Total */}
+          {editData.materiales.some((m) => m.material_id) && (
+            <div className="flex justify-end mb-3 pr-10">
+              <div className="text-right">
+                <span className="text-zinc-500 text-xs">Costo total: </span>
+                <span className="text-[#FA7B21] font-semibold text-sm">
+                  {formatCurrency(editData.materiales.reduce((s, m) => s + (Number(m.precio) || 0) * (Number(m.cantidad) || 0), 0))}
+                </span>
+              </div>
+            </div>
+          )}
+
           <button onClick={addMaterial} className={cx.btnGhost + ' text-xs flex items-center gap-1 mb-4'}>
             <Plus size={13} /> Agregar Material
           </button>
@@ -184,31 +281,50 @@ export default function EmpaquePredPage() {
         </div>
       )}
 
+      {/* List */}
       <div className="space-y-3">
-        {empaques.map((emp) => (
-          <div key={emp.id} className={`${cx.card} p-4`}>
-            <div className="flex justify-between items-start">
-              <div>
-                <h3 className="text-white font-medium text-sm">{emp.nombre}</h3>
-                <p className="text-zinc-500 text-xs mt-1">{(emp.materiales || []).length} materiales</p>
-              </div>
-              <div className="flex gap-1">
-                <button onClick={() => startEdit(emp)} className={cx.btnIcon}><Pencil size={15} /></button>
-                <button onClick={() => setDeleteTarget(emp)} className={cx.btnIcon + ' hover:text-red-400'}><Trash2 size={15} /></button>
-              </div>
-            </div>
-            {(emp.materiales || []).length > 0 && (
-              <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
-                {emp.materiales.map((m, i) => (
-                  <div key={i} className="flex justify-between text-xs">
-                    <span className="text-zinc-400">{m.nombre || `Material #${m.material_id}`}</span>
-                    <span className="text-zinc-500">x{m.cantidad}</span>
+        {empaques.map((emp) => {
+          const totalCosto = (emp.materiales || []).reduce((s, m) => {
+            const pu = Number(m.cantidad_presentacion) > 0 ? Number(m.precio_presentacion) / Number(m.cantidad_presentacion) : 0;
+            return s + pu * (parseFloat(m.cantidad) || 0);
+          }, 0);
+          return (
+            <div key={emp.id} className={`${cx.card} p-4`}>
+              <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [emp.id]: !prev[emp.id] }))}>
+                <div className="flex items-center gap-2 flex-1">
+                  {collapsed[emp.id] ? <ChevronDown size={16} className="text-zinc-500 flex-shrink-0" /> : <ChevronUp size={16} className="text-zinc-500 flex-shrink-0" />}
+                  <div>
+                    <h3 className="text-white font-medium text-sm">{emp.nombre}</h3>
+                    <p className="text-zinc-500 text-xs mt-0.5">
+                      {(emp.materiales || []).length} materiales
+                      {totalCosto > 0 && <span className="text-[#FA7B21] ml-2 font-semibold">{formatCurrency(totalCosto)}</span>}
+                    </p>
                   </div>
-                ))}
+                </div>
+                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+                  <button onClick={() => startEdit(emp)} className={cx.btnIcon}><Pencil size={15} /></button>
+                  <button onClick={() => setDeleteTarget(emp)} className={cx.btnIcon + ' hover:text-red-400'}><Trash2 size={15} /></button>
+                </div>
               </div>
-            )}
-          </div>
-        ))}
+              {!collapsed[emp.id] && (emp.materiales || []).length > 0 && (
+                <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
+                  {emp.materiales.map((m, i) => {
+                    const pu = Number(m.cantidad_presentacion) > 0 ? Number(m.precio_presentacion) / Number(m.cantidad_presentacion) : 0;
+                    const cant = parseFloat(m.cantidad) || 0;
+                    return (
+                      <div key={i} className="flex justify-between text-xs">
+                        <span className="text-zinc-400">{m.nombre || `Material #${m.material_id}`}</span>
+                        <span className="text-zinc-500">
+                          {cant} {m.unidad_medida || ''} × {formatCurrency(pu)} = <span className="text-white">{formatCurrency(pu * cant)}</span>
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       <ConfirmDialog
