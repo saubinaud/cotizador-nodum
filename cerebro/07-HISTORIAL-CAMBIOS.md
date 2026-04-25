@@ -68,7 +68,45 @@
 - "Por unidad": producto individual
 - "Producto entero": divisible en porciones (ej: torta de 8)
 
+## Sesion 4 — Arquitectura, internacionalizacion, UX premium
+
+### Arquitectura normalizada de costos
+- `unidad_base` + `costo_base` en insumos (auto-calculado)
+- `cantidad_base` + `costo_linea` pre-calculados en producto_prep_insumos
+- `server/src/utils/unidades.js` = unica fuente de conversiones (FACTORES, aBase, deBase)
+- Frontend calcula preview, backend guarda valores del frontend
+
+### Tabla paises con FK
+- `paises` (code, nombre, moneda, simbolo, igv_default) — 18 paises LATAM
+- `usuarios.pais_code` FK → paises.code
+- Eliminadas columnas obsoletas `pais` y `moneda` de usuarios
+- Moneda/simbolo viene del JOIN, no hardcoded
+
+### Internacionalizacion
+- Tipo negocio: formal (paga IGV) / informal (IGV=0)
+- IGV en cascada: cambiar IGV en perfil recalcula todos los productos
+- Simbolo de moneda automatico segun pais (S/, $, R$, etc.)
+
+### Logo Cloudinary
+- Upload base64 → Cloudinary REST API (sin SDK)
+- Logo personalizado en sidebar y header
+- Guardado en `usuarios.logo_url`
+
+### Variantes de insumo
+- Mismo nombre, diferente presentacion (Mantequilla 180g / 1kg)
+- ★ marca la variante mas barata en el dropdown
+- Cambio de unidad (kg→g) guardado como `uso_unidad` en DB
+
+### Rediseno UX premium (Apple + Airbnb + Seiko Presage)
+- Tema light: fondo #f7f7f7 (Apple), cards blancas
+- 3 temas switchables: Coral (Manhattan), Lavanda (Blue Moon), Menta (Mockingbird)
+- CustomSelect reemplaza TODOS los select nativos del OS
+- Cotizador: acordeon unico para preps, sidebar Airbnb booking-card
+- Tokens compactos: text-[13px], py-2, minimal
+- Colores Seiko Presage: mas profundos y elegantes
+
 ## Deploy
 - Frontend: GitHub Pages con dominio custom cotizador.nodumstudio.com
 - Backend: Docker en Contabo VPS con Traefik
 - Base path cambiado de /cotizador-nodum/ a / para dominio custom
+- Cloudinary env vars en container Docker
