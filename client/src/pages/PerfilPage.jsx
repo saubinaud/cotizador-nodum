@@ -31,7 +31,7 @@ export default function PerfilPage() {
       nombre_comercial: user?.empresa || user?.nombre_comercial || '',
       ruc: user?.ruc || '',
       razon_social: user?.razon_social || '',
-      igv_rate: user?.igv_rate || 0.18,
+      igv_rate: user?.igv_rate ? (Number(user.igv_rate) < 1 ? Math.round(Number(user.igv_rate) * 100) : Number(user.igv_rate)) : 18,
       pais: user?.pais || 'PE',
     });
     setEditing(true);
