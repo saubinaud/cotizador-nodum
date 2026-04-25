@@ -2,10 +2,10 @@ import { useState, useEffect } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
-import { formatCurrency } from '../utils/format';
+import { formatCurrency, formatDate } from '../utils/format';
 import ConfirmDialog from '../components/ConfirmDialog';
 import CustomSelect from '../components/CustomSelect';
-import { Plus, Save, X, Trash2, Pencil, Search } from 'lucide-react';
+import { Plus, Save, X, Trash2, Pencil, Search, TrendingUp } from 'lucide-react';
 
 const UNIDADES = ['g', 'ml', 'uni', 'oz', 'kg', 'L'];
 
@@ -28,6 +28,7 @@ export default function InsumosPage() {
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [priceHistory, setPriceHistory] = useState(null);
 
   useEffect(() => {
     loadInsumos();
@@ -120,6 +121,15 @@ export default function InsumosPage() {
     }
   };
 
+  const loadPriceHistory = async (insumoId) => {
+    try {
+      const data = await api.get(`/pl/insumo-precios/${insumoId}`);
+      setPriceHistory(data.data || null);
+    } catch {
+      toast.error('Error cargando historial');
+    }
+  };
+
   const costoUnitario = (ins) => {
     const pres = Number(ins.cantidad_presentacion) || 0;
     const precio = Number(ins.precio_presentacion) || 0;
@@ -203,6 +213,7 @@ export default function InsumosPage() {
                 <span className="text-[var(--accent)] text-sm font-semibold">{formatCurrency(costoUnitario(ins))}/{ins.unidad_medida}</span>
               </div>
               <div className="flex gap-2 mt-3 border-t border-stone-200 pt-3">
+                <button onClick={() => loadPriceHistory(ins.id)} className={cx.btnGhost + ' flex items-center justify-center gap-1'} title="Historial de precios"><TrendingUp size={13} /></button>
                 <button onClick={() => startEdit(ins)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}><Pencil size={13} /> Editar</button>
                 <button onClick={() => setDeleteTarget(ins)} className={cx.btnDanger + ' flex items-center justify-center gap-1'}><Trash2 size={13} /></button>
               </div>
@@ -259,6 +270,7 @@ export default function InsumosPage() {
                   <td className={cx.td + ' text-[var(--accent)] font-semibold'}>{formatCurrency(costoUnitario(ins))}/{ins.unidad_medida}</td>
                   <td className={cx.td + ' text-right'}>
                     <div className="flex justify-end gap-1">
+                      <button onClick={() => loadPriceHistory(ins.id)} className={cx.btnIcon} title="Historial de precios"><TrendingUp size={15} /></button>
                       <button onClick={() => startEdit(ins)} className={cx.btnIcon}><Pencil size={15} /></button>
                       <button onClick={() => setDeleteTarget(ins)} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={15} /></button>
                     </div>
@@ -269,6 +281,65 @@ export default function InsumosPage() {
           </tbody>
         </table>
       </div>
+
+      {/* Price history modal */}
+      {priceHistory && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setPriceHistory(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[80vh] overflow-y-auto p-6">
+            <h3 className="text-lg font-bold text-stone-900 mb-1">{priceHistory.insumo?.nombre}</h3>
+            <p className="text-xs text-stone-400 mb-4">Historial de precios de compra</p>
+
+            {/* KPIs */}
+            <div className="grid grid-cols-3 gap-3 mb-4">
+              <div className="bg-stone-50 rounded-lg p-3 text-center">
+                <p className="text-[10px] text-stone-400 uppercase">WAC</p>
+                <p className="text-sm font-bold text-stone-800">{formatCurrency(priceHistory.wac)}/{priceHistory.insumo?.unidad_base}</p>
+              </div>
+              <div className="bg-stone-50 rounded-lg p-3 text-center">
+                <p className="text-[10px] text-stone-400 uppercase">Ultimo</p>
+                <p className="text-sm font-bold text-stone-800">{formatCurrency(priceHistory.ultimo_precio)}/{priceHistory.insumo?.unidad_base}</p>
+              </div>
+              <div className="bg-stone-50 rounded-lg p-3 text-center">
+                <p className="text-[10px] text-stone-400 uppercase">Rango</p>
+                <p className="text-xs font-medium text-stone-600">{formatCurrency(priceHistory.precio_minimo)} - {formatCurrency(priceHistory.precio_maximo)}</p>
+              </div>
+            </div>
+
+            {/* History table */}
+            {priceHistory.num_compras > 0 && (
+              <div className="border border-stone-100 rounded-lg overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-stone-50">
+                      <th className="text-left px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Fecha</th>
+                      <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Cant.</th>
+                      <th className="text-right px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Precio</th>
+                      <th className="text-right px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Costo/base</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {priceHistory.historial.map((h, i) => (
+                      <tr key={i} className="border-t border-stone-50">
+                        <td className="px-3 py-2 text-stone-600">{formatDate(h.fecha)}</td>
+                        <td className="px-3 py-2 text-center text-stone-500">{parseFloat(h.cantidad)}</td>
+                        <td className="px-3 py-2 text-right text-stone-800">{formatCurrency(h.precio_total)}</td>
+                        <td className="px-3 py-2 text-right font-medium text-stone-800">{Number(h.costo_por_base).toFixed(4)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+
+            {priceHistory.num_compras === 0 && (
+              <p className="text-center text-stone-400 text-sm py-8">Sin historial de compras</p>
+            )}
+
+            <button onClick={() => setPriceHistory(null)} className={cx.btnSecondary + ' w-full mt-4'}>Cerrar</button>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!deleteTarget}

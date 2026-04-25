@@ -546,6 +546,15 @@ router.post('/ventas', async (req, res) => {
       [periodo_id, producto_id, fecha, cantidad, precio, desc, total, nota || null]
     );
 
+    // Dual-write to transacciones for timeline
+    try {
+      await pool.query(
+        `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, producto_id, cantidad, precio_unitario, descuento, monto, monto_absoluto, descripcion)
+         VALUES ($1, $2, 'venta', $3, $4, $5, $6, $7, $8, $8, $9)`,
+        [req.user.id, periodo_id, fecha, producto_id, cantidad, precio, desc, total, nota || null]
+      );
+    } catch (_) {}
+
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('Create venta error:', err);
@@ -606,8 +615,28 @@ router.put('/ventas/:id', async (req, res) => {
 // DELETE /api/pl/ventas/:id
 router.delete('/ventas/:id', async (req, res) => {
   try {
+    // Get venta info before deleting to clean up transacciones
+    const venta = await pool.query('SELECT * FROM ventas WHERE id = $1', [req.params.id]);
     const result = await pool.query('DELETE FROM ventas WHERE id = $1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Venta no encontrada' });
+
+    // Best-effort cleanup of matching transaccion
+    if (venta.rows[0]) {
+      const v = venta.rows[0];
+      try {
+        await pool.query(
+          `DELETE FROM transacciones WHERE tipo = 'venta' AND producto_id = $1 AND fecha = $2 AND periodo_id = $3 AND monto_absoluto = $4 LIMIT 1`,
+          [v.producto_id, v.fecha, v.periodo_id, v.total]
+        ).catch(() => {
+          // PostgreSQL doesn't support LIMIT in DELETE, use ctid
+          pool.query(
+            `DELETE FROM transacciones WHERE ctid = (SELECT ctid FROM transacciones WHERE tipo = 'venta' AND producto_id = $1 AND fecha = $2 AND periodo_id = $3 AND monto_absoluto = $4 LIMIT 1)`,
+            [v.producto_id, v.fecha, v.periodo_id, v.total]
+          );
+        });
+      } catch (_) {}
+    }
+
     return res.json({ success: true, data: { message: 'Venta eliminada' } });
   } catch (err) {
     console.error('Delete venta error:', err);
@@ -741,6 +770,16 @@ router.post('/gastos', async (req, res) => {
       'INSERT INTO gastos (periodo_id, categoria_id, fecha, monto, descripcion) VALUES ($1, $2, $3, $4, $5) RETURNING *',
       [periodo_id, categoria_id, fecha, monto, descripcion || null]
     );
+
+    // Dual-write to transacciones for timeline
+    try {
+      await pool.query(
+        `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, categoria_id, monto, monto_absoluto, descripcion)
+         VALUES ($1, $2, 'gasto', $3, $4, $5, $6, $7)`,
+        [req.user.id, periodo_id, fecha, categoria_id, -parseFloat(monto), parseFloat(monto), descripcion || null]
+      );
+    } catch (_) {}
+
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('Create gasto error:', err);
@@ -767,8 +806,21 @@ router.put('/gastos/:id', async (req, res) => {
 // DELETE /api/pl/gastos/:id
 router.delete('/gastos/:id', async (req, res) => {
   try {
+    const gasto = await pool.query('SELECT * FROM gastos WHERE id = $1', [req.params.id]);
     const result = await pool.query('DELETE FROM gastos WHERE id = $1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Gasto no encontrado' });
+
+    // Best-effort cleanup of matching transaccion
+    if (gasto.rows[0]) {
+      const g = gasto.rows[0];
+      try {
+        await pool.query(
+          `DELETE FROM transacciones WHERE ctid = (SELECT ctid FROM transacciones WHERE tipo = 'gasto' AND categoria_id = $1 AND fecha = $2 AND periodo_id = $3 AND monto_absoluto = $4 LIMIT 1)`,
+          [g.categoria_id, g.fecha, g.periodo_id, g.monto]
+        );
+      } catch (_) {}
+    }
+
     return res.json({ success: true, data: { message: 'Gasto eliminado' } });
   } catch (err) {
     console.error('Delete gasto error:', err);
@@ -890,6 +942,15 @@ router.post('/compras', async (req, res) => {
       try { await recalcularWAC(insumoId); } catch (e) { console.error('WAC recalc error:', e); }
     }
 
+    // Dual-write to transacciones for timeline
+    try {
+      await pool.query(
+        `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, compra_id, monto, monto_absoluto, descripcion)
+         VALUES ($1, $2, 'compra', $3, $4, $5, $6, $7)`,
+        [req.user.id, periodo_id, fecha, compra.id, -total, total, proveedor || null]
+      );
+    } catch (_) {}
+
     return res.status(201).json({ success: true, data: compra });
   } catch (err) {
     await client.query('ROLLBACK');
@@ -908,6 +969,15 @@ router.delete('/compras/:id', async (req, res) => {
       [req.params.id, req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Compra no encontrada' });
+
+    // Best-effort cleanup of matching transaccion
+    try {
+      await pool.query(
+        `DELETE FROM transacciones WHERE tipo = 'compra' AND compra_id = $1`,
+        [req.params.id]
+      );
+    } catch (_) {}
+
     return res.json({ success: true, data: { message: 'Compra eliminada' } });
   } catch (err) {
     console.error('Delete compra error:', err);
