@@ -19,11 +19,6 @@ export const PAISES = [
   { code: 'BR', name: 'Brasil', moneda: 'BRL', simbolo: 'R$' },
 ];
 
-export function getSimbolo(moneda) {
-  const pais = PAISES.find(p => p.moneda === moneda);
-  return pais ? pais.simbolo : 'S/';
-}
-
 export function getPaisByCode(code) {
   return PAISES.find(p => p.code === code);
 }

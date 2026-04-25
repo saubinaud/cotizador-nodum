@@ -1131,8 +1131,10 @@ export default function CotizadorPage() {
                     <span className="text-white">{formatCurrency(costos.precioVenta)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-400">IGV ({costos.igvRate}%)</span>
-                    <span className="text-white">{formatCurrency(costos.igvMonto)}</span>
+                    <span className="text-zinc-400">IGV</span>
+                    <span className="text-white">
+                      {user?.tipo_negocio === 'informal' ? 'No aplica' : `${formatCurrency(costos.igvMonto)} (${costos.igvRate}%)`}
+                    </span>
                   </div>
                   <div className="flex justify-between items-baseline">
                     <span className="text-zinc-300 font-semibold">Precio final</span>
@@ -1217,8 +1219,10 @@ export default function CotizadorPage() {
                     <span className="text-white font-medium">{formatCurrency(costos.precioVenta)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-zinc-400">IGV ({costos.igvRate}%)</span>
-                    <span className="text-white">{formatCurrency(costos.igvMonto)}</span>
+                    <span className="text-zinc-400">IGV</span>
+                    <span className="text-white">
+                      {user?.tipo_negocio === 'informal' ? 'No aplica' : `${formatCurrency(costos.igvMonto)} (${costos.igvRate}%)`}
+                    </span>
                   </div>
                 </div>
 

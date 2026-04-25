@@ -59,7 +59,7 @@ router.post('/login', async (req, res) => {
     );
 
     // Get pais data
-    const paisData = await pool.query('SELECT moneda, simbolo FROM paises WHERE code = $1', [user.pais_code || user.pais || 'PE']);
+    const paisData = await pool.query('SELECT moneda, simbolo FROM paises WHERE code = $1', [user.pais_code || 'PE']);
     const pais = paisData.rows[0] || { moneda: 'PEN', simbolo: 'S/' };
 
     return res.json({
@@ -76,10 +76,11 @@ router.post('/login', async (req, res) => {
           ruc: user.ruc,
           razon_social: user.razon_social,
           permisos: user.permisos,
-          pais: user.pais_code || user.pais,
+          pais: user.pais_code,
           moneda: pais.moneda,
           simbolo: pais.simbolo,
           logo_url: user.logo_url,
+          tipo_negocio: user.tipo_negocio,
         },
       },
     });
@@ -94,7 +95,7 @@ router.get('/me', auth, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT u.id, u.email, u.nombre, u.rol, u.nombre_comercial AS empresa, u.igv_rate, u.ruc, u.razon_social, u.permisos,
-              u.pais_code AS pais, p.moneda, p.simbolo, u.logo_url
+              u.pais_code AS pais, p.moneda, p.simbolo, u.logo_url, u.tipo_negocio
        FROM usuarios u LEFT JOIN paises p ON p.code = u.pais_code WHERE u.id = $1`,
       [req.user.id]
     );
@@ -151,8 +152,13 @@ router.post('/cambiar-password', auth, async (req, res) => {
 // PUT /api/auth/perfil
 router.put('/perfil', auth, async (req, res) => {
   try {
-    const { nombre, nombre_comercial, ruc, razon_social, igv_rate: rawIgv, pais } = req.body;
-    const igvDecimal = rawIgv != null ? (Number(rawIgv) > 1 ? Number(rawIgv) / 100 : Number(rawIgv)) : null;
+    const { nombre, nombre_comercial, ruc, razon_social, igv_rate: rawIgv, pais, tipo_negocio } = req.body;
+    let igvDecimal = rawIgv != null ? (Number(rawIgv) > 1 ? Number(rawIgv) / 100 : Number(rawIgv)) : null;
+
+    // If informal, force IGV to 0
+    if (tipo_negocio === 'informal') {
+      igvDecimal = 0;
+    }
 
     const result = await pool.query(
       `UPDATE usuarios SET
@@ -162,24 +168,26 @@ router.put('/perfil', auth, async (req, res) => {
         razon_social = COALESCE($4, razon_social),
         igv_rate = COALESCE($5::numeric, igv_rate),
         pais_code = COALESCE($6, pais_code),
+        tipo_negocio = COALESCE($7, tipo_negocio),
         updated_at = NOW()
-       WHERE id = $7
-       RETURNING id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, ruc, razon_social, permisos, pais_code AS pais, logo_url`,
-      [nombre || null, nombre_comercial || null, ruc || null, razon_social || null, igvDecimal, pais || null, req.user.id]
+       WHERE id = $8
+       RETURNING id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, ruc, razon_social, permisos, pais_code AS pais, logo_url, tipo_negocio`,
+      [nombre || null, nombre_comercial || null, ruc || null, razon_social || null, igvDecimal, pais || null, tipo_negocio || null, req.user.id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
     }
 
-    // If IGV changed, cascade to all products
-    if (igvDecimal != null) {
+    // If IGV changed or tipo_negocio changed, cascade to all products
+    const effectiveIgv = tipo_negocio === 'informal' ? 0 : igvDecimal;
+    if (effectiveIgv != null) {
       await pool.query(
         `UPDATE productos SET
           igv_rate = $1::numeric,
           precio_final = ROUND(precio_venta * (1 + $1::numeric), 4),
           updated_at = NOW()
          WHERE usuario_id = $2`,
-        [igvDecimal, req.user.id]
+        [effectiveIgv, req.user.id]
       );
     }
 

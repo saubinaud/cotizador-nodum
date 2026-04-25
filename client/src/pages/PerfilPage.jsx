@@ -5,7 +5,6 @@ import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { User, Lock, Save, Pencil, X, Upload, Loader2 } from 'lucide-react';
 import { PAISES, getPaisByCode } from '../config/paises';
-import { getSimbolo } from '../config/paises';
 import { API_BASE } from '../config/api';
 
 export default function PerfilPage() {
@@ -33,6 +32,7 @@ export default function PerfilPage() {
       razon_social: user?.razon_social || '',
       igv_rate: user?.igv_rate ? (Number(user.igv_rate) < 1 ? Math.round(Number(user.igv_rate) * 100) : Number(user.igv_rate)) : 18,
       pais: user?.pais || 'PE',
+      tipo_negocio: user?.tipo_negocio || 'formal',
     });
     setEditing(true);
   };
@@ -45,13 +45,12 @@ export default function PerfilPage() {
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     try {
-      const paisInfo = getPaisByCode(profileForm.pais);
-      const payload = { ...profileForm, moneda: paisInfo?.moneda || 'PEN' };
+      const payload = { ...profileForm };
       const data = await api.put('/auth/perfil', payload);
       const updatedUser = data.data?.user || data.data;
       setUser(updatedUser);
       localStorage.setItem('nodum_user', JSON.stringify(updatedUser));
-      localStorage.setItem('nodum_moneda_simbolo', getSimbolo(updatedUser.moneda));
+      localStorage.setItem('nodum_moneda_simbolo', updatedUser.simbolo || 'S/');
       toast.success('Perfil actualizado');
       setEditing(false);
     } catch (err) {
@@ -213,17 +212,37 @@ export default function PerfilPage() {
                 />
               </div>
             </div>
+            <div>
+              <label className={cx.label}>Tipo de negocio</label>
+              <select
+                value={profileForm.tipo_negocio}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setProfileForm((prev) => ({
+                    ...prev,
+                    tipo_negocio: val,
+                    ...(val === 'informal' ? { igv_rate: 0 } : {}),
+                  }));
+                }}
+                className={cx.select}
+              >
+                <option value="formal">Formal (paga IGV)</option>
+                <option value="informal">Informal (no paga IGV)</option>
+              </select>
+            </div>
             <div className="grid grid-cols-2 gap-4">
-              <div>
-                <label className={cx.label}>Tasa IGV (decimal, ej: 0.18)</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  value={profileForm.igv_rate}
-                  onChange={(e) => setProfileForm({ ...profileForm, igv_rate: e.target.value })}
-                  className={cx.input + ' w-32'}
-                />
-              </div>
+              {profileForm.tipo_negocio !== 'informal' && (
+                <div>
+                  <label className={cx.label}>Tasa IGV (%)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={profileForm.igv_rate}
+                    onChange={(e) => setProfileForm({ ...profileForm, igv_rate: e.target.value })}
+                    className={cx.input + ' w-32'}
+                  />
+                </div>
+              )}
               <div>
                 <label className={cx.label}>Pais</label>
                 <select
@@ -275,8 +294,12 @@ export default function PerfilPage() {
               <p className="text-white text-sm">{user?.razon_social || '-'}</p>
             </div>
             <div>
+              <label className={cx.label}>Tipo de negocio</label>
+              <p className="text-white text-sm">{user?.tipo_negocio === 'informal' ? 'Informal (no paga IGV)' : 'Formal'}</p>
+            </div>
+            <div>
               <label className={cx.label}>Tasa IGV</label>
-              <p className="text-white text-sm">{igvDisplay}%</p>
+              <p className="text-white text-sm">{user?.tipo_negocio === 'informal' ? 'No aplica' : `${igvDisplay}%`}</p>
             </div>
             <div>
               <label className={cx.label}>Pais</label>
@@ -284,7 +307,7 @@ export default function PerfilPage() {
             </div>
             <div>
               <label className={cx.label}>Moneda</label>
-              <p className="text-white text-sm">{user?.moneda || 'PEN'} ({getSimbolo(user?.moneda)})</p>
+              <p className="text-white text-sm">{user?.moneda || 'PEN'} ({user?.simbolo || 'S/'})</p>
             </div>
             <div>
               <label className={cx.label}>Rol</label>

@@ -1,6 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { API_BASE } from '../config/api';
-import { getSimbolo } from '../config/paises';
 
 const AuthContext = createContext(null);
 

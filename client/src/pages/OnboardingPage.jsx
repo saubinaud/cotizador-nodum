@@ -3,7 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../config/api';
 import { cx } from '../styles/tokens';
 import { Calculator, Loader2 } from 'lucide-react';
-import { PAISES, getPaisByCode } from '../config/paises';
+
 
 export default function OnboardingPage() {
   const [params] = useSearchParams();
@@ -17,6 +17,8 @@ export default function OnboardingPage() {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
+  const [paises, setPaises] = useState([]);
+
   const [form, setForm] = useState({
     nombre: '',
     dni: '',
@@ -26,9 +28,17 @@ export default function OnboardingPage() {
     nombre_comercial: '',
     igv_rate: '18',
     pais: 'PE',
+    tipo_negocio: 'formal',
     password: '',
     password_confirm: '',
   });
+
+  useEffect(() => {
+    fetch(`${API_BASE}/auth/paises`)
+      .then((r) => r.json())
+      .then((data) => { if (data.success) setPaises(data.data); })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!inviteToken) {
@@ -221,46 +231,66 @@ export default function OnboardingPage() {
               value={form.pais}
               onChange={(e) => {
                 const code = e.target.value;
-                const p = getPaisByCode(code);
                 setForm((prev) => ({ ...prev, pais: code }));
               }}
               className={cx.input}
             >
-              {PAISES.map((p) => (
+              {paises.map((p) => (
                 <option key={p.code} value={p.code}>
-                  {p.name} ({p.simbolo} {p.moneda})
+                  {p.nombre} ({p.simbolo} {p.moneda})
                 </option>
               ))}
             </select>
           </div>
 
           <div>
-            <label className={cx.label}>Tasa IGV</label>
-            <div className="flex gap-4 mt-1">
-              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
-                <input
-                  type="radio"
-                  name="igv_rate"
-                  value="18"
-                  checked={form.igv_rate === '18'}
-                  onChange={handleChange('igv_rate')}
-                  className="accent-[#FA7B21]"
-                />
-                18%
-              </label>
-              <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
-                <input
-                  type="radio"
-                  name="igv_rate"
-                  value="10.5"
-                  checked={form.igv_rate === '10.5'}
-                  onChange={handleChange('igv_rate')}
-                  className="accent-[#FA7B21]"
-                />
-                10.5%
-              </label>
-            </div>
+            <label className={cx.label}>Tipo de negocio</label>
+            <select
+              value={form.tipo_negocio}
+              onChange={(e) => {
+                const val = e.target.value;
+                setForm((prev) => ({
+                  ...prev,
+                  tipo_negocio: val,
+                  ...(val === 'informal' ? { igv_rate: '0' } : { igv_rate: '18' }),
+                }));
+              }}
+              className={cx.input}
+            >
+              <option value="formal">Formal (paga IGV)</option>
+              <option value="informal">Informal (no paga IGV)</option>
+            </select>
           </div>
+
+          {form.tipo_negocio !== 'informal' && (
+            <div>
+              <label className={cx.label}>Tasa IGV</label>
+              <div className="flex gap-4 mt-1">
+                <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="igv_rate"
+                    value="18"
+                    checked={form.igv_rate === '18'}
+                    onChange={handleChange('igv_rate')}
+                    className="accent-[#FA7B21]"
+                  />
+                  18%
+                </label>
+                <label className="flex items-center gap-2 text-sm text-zinc-300 cursor-pointer">
+                  <input
+                    type="radio"
+                    name="igv_rate"
+                    value="10.5"
+                    checked={form.igv_rate === '10.5'}
+                    onChange={handleChange('igv_rate')}
+                    className="accent-[#FA7B21]"
+                  />
+                  10.5%
+                </label>
+              </div>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>

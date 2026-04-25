@@ -75,13 +75,10 @@ router.get('/consulta-ruc/:ruc', async (req, res) => {
 // POST /api/onboarding/completar — complete onboarding (set password, RUC, etc.)
 router.post('/completar', async (req, res) => {
   try {
-    const { token, password, ruc, razon_social, direccion, igv_rate: rawIgv, pais } = req.body;
+    const { token, password, ruc, razon_social, direccion, igv_rate: rawIgv, pais, tipo_negocio } = req.body;
     // Frontend may send 18 (integer %) or 0.18 (decimal). DB needs decimal.
-    const igv_rate = rawIgv ? (Number(rawIgv) > 1 ? Number(rawIgv) / 100 : Number(rawIgv)) : 0.18;
-
-    // Derive moneda from pais
-    const paisMonedaMap = { PE: 'PEN', MX: 'MXN', CO: 'COP', CL: 'CLP', AR: 'ARS', EC: 'USD', BO: 'BOB', PY: 'PYG', UY: 'UYU', VE: 'VES', CR: 'CRC', PA: 'USD', GT: 'GTQ', HN: 'HNL', SV: 'USD', NI: 'NIO', DO: 'DOP', BR: 'BRL' };
-    const moneda = paisMonedaMap[pais] || 'PEN';
+    // If informal, IGV is always 0.
+    const igv_rate = tipo_negocio === 'informal' ? 0 : (rawIgv ? (Number(rawIgv) > 1 ? Number(rawIgv) / 100 : Number(rawIgv)) : 0.18);
 
     if (!token || !password) {
       return res.status(400).json({ success: false, error: 'Token y password son requeridos' });
@@ -115,8 +112,8 @@ router.post('/completar', async (req, res) => {
         ruc = $2,
         razon_social = $3,
         igv_rate = $4,
-        pais = $5,
-        moneda = $6,
+        pais_code = $5,
+        tipo_negocio = $6,
         estado = 'activo',
         onboarding_token = NULL,
         onboarding_token_expires = NULL,
@@ -127,9 +124,9 @@ router.post('/completar', async (req, res) => {
         password_hash,
         ruc || null,
         razon_social || null,
-        igv_rate || 0.18,
+        igv_rate,
         pais || 'PE',
-        moneda,
+        tipo_negocio || 'formal',
         user.id,
       ]
     );

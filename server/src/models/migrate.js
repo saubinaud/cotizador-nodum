@@ -88,6 +88,9 @@ async function runMigrations() {
     await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS moneda VARCHAR(5) DEFAULT 'PEN'`);
     await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS logo_url TEXT`);
 
+    // usuarios — tipo_negocio (formal/informal)
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS tipo_negocio VARCHAR(10) NOT NULL DEFAULT 'formal'`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);
