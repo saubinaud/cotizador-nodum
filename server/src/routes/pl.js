@@ -141,4 +141,127 @@ router.put('/categorias/:id', async (req, res) => {
   }
 });
 
+// ==================== VENTAS ====================
+
+// GET /api/pl/ventas?periodo_id=X
+router.get('/ventas', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+
+    // Verify period belongs to user
+    const periodo = await pool.query('SELECT id FROM periodos WHERE id = $1 AND usuario_id = $2', [periodo_id, req.user.id]);
+    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+
+    const result = await pool.query(
+      `SELECT v.*, p.nombre AS producto_nombre, p.costo_neto AS producto_costo_neto,
+              p.costo_insumos AS producto_costo_insumos, p.costo_empaque AS producto_costo_empaque,
+              p.imagen_url AS producto_imagen
+       FROM ventas v
+       JOIN productos p ON p.id = v.producto_id
+       WHERE v.periodo_id = $1
+       ORDER BY v.fecha DESC, v.created_at DESC`,
+      [periodo_id]
+    );
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('List ventas error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// POST /api/pl/ventas
+router.post('/ventas', async (req, res) => {
+  try {
+    const { periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, nota } = req.body;
+    if (!periodo_id || !producto_id || !fecha || !cantidad) {
+      return res.status(400).json({ success: false, error: 'periodo_id, producto_id, fecha y cantidad son requeridos' });
+    }
+
+    const periodo = await pool.query('SELECT id FROM periodos WHERE id = $1 AND usuario_id = $2', [periodo_id, req.user.id]);
+    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+
+    // Get product price if not provided
+    const prod = await pool.query('SELECT precio_final, costo_neto FROM productos WHERE id = $1 AND usuario_id = $2', [producto_id, req.user.id]);
+    if (prod.rows.length === 0) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+
+    const precio = precio_unitario || parseFloat(prod.rows[0].precio_final);
+    const desc = parseFloat(descuento) || 0;
+    const total = (precio * parseInt(cantidad)) - desc;
+
+    const result = await pool.query(
+      `INSERT INTO ventas (periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total, nota)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [periodo_id, producto_id, fecha, cantidad, precio, desc, total, nota || null]
+    );
+
+    return res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Create venta error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// GET /api/pl/ventas/resumen?periodo_id=X — summary totals (MUST be before /:id)
+router.get('/ventas/resumen', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+
+    const result = await pool.query(
+      `SELECT
+        COUNT(*) AS total_ventas,
+        COALESCE(SUM(v.total), 0) AS ingresos_brutos,
+        COALESCE(SUM(v.descuento), 0) AS descuentos,
+        COALESCE(SUM(v.total), 0) - COALESCE(SUM(v.descuento), 0) AS ingresos_netos,
+        COALESCE(SUM(v.cantidad * p.costo_neto), 0) AS cogs_total,
+        COALESCE(SUM(v.cantidad * p.costo_insumos), 0) AS cogs_insumos,
+        COALESCE(SUM(v.cantidad * p.costo_empaque), 0) AS cogs_empaque,
+        COALESCE(SUM(v.cantidad), 0) AS unidades_vendidas
+       FROM ventas v
+       JOIN productos p ON p.id = v.producto_id
+       WHERE v.periodo_id = $1`,
+      [periodo_id]
+    );
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Ventas resumen error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// PUT /api/pl/ventas/:id
+router.put('/ventas/:id', async (req, res) => {
+  try {
+    const { cantidad, precio_unitario, descuento, nota } = req.body;
+    const precio = parseFloat(precio_unitario) || 0;
+    const cant = parseInt(cantidad) || 1;
+    const desc = parseFloat(descuento) || 0;
+    const total = (precio * cant) - desc;
+
+    const result = await pool.query(
+      `UPDATE ventas SET cantidad = $1, precio_unitario = $2, descuento = $3, total = $4, nota = $5
+       WHERE id = $6 RETURNING *`,
+      [cant, precio, desc, total, nota || null, req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Venta no encontrada' });
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Update venta error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// DELETE /api/pl/ventas/:id
+router.delete('/ventas/:id', async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM ventas WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Venta no encontrada' });
+    return res.json({ success: true, data: { message: 'Venta eliminada' } });
+  } catch (err) {
+    console.error('Delete venta error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
 module.exports = router;
