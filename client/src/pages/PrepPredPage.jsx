@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
@@ -67,6 +67,55 @@ export default function PrepPredPage() {
     api.get('/insumos').then((d) => setCatalogInsumos(d.data || [])).catch(() => {});
   }, []);
 
+  const enrichedInsumos = useMemo(() => {
+    const groups = {};
+    catalogInsumos.forEach((ins) => {
+      const key = (ins.nombre || '').toLowerCase();
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(ins);
+    });
+
+    const cheapestIds = new Set();
+    Object.values(groups).forEach((variants) => {
+      if (variants.length <= 1) return;
+      let cheapest = variants[0];
+      let cheapestCost = Infinity;
+      variants.forEach((v) => {
+        const cost = Number(v.cantidad_presentacion) > 0
+          ? Number(v.precio_presentacion) / Number(v.cantidad_presentacion)
+          : Infinity;
+        if (cost < cheapestCost) {
+          cheapestCost = cost;
+          cheapest = v;
+        }
+      });
+      cheapestIds.add(cheapest.id);
+    });
+
+    return catalogInsumos.map((ins) => {
+      const key = (ins.nombre || '').toLowerCase();
+      const hasVariants = (groups[key] || []).length > 1;
+      const costoUnit = Number(ins.cantidad_presentacion) > 0
+        ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion)
+        : 0;
+      const isBest = cheapestIds.has(ins.id);
+      return {
+        ...ins,
+        nombre: hasVariants
+          ? `${ins.nombre} (${parseFloat(ins.cantidad_presentacion)}${ins.unidad_medida || ''} - ${formatCurrency(ins.precio_presentacion)})${isBest ? ' \u2605' : ''}`
+          : ins.nombre,
+        _originalNombre: ins.nombre,
+        _isBest: isBest,
+        _hasVariants: hasVariants,
+        _costoUnit: costoUnit,
+      };
+    }).sort((a, b) => {
+      const nameCompare = (a._originalNombre || '').localeCompare(b._originalNombre || '');
+      if (nameCompare !== 0) return nameCompare;
+      return a._costoUnit - b._costoUnit;
+    });
+  }, [catalogInsumos]);
+
   const loadPreps = async () => {
     try {
       const data = await api.get('/predeterminados/preparaciones');
@@ -126,7 +175,7 @@ export default function PrepPredPage() {
     setEditData((prev) => ({
       ...prev,
       insumos: prev.insumos.map((i) =>
-        i._id === iid ? { ...i, insumo_id: cat.id, nombre: cat.nombre, costo_unitario: costoUnit, unidad_medida: cat.unidad_medida || '', uso_unidad: cat.unidad_medida || '' } : i
+        i._id === iid ? { ...i, insumo_id: cat.id, nombre: cat._originalNombre || cat.nombre, costo_unitario: costoUnit, unidad_medida: cat.unidad_medida || '', uso_unidad: cat.unidad_medida || '' } : i
       ),
     }));
   };
@@ -238,7 +287,7 @@ export default function PrepPredPage() {
                   <tr key={ins._id} className="border-b border-zinc-800/50 last:border-0">
                     <td className="py-2 pr-2">
                       <SearchableSelect
-                        options={catalogInsumos}
+                        options={enrichedInsumos}
                         value={ins.insumo_id}
                         onChange={(item) => selectInsumo(ins._id, item)}
                         placeholder="Seleccionar insumo..."
@@ -286,7 +335,7 @@ export default function PrepPredPage() {
             {editData.insumos.map((ins) => (
               <div key={ins._id} className="bg-zinc-800 rounded-xl p-3 space-y-2">
                 <SearchableSelect
-                  options={catalogInsumos}
+                  options={enrichedInsumos}
                   value={ins.insumo_id}
                   onChange={(item) => selectInsumo(ins._id, item)}
                   placeholder="Seleccionar insumo..."

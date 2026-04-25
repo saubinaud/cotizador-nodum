@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
@@ -129,6 +129,58 @@ export default function CotizadorPage() {
   const [catalogPreps, setCatalogPreps] = useState([]);
 
   const costos = useCalculadorCostos(preparaciones, materiales, margen, igvRate, tipoPresentacion, unidadesPorProducto, margenPorcion);
+
+  const enrichedInsumos = useMemo(() => {
+    // Group by normalized name
+    const groups = {};
+    catalogInsumos.forEach((ins) => {
+      const key = (ins.nombre || '').toLowerCase();
+      if (!groups[key]) groups[key] = [];
+      groups[key].push(ins);
+    });
+
+    // Find cheapest per group (cost per base unit)
+    const cheapestIds = new Set();
+    Object.values(groups).forEach((variants) => {
+      if (variants.length <= 1) return;
+      let cheapest = variants[0];
+      let cheapestCost = Infinity;
+      variants.forEach((v) => {
+        const cost = Number(v.cantidad_presentacion) > 0
+          ? Number(v.precio_presentacion) / Number(v.cantidad_presentacion)
+          : Infinity;
+        if (cost < cheapestCost) {
+          cheapestCost = cost;
+          cheapest = v;
+        }
+      });
+      cheapestIds.add(cheapest.id);
+    });
+
+    // Enrich with display info
+    return catalogInsumos.map((ins) => {
+      const key = (ins.nombre || '').toLowerCase();
+      const hasVariants = (groups[key] || []).length > 1;
+      const costoUnit = Number(ins.cantidad_presentacion) > 0
+        ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion)
+        : 0;
+      const isBest = cheapestIds.has(ins.id);
+      return {
+        ...ins,
+        nombre: hasVariants
+          ? `${ins.nombre} (${parseFloat(ins.cantidad_presentacion)}${ins.unidad_medida || ''} - ${formatCurrency(ins.precio_presentacion)})${isBest ? ' \u2605' : ''}`
+          : ins.nombre,
+        _originalNombre: ins.nombre,
+        _isBest: isBest,
+        _hasVariants: hasVariants,
+        _costoUnit: costoUnit,
+      };
+    }).sort((a, b) => {
+      const nameCompare = (a._originalNombre || '').localeCompare(b._originalNombre || '');
+      if (nameCompare !== 0) return nameCompare;
+      return a._costoUnit - b._costoUnit;
+    });
+  }, [catalogInsumos]);
 
   // Load catalogs
   useEffect(() => {
@@ -317,7 +369,7 @@ export default function CotizadorPage() {
         : Number(catalogItem.precio_presentacion);
     updateInsumo(prepId, insId, {
       insumo_id: catalogItem.id,
-      nombre: catalogItem.nombre,
+      nombre: catalogItem._originalNombre || catalogItem.nombre,
       costo_unitario: costoUnit,
       unidad_medida: catalogItem.unidad_medida,
       uso_unidad: catalogItem.unidad_medida,
@@ -694,7 +746,7 @@ export default function CotizadorPage() {
                         {prep.insumos.map((ins) => (
                           <div key={ins._id} className="bg-zinc-800 rounded-xl p-3 space-y-2">
                             <SearchableSelect
-                              options={catalogInsumos}
+                              options={enrichedInsumos}
                               value={ins.insumo_id}
                               onChange={(item) => selectInsumo(prep._id, ins._id, item)}
                               placeholder="Seleccionar insumo..."
@@ -744,7 +796,7 @@ export default function CotizadorPage() {
                             <tr key={ins._id} className="border-b border-zinc-800/50 last:border-0">
                               <td className="py-2 pr-2">
                                 <SearchableSelect
-                                  options={catalogInsumos}
+                                  options={enrichedInsumos}
                                   value={ins.insumo_id}
                                   onChange={(item) => selectInsumo(prep._id, ins._id, item)}
                                   placeholder="Seleccionar insumo..."

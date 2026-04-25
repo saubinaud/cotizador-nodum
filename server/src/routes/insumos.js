@@ -49,15 +49,17 @@ router.post('/', async (req, res) => {
 
     const nombreNorm = nombre.trim().charAt(0).toUpperCase() + nombre.trim().slice(1).toLowerCase();
 
+    // Check for exact duplicate (same name + same presentation)
     const dup = await pool.query(
-      'SELECT id, nombre, cantidad_presentacion, unidad_medida, precio_presentacion FROM insumos WHERE LOWER(nombre) = LOWER($1) AND usuario_id = $2',
-      [nombreNorm, req.user.id]
+      `SELECT id FROM insumos
+       WHERE LOWER(nombre) = LOWER($1) AND usuario_id = $2
+       AND cantidad_presentacion = $3 AND unidad_medida = $4`,
+      [nombreNorm, req.user.id, cantidad_presentacion, unidad_medida || 'g']
     );
     if (dup.rows.length > 0) {
       return res.status(409).json({
         success: false,
-        error: `Ya existe un insumo llamado "${dup.rows[0].nombre}" (${dup.rows[0].cantidad_presentacion} ${dup.rows[0].unidad_medida})`,
-        existing: dup.rows[0],
+        error: `Ya existe "${nombreNorm}" con la misma presentacion (${cantidad_presentacion} ${unidad_medida || 'g'})`,
       });
     }
 
