@@ -122,7 +122,7 @@ export default function DashboardPage() {
       const lines = [];
 
       // ===== RESUMEN =====
-      lines.push([esc('RESUMEN DE PRODUCTOS NODUM'), '', '', '', '', '', '', ''].join(sep));
+      lines.push([esc('RESUMEN DE PRODUCTOS Kudi'), '', '', '', '', '', '', ''].join(sep));
       lines.push([esc(`Fecha: ${new Date().toLocaleDateString('es-PE')}`), '', '', '', '', '', '', ''].join(sep));
       lines.push([].join(sep));
       lines.push(['Producto', 'Costo Insumos', 'Costo Empaque', 'Costo Neto', 'Margen %', 'Precio Venta', 'IGV', 'Precio Final'].map(esc).join(sep));
@@ -207,7 +207,7 @@ export default function DashboardPage() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `recetas_nodum_${new Date().toISOString().slice(0, 10)}.csv`;
+      a.download = `recetas_kudi_${new Date().toISOString().slice(0, 10)}.csv`;
       a.click();
       URL.revokeObjectURL(url);
       toast.success('Excel descargado');

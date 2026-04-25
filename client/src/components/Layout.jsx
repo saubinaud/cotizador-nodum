@@ -91,7 +91,7 @@ export default function Layout() {
           )}
           {!isCollapsed && (
             <div>
-              <h1 className="text-base font-bold text-stone-800 tracking-wide">NODUM</h1>
+              <h1 className="text-base font-bold text-stone-800 tracking-wide">Kudi</h1>
               <p className="text-[10px] text-stone-400 uppercase tracking-widest">Cotizador</p>
             </div>
           )}
@@ -201,7 +201,7 @@ export default function Layout() {
                 <Calculator size={14} className="text-white" />
               </div>
             )}
-            <span className="text-sm font-bold text-stone-800">NODUM</span>
+            <span className="text-sm font-bold text-stone-800">Kudi</span>
           </div>
           <div className="w-9" />
         </header>
