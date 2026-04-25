@@ -639,8 +639,8 @@ export default function CotizadorPage() {
           <div>
             <h3 className="text-lg font-semibold text-stone-900 mb-4">Producto</h3>
             <div className={`${cx.card} p-6`}>
-              <div className={`grid gap-4 ${tipoPresentacion === 'entero' ? 'grid-cols-1 sm:grid-cols-5' : 'grid-cols-1 sm:grid-cols-3'}`}>
-                <div className={tipoPresentacion === 'entero' ? 'sm:col-span-3' : 'sm:col-span-2'}>
+              <div className={`grid gap-4 grid-cols-1 ${tipoPresentacion === 'entero' ? 'sm:grid-cols-[45%_35%_20%]' : 'sm:grid-cols-[60%_40%]'}`}>
+                <div>
                   <label className={cx.label}>Nombre del producto</label>
                   <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={cx.input} placeholder="Ej: Cheesecake de fresa" autoFocus />
                 </div>
