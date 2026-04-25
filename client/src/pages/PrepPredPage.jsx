@@ -242,13 +242,11 @@ export default function PrepPredPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-stone-900">Preparaciones Predeterminadas</h2>
-          <p className="text-stone-500 text-sm mt-0.5">{preps.length} preparaciones</p>
-        </div>
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold text-stone-900">Preparaciones predeterminadas</h1>
         <button onClick={startNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
-          <Plus size={16} /> Nueva Preparacion
+          <Plus size={14} /> Nueva
         </button>
       </div>
 
@@ -406,55 +404,87 @@ export default function PrepPredPage() {
         </div>
       )}
 
-      {/* List */}
-      <div className="space-y-3">
-        {preps.map((prep) => {
-          const totalCosto = (prep.insumos || []).reduce((s, ins) => {
-            const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
-            const cu = costoEnUsoUnidad({ ...ins, costo_unitario: cuBase });
-            return s + cu * (parseFloat(ins.cantidad) || 0);
-          }, 0);
-          return (
-            <div key={prep.id} className={`${cx.card} p-5`}>
-              <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [prep.id]: prev[prep.id] === false ? true : false }))}>
-                <div className="flex items-center gap-2 flex-1">
-                  {collapsed[prep.id] === false ? <ChevronUp size={16} className="text-stone-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />}
-                  <div>
-                    <h3 className="text-stone-800 font-medium text-sm">{prep.nombre}</h3>
-                    <p className="text-stone-500 text-xs mt-0.5">
-                      {prep.capacidad && `Rinde: ${parseFloat(prep.capacidad)} ${prep.unidad_capacidad || prep.unidad || ''} — `}
-                      {(prep.insumos || []).length} insumos
-                      {totalCosto > 0 && <span className="text-[var(--accent)] ml-2 font-semibold">{formatCurrency(totalCosto)}</span>}
-                    </p>
+      {/* List — ONE card with divide-y (Airbnb accordion) */}
+      {preps.length === 0 ? (
+        <div className={`${cx.card} p-12 text-center`}>
+          <p className="text-stone-400 text-sm">No hay preparaciones guardadas</p>
+        </div>
+      ) : (
+        <div className={`${cx.card} divide-y divide-stone-100`}>
+          {preps.map((prep) => {
+            const totalCosto = (prep.insumos || []).reduce((s, ins) => {
+              const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+              const cu = costoEnUsoUnidad({ ...ins, costo_unitario: cuBase });
+              return s + cu * (parseFloat(ins.cantidad) || 0);
+            }, 0);
+            const isExpanded = collapsed[prep.id] === false;
+            return (
+              <div key={prep.id} className="p-5">
+                {/* Clickable header */}
+                <div
+                  className="flex items-center justify-between cursor-pointer"
+                  onClick={() => setCollapsed((prev) => ({ ...prev, [prep.id]: prev[prep.id] === false ? true : false }))}
+                >
+                  <div className="flex items-center gap-3">
+                    {isExpanded
+                      ? <ChevronUp size={16} className="text-stone-400 flex-shrink-0" />
+                      : <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />
+                    }
+                    <div>
+                      <span className="text-sm font-semibold text-stone-900">{prep.nombre}</span>
+                      {prep.capacidad && (
+                        <span className="text-xs text-stone-500 ml-2">
+                          Rinde {parseFloat(prep.capacidad)} {prep.unidad_capacidad || prep.unidad || ''}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                    {totalCosto > 0 && (
+                      <span className="text-sm font-semibold text-[var(--accent)]">{formatCurrency(totalCosto)}</span>
+                    )}
+                    <button onClick={() => startEdit(prep)} className={cx.btnIcon}><Pencil size={15} /></button>
+                    <button onClick={() => setDeleteTarget(prep)} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={15} /></button>
                   </div>
                 </div>
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => startEdit(prep)} className={cx.btnIcon}><Pencil size={15} /></button>
-                  <button onClick={() => setDeleteTarget(prep)} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={15} /></button>
-                </div>
+                {/* Collapsed content */}
+                {isExpanded && (prep.insumos || []).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-stone-100">
+                    <div className="border border-stone-100 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-stone-50">
+                            <th className="text-left px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Insumo</th>
+                            <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Cant.</th>
+                            <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">C.Unit</th>
+                            <th className="text-right px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {prep.insumos.map((ins, i) => {
+                            const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+                            const cu = costoEnUsoUnidad({ ...ins, costo_unitario: cuBase });
+                            const cant = parseFloat(ins.cantidad) || 0;
+                            const unidadMostrar = normU(ins.uso_unidad) || normU(ins.unidad_medida) || '';
+                            return (
+                              <tr key={i} className="border-t border-stone-50">
+                                <td className="px-3 py-2 text-stone-800">{ins.nombre || `Insumo #${ins.insumo_id}`}</td>
+                                <td className="px-3 py-2 text-center text-stone-600">{cant} {unidadMostrar}</td>
+                                <td className="px-3 py-2 text-center text-stone-500">{formatCurrency(cu)}</td>
+                                <td className="px-3 py-2 text-right text-stone-800 font-medium">{formatCurrency(cu * cant)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
-              {collapsed[prep.id] === false && (prep.insumos || []).length > 0 && (
-                <div className="mt-3 pt-3 border-t border-stone-200 space-y-1">
-                  {prep.insumos.map((ins, i) => {
-                    const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
-                    const cu = costoEnUsoUnidad({ ...ins, costo_unitario: cuBase });
-                    const cant = parseFloat(ins.cantidad) || 0;
-                    const unidadMostrar = normU(ins.uso_unidad) || normU(ins.unidad_medida) || '';
-                    return (
-                      <div key={i} className="flex justify-between text-xs">
-                        <span className="text-stone-500">{ins.nombre || `Insumo #${ins.insumo_id}`}</span>
-                        <span className="text-stone-400">
-                          {cant} {unidadMostrar} × {formatCurrency(cu)} = <span className="text-stone-800">{formatCurrency(cu * cant)}</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!deleteTarget}

@@ -16,7 +16,6 @@ import {
   Grid3X3,
   LayoutList,
   Download,
-  MoreVertical,
 } from 'lucide-react';
 
 function normU(u) { if (!u) return ''; if (u === 'l') return 'L'; return u; }
@@ -231,42 +230,10 @@ export default function DashboardPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-stone-900">Mis Productos</h2>
-          <p className="text-stone-500 text-sm mt-0.5">{products.length} productos</p>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={exportExcel}
-            disabled={exporting}
-            className={cx.btnSecondary + ' flex items-center gap-2'}
-            title="Exportar recetas completas"
-          >
-            {exporting ? <div className="w-4 h-4 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" /> : <Download size={16} />}
-          </button>
-          <button
-            onClick={() => navigate('/cotizador')}
-            className={cx.btnPrimary + ' flex items-center gap-2'}
-          >
-            <Plus size={16} />
-            Nuevo Producto
-          </button>
-        </div>
-      </div>
-
-      {products.length > 0 && (
-        <div className="mb-4 flex gap-2 items-center">
-          <div className="relative flex-1">
-            <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="Buscar producto..."
-              className={cx.input + ' pl-9'}
-            />
-          </div>
+      {/* Header — Apple style */}
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold text-stone-900">Mis productos</h1>
+        <div className="flex items-center gap-3">
           <button
             onClick={() => setViewMode('gallery')}
             className={`${cx.btnIcon} ${viewMode === 'gallery' ? 'text-[var(--accent)]' : ''}`}
@@ -281,6 +248,35 @@ export default function DashboardPage() {
           >
             <LayoutList size={18} />
           </button>
+          <button
+            onClick={exportExcel}
+            disabled={exporting}
+            className={cx.btnSecondary + ' flex items-center gap-2'}
+            title="Exportar recetas completas"
+          >
+            {exporting ? <div className="w-4 h-4 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" /> : <Download size={16} />}
+          </button>
+          <button
+            onClick={() => navigate('/cotizador')}
+            className={cx.btnPrimary + ' flex items-center gap-2'}
+          >
+            <Plus size={16} />
+            Nuevo
+          </button>
+        </div>
+      </div>
+
+      {/* Search — Airbnb style */}
+      {products.length > 0 && (
+        <div className="relative mb-6">
+          <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Buscar producto..."
+            className={cx.input + ' pl-11'}
+          />
         </div>
       )}
 
@@ -291,23 +287,23 @@ export default function DashboardPage() {
         const renderGalleryGrid = (prods) => (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {prods.map((p) => (
-              <div key={p.id} className={`${cx.card} overflow-hidden cursor-pointer group relative`} onClick={() => handleDetail(p)}>
+              <div key={p.id} className={`${cx.cardHover} overflow-hidden group relative`} onClick={() => handleDetail(p)}>
                 {p.tipo_presentacion === 'entero' && p.unidades_por_producto > 1 && (
                   <span className="absolute top-2 left-2 bg-[var(--accent)] text-white text-[10px] font-bold px-2 py-0.5 rounded-lg z-10">
                     {p.unidades_por_producto} porciones
                   </span>
                 )}
                 {p.imagen_url ? (
-                  <div className="aspect-[4/3] bg-stone-100 overflow-hidden">
-                    <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                  <div className="aspect-[4/3] bg-stone-100 rounded-t-xl overflow-hidden">
+                    <img src={p.imagen_url} alt={p.nombre} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                   </div>
                 ) : (
-                  <div className="aspect-[4/3] bg-stone-100 flex items-center justify-center">
+                  <div className="aspect-[4/3] bg-stone-100 rounded-t-xl flex items-center justify-center">
                     <Package size={32} className="text-stone-300" />
                   </div>
                 )}
                 <div className="p-3">
-                  <h3 className="text-stone-800 text-sm font-medium truncate">{p.nombre}</h3>
+                  <h3 className="text-sm font-semibold text-stone-900 truncate">{p.nombre}</h3>
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-stone-400 text-xs">Margen: {formatPercent(p.margen)}</span>
                     <span className="text-[var(--accent)] font-bold text-sm">{formatCurrency(precioComercial(p.precio_final))}</span>
@@ -418,10 +414,7 @@ export default function DashboardPage() {
           if (prods.length === 0) return null;
           return (
             <div className={label === 'Presentaciones enteras' ? 'mb-8' : ''}>
-              <div className="flex items-center gap-2 mb-4">
-                <span className="text-xs font-semibold text-stone-500 uppercase tracking-wider">{label}</span>
-                <span className="text-xs text-stone-400">({prods.length})</span>
-              </div>
+              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4">{label} ({prods.length})</p>
               {viewMode === 'gallery' && renderGalleryGrid(prods)}
               {viewMode === 'table' && (
                 <>
@@ -464,10 +457,10 @@ export default function DashboardPage() {
 
       {/* History modal */}
       {historyModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => { setHistoryModal(null); setSelectedVersion(null); setConfirmRestore(null); }} />
-          <div className={`${cx.card} relative p-6 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto`}>
-            <h3 className="text-stone-800 font-semibold mb-4">Historial: {historyModal.nombre}</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setHistoryModal(null); setSelectedVersion(null); setConfirmRestore(null); }} />
+          <div className="relative bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl p-6">
+            <h3 className="text-lg font-bold text-stone-900 mb-4">Historial: {historyModal.nombre}</h3>
 
             {history.length === 0 ? (
               <p className="text-stone-400 text-sm">Sin historial disponible.</p>
@@ -481,7 +474,7 @@ export default function DashboardPage() {
                   </p>
                   <p className="text-stone-400 text-xs mt-2">Se creara una nueva version con los valores restaurados. Los datos actuales no se pierden.</p>
                 </div>
-                <div className="flex gap-2">
+                <div className="flex gap-3">
                   <button
                     onClick={async () => {
                       try {
@@ -511,7 +504,7 @@ export default function DashboardPage() {
                   ← Volver al listado
                 </button>
                 <div className="flex items-center justify-between">
-                  <h4 className="text-stone-600 text-sm font-semibold">Version {selectedVersion.version} — {selectedVersion.motivo}</h4>
+                  <h4 className="text-sm font-semibold text-stone-800">Version {selectedVersion.version} — {selectedVersion.motivo}</h4>
                   <span className="text-stone-400 text-xs">{formatDate(selectedVersion.created_at)}</span>
                 </div>
 
@@ -529,14 +522,14 @@ export default function DashboardPage() {
                     { key: 'precio_final', label: 'Precio final', fmt: formatCurrency },
                   ];
                   return (
-                    <div className="bg-stone-100 rounded-xl overflow-hidden">
+                    <div className="border border-stone-100 rounded-lg overflow-hidden">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="text-stone-400 text-[10px] uppercase tracking-wider">
-                            <th className="text-left px-3 py-2">Campo</th>
-                            <th className="text-center px-3 py-2">Esta version</th>
-                            <th className="text-center px-3 py-2">Actual</th>
-                            <th className="text-center px-3 py-2">Cambio</th>
+                          <tr className="bg-stone-50">
+                            <th className="text-left px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Campo</th>
+                            <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Esta version</th>
+                            <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Actual</th>
+                            <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Cambio</th>
                           </tr>
                         </thead>
                         <tbody>
@@ -545,7 +538,7 @@ export default function DashboardPage() {
                             const currVal = current[f.key];
                             const changed = String(snapVal) !== String(currVal);
                             const display = f.fmt || ((v) => v ?? '-');
-                            // Variación: actual vs esta versión
+                            // Variacion: actual vs esta version
                             let variacion = null;
                             if (f.key !== 'nombre' && changed) {
                               const sv = Number(snapVal) || 0;
@@ -561,7 +554,7 @@ export default function DashboardPage() {
                               }
                             }
                             return (
-                              <tr key={f.key} className="border-t border-stone-200">
+                              <tr key={f.key} className="border-t border-stone-100">
                                 <td className="px-3 py-2 text-stone-500">{f.label}</td>
                                 <td className="px-3 py-2 text-center text-stone-800 font-medium">{display(snapVal)}</td>
                                 <td className="px-3 py-2 text-center text-stone-500">{display(currVal)}</td>
@@ -573,7 +566,7 @@ export default function DashboardPage() {
                                   ) : changed ? (
                                     <span className="text-amber-600 text-xs">Cambio</span>
                                   ) : (
-                                    <span className="text-stone-400 text-xs">—</span>
+                                    <span className="text-stone-400 text-xs">--</span>
                                   )}
                                 </td>
                               </tr>
@@ -602,7 +595,7 @@ export default function DashboardPage() {
                   <button
                     key={i}
                     onClick={() => setSelectedVersion(h)}
-                    className="w-full text-left border-l-2 border-stone-200 hover:border-[var(--accent)] pl-3 py-2 rounded-r-lg hover:bg-stone-100 transition-all"
+                    className="w-full text-left border-l-2 border-stone-200 hover:border-[var(--accent)] pl-3 py-2 rounded-r-lg hover:bg-stone-50 transition-all"
                   >
                     <div className="flex justify-between items-start">
                       <div>
@@ -622,126 +615,145 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <button onClick={() => { setHistoryModal(null); setSelectedVersion(null); setConfirmRestore(null); }} className={cx.btnSecondary + ' mt-4 w-full'}>
+            <button onClick={() => { setHistoryModal(null); setSelectedVersion(null); setConfirmRestore(null); }} className={cx.btnSecondary + ' mt-6 w-full'}>
               Cerrar
             </button>
           </div>
         </div>
       )}
 
-      {/* Detail modal */}
+      {/* Detail modal — Airbnb listing style */}
       {detailModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center">
-          <div className="absolute inset-0 bg-black/60" onClick={() => { setDetailModal(null); setDetailData(null); }} />
-          <div className={`${cx.card} relative p-6 w-full max-w-2xl mx-4 max-h-[85vh] overflow-y-auto`}>
-            <div className="flex items-start gap-4 mb-5">
-              {detailModal.imagen_url ? (
-                <img src={detailModal.imagen_url} alt={detailModal.nombre} className="w-20 h-20 rounded-xl object-cover flex-shrink-0" />
-              ) : (
-                <div className="w-20 h-20 rounded-xl bg-stone-100 flex items-center justify-center flex-shrink-0">
-                  <Package size={28} className="text-stone-300" />
-                </div>
-              )}
-              <div className="flex-1">
-                <h3 className="text-stone-800 font-bold text-lg">{detailModal.nombre}</h3>
-                <div className="flex gap-4 mt-1 text-sm">
-                  <span className="text-stone-500">Margen: {formatPercent(detailModal.margen)}</span>
-                  <span className="text-[var(--accent)] font-bold">{formatCurrency(detailModal.precio_final)}</span>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => { setDetailModal(null); setDetailData(null); }} />
+          <div className="relative bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] overflow-y-auto shadow-2xl">
+
+            {/* Header with image */}
+            {detailModal.imagen_url ? (
+              <div className="aspect-[3/1] bg-stone-100 rounded-t-2xl overflow-hidden">
+                <img src={detailModal.imagen_url} alt="" className="w-full h-full object-cover" />
               </div>
-            </div>
-
-            {!detailData ? (
-              <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className={cx.skeleton + ' h-10'} />)}</div>
             ) : (
-              <>
-                {/* Preparaciones */}
-                {(detailData.preparaciones || []).map((prep, pi) => (
-                  <div key={pi} className="mb-4">
-                    <h4 className="text-sm font-semibold text-stone-600 mb-2">
-                      {prep.nombre || `Preparacion ${pi + 1}`}
-                      {prep.capacidad && <span className="text-stone-400 font-normal"> — {parseFloat(prep.capacidad)} {prep.unidad_capacidad || ''}</span>}
-                    </h4>
-                    <div className="bg-stone-100 rounded-xl overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="text-stone-400 text-[10px] uppercase tracking-wider">
-                            <th className="text-left px-3 py-2">Insumo</th>
-                            <th className="text-center px-3 py-2">Cantidad</th>
-                            <th className="text-center px-3 py-2">Costo Unit.</th>
-                            <th className="text-right px-3 py-2">Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(prep.insumos || []).map((ins, ii) => {
-                            const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
-                            const cu = costoConvertido(cuBase, ins.unidad_medida, ins.uso_unidad);
-                            const cant = parseFloat(ins.cantidad_usada || ins.cantidad) || 0;
-                            return (
-                              <tr key={ii} className="border-t border-stone-200">
-                                <td className="px-3 py-2 text-stone-800">{ins.nombre} <span className="text-stone-400 text-xs">{ins.uso_unidad || ins.unidad_medida}</span></td>
-                                <td className="px-3 py-2 text-center text-stone-600">{cant}</td>
-                                <td className="px-3 py-2 text-center text-stone-500">{formatCurrency(cu)}</td>
-                                <td className="px-3 py-2 text-right text-stone-800">{formatCurrency(cu * cant)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                ))}
-
-                {/* Materiales */}
-                {(detailData.materiales || []).length > 0 && (
-                  <div className="mb-4">
-                    <h4 className="text-sm font-semibold text-stone-600 mb-2">Empaque / Materiales</h4>
-                    <div className="bg-stone-100 rounded-xl overflow-hidden">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="text-stone-400 text-[10px] uppercase tracking-wider">
-                            <th className="text-left px-3 py-2">Material</th>
-                            <th className="text-center px-3 py-2">Cantidad</th>
-                            <th className="text-center px-3 py-2">Precio Unit.</th>
-                            <th className="text-right px-3 py-2">Subtotal</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {(detailData.materiales || []).map((mat, mi) => {
-                            const pu = Number(mat.cantidad_presentacion) > 0 ? Number(mat.precio_presentacion) / Number(mat.cantidad_presentacion) : 0;
-                            const cant = parseFloat(mat.cantidad) || 0;
-                            return (
-                              <tr key={mi} className="border-t border-stone-200">
-                                <td className="px-3 py-2 text-stone-800">{mat.nombre} <span className="text-stone-400 text-xs">{mat.unidad_medida}</span></td>
-                                <td className="px-3 py-2 text-center text-stone-600">{cant}</td>
-                                <td className="px-3 py-2 text-center text-stone-500">{formatCurrency(pu)}</td>
-                                <td className="px-3 py-2 text-right text-stone-800">{formatCurrency(pu * cant)}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </div>
-                )}
-
-                {/* Totals */}
-                <div className="bg-stone-100 rounded-xl p-4 space-y-2 mt-4">
-                  <div className="flex justify-between text-sm"><span className="text-stone-500">Costo insumos</span><span className="text-stone-800">{formatCurrency(detailData.costo_insumos)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-stone-500">Costo empaque</span><span className="text-stone-800">{formatCurrency(detailData.costo_empaque)}</span></div>
-                  <div className="flex justify-between text-sm font-semibold border-t border-stone-200 pt-2"><span className="text-stone-600">Costo neto</span><span className="text-stone-800">{formatCurrency(detailData.costo_neto)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-stone-500">Margen</span><span className="text-stone-800">{formatPercent(detailData.margen)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-stone-500">Precio venta</span><span className="text-stone-800">{formatCurrency(detailData.precio_venta)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-stone-500">IGV ({(Number(detailData.igv_rate) < 1 ? Number(detailData.igv_rate) * 100 : Number(detailData.igv_rate)).toFixed(1)}%)</span><span className="text-stone-800">{formatCurrency(Number(detailData.precio_final) - Number(detailData.precio_venta))}</span></div>
-                  <div className="flex justify-between text-base font-bold border-t border-stone-200 pt-2"><span className="text-stone-600">Precio final</span><span className="text-[var(--accent)]">{formatCurrency(detailData.precio_final)}</span></div>
-                  <div className="flex justify-between text-sm mt-1"><span className="text-stone-400">Sugerido</span><span className="text-[var(--success)] font-semibold">{formatCurrency(precioComercial(detailData.precio_final))}</span></div>
-                </div>
-              </>
+              <div className="aspect-[3/1] bg-stone-100 rounded-t-2xl flex items-center justify-center">
+                <Package size={48} className="text-stone-300" />
+              </div>
             )}
 
-            <div className="flex gap-2 mt-5">
-              <button onClick={() => navigate(`/cotizador/${detailModal.id}`)} className={cx.btnPrimary + ' flex-1 flex items-center justify-center gap-2'}><Pencil size={14} /> Editar</button>
-              <button onClick={() => { setDetailModal(null); setDetailData(null); }} className={cx.btnSecondary + ' flex-1'}>Cerrar</button>
+            {/* Content */}
+            <div className="p-6">
+              <div className="flex items-start justify-between mb-6">
+                <div>
+                  <h2 className="text-xl font-bold text-stone-900">{detailModal.nombre}</h2>
+                  <p className="text-sm text-stone-500 mt-1">Margen: {formatPercent(detailModal.margen)}</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-2xl font-bold text-stone-900">{formatCurrency(precioComercial(detailModal.precio_final))}</p>
+                  <p className="text-xs text-stone-400">Precio sugerido</p>
+                </div>
+              </div>
+
+              {!detailData ? (
+                <div className="space-y-3">{[1,2,3].map((i) => <div key={i} className={cx.skeleton + ' h-10'} />)}</div>
+              ) : (
+                <>
+                  {/* Preparaciones */}
+                  {(detailData.preparaciones || []).map((prep, pi) => (
+                    <div key={pi} className="mb-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-semibold text-stone-800">{prep.nombre || `Preparacion ${pi + 1}`}</h4>
+                        {prep.capacidad && <span className="text-xs text-stone-400">{parseFloat(prep.capacidad)} {prep.unidad_capacidad || ''}</span>}
+                      </div>
+                      <div className="border border-stone-100 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-stone-50">
+                              <th className="text-left px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Insumo</th>
+                              <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Cant.</th>
+                              <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">C.Unit</th>
+                              <th className="text-right px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(prep.insumos || []).map((ins, ii) => {
+                              const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+                              const cu = costoConvertido(cuBase, ins.unidad_medida, ins.uso_unidad);
+                              const cant = parseFloat(ins.cantidad_usada || ins.cantidad) || 0;
+                              return (
+                                <tr key={ii} className="border-t border-stone-100">
+                                  <td className="px-3 py-2 text-stone-800">{ins.nombre} <span className="text-stone-400 text-xs">{ins.uso_unidad || ins.unidad_medida}</span></td>
+                                  <td className="px-3 py-2 text-center text-stone-600">{cant}</td>
+                                  <td className="px-3 py-2 text-center text-stone-500">{formatCurrency(cu)}</td>
+                                  <td className="px-3 py-2 text-right text-stone-800">{formatCurrency(cu * cant)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ))}
+
+                  {/* Materiales */}
+                  {(detailData.materiales || []).length > 0 && (
+                    <div className="mb-5">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-sm font-semibold text-stone-800">Empaque / Materiales</h4>
+                      </div>
+                      <div className="border border-stone-100 rounded-lg overflow-hidden">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-stone-50">
+                              <th className="text-left px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Material</th>
+                              <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Cant.</th>
+                              <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">P.Unit</th>
+                              <th className="text-right px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {(detailData.materiales || []).map((mat, mi) => {
+                              const pu = Number(mat.cantidad_presentacion) > 0 ? Number(mat.precio_presentacion) / Number(mat.cantidad_presentacion) : 0;
+                              const cant = parseFloat(mat.cantidad) || 0;
+                              return (
+                                <tr key={mi} className="border-t border-stone-100">
+                                  <td className="px-3 py-2 text-stone-800">{mat.nombre} <span className="text-stone-400 text-xs">{mat.unidad_medida}</span></td>
+                                  <td className="px-3 py-2 text-center text-stone-600">{cant}</td>
+                                  <td className="px-3 py-2 text-center text-stone-500">{formatCurrency(pu)}</td>
+                                  <td className="px-3 py-2 text-right text-stone-800">{formatCurrency(pu * cant)}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Cost summary */}
+                  <div className="border-t border-stone-200 pt-5 mt-5 space-y-2">
+                    <div className="flex justify-between text-sm"><span className="text-stone-500">Costo insumos</span><span className="text-stone-800 font-medium">{formatCurrency(detailData.costo_insumos)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-stone-500">Costo empaque</span><span className="text-stone-800 font-medium">{formatCurrency(detailData.costo_empaque)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-stone-500">Costo neto</span><span className="text-stone-800 font-medium">{formatCurrency(detailData.costo_neto)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-stone-500">Margen</span><span className="text-stone-800 font-medium">{formatPercent(detailData.margen)}</span></div>
+                    <div className="flex justify-between text-sm"><span className="text-stone-500">IGV ({(Number(detailData.igv_rate) < 1 ? Number(detailData.igv_rate) * 100 : Number(detailData.igv_rate)).toFixed(1)}%)</span><span className="text-stone-800 font-medium">{formatCurrency(Number(detailData.precio_final) - Number(detailData.precio_venta))}</span></div>
+                    <div className="flex justify-between text-base font-bold pt-2 border-t border-stone-100">
+                      <span className="text-stone-800">Precio final</span>
+                      <span className="text-stone-900">{formatCurrency(detailData.precio_final)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-stone-400">Sugerido</span>
+                      <span className="text-[var(--success)] font-semibold">{formatCurrency(precioComercial(detailData.precio_final))}</span>
+                    </div>
+                  </div>
+
+                  {/* Action buttons */}
+                  <div className="flex gap-3 mt-6">
+                    <button onClick={() => navigate(`/cotizador/${detailModal.id}`)} className={cx.btnPrimary + ' flex-1 flex items-center justify-center gap-2'}>
+                      <Pencil size={14} /> Editar
+                    </button>
+                    <button onClick={() => { setDetailModal(null); setDetailData(null); }} className={cx.btnSecondary + ' flex-1'}>Cerrar</button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>

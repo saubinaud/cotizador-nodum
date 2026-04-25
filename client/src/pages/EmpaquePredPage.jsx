@@ -143,13 +143,11 @@ export default function EmpaquePredPage() {
 
   return (
     <div>
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <div>
-          <h2 className="text-2xl font-bold text-stone-900">Empaques Predeterminados</h2>
-          <p className="text-stone-500 text-sm mt-0.5">{empaques.length} empaques</p>
-        </div>
+      {/* Page header */}
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold text-stone-900">Empaques predeterminados</h1>
         <button onClick={startNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
-          <Plus size={16} /> Nuevo Empaque
+          <Plus size={14} /> Nuevo
         </button>
       </div>
 
@@ -281,51 +279,82 @@ export default function EmpaquePredPage() {
         </div>
       )}
 
-      {/* List */}
-      <div className="space-y-3">
-        {empaques.map((emp) => {
-          const totalCosto = (emp.materiales || []).reduce((s, m) => {
-            const pu = Number(m.cantidad_presentacion) > 0 ? Number(m.precio_presentacion) / Number(m.cantidad_presentacion) : 0;
-            return s + pu * (parseFloat(m.cantidad) || 0);
-          }, 0);
-          return (
-            <div key={emp.id} className={`${cx.card} p-5`}>
-              <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [emp.id]: prev[emp.id] === false ? true : false }))}>
-                <div className="flex items-center gap-2 flex-1">
-                  {collapsed[emp.id] === false ? <ChevronUp size={16} className="text-stone-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />}
-                  <div>
-                    <h3 className="text-stone-800 font-medium text-sm">{emp.nombre}</h3>
-                    <p className="text-stone-500 text-xs mt-0.5">
-                      {(emp.materiales || []).length} materiales
-                      {totalCosto > 0 && <span className="text-[var(--accent)] ml-2 font-semibold">{formatCurrency(totalCosto)}</span>}
-                    </p>
+      {/* List — ONE card with divide-y (Airbnb accordion) */}
+      {empaques.length === 0 ? (
+        <div className={`${cx.card} p-12 text-center`}>
+          <p className="text-stone-400 text-sm">No hay empaques guardados</p>
+        </div>
+      ) : (
+        <div className={`${cx.card} divide-y divide-stone-100`}>
+          {empaques.map((emp) => {
+            const totalCosto = (emp.materiales || []).reduce((s, m) => {
+              const pu = Number(m.cantidad_presentacion) > 0 ? Number(m.precio_presentacion) / Number(m.cantidad_presentacion) : 0;
+              return s + pu * (parseFloat(m.cantidad) || 0);
+            }, 0);
+            const isExpanded = collapsed[emp.id] === false;
+            return (
+              <div key={emp.id} className="p-5">
+                {/* Clickable header */}
+                <div
+                  className="flex items-center justify-between cursor-pointer"
+                  onClick={() => setCollapsed((prev) => ({ ...prev, [emp.id]: prev[emp.id] === false ? true : false }))}
+                >
+                  <div className="flex items-center gap-3">
+                    {isExpanded
+                      ? <ChevronUp size={16} className="text-stone-400 flex-shrink-0" />
+                      : <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />
+                    }
+                    <div>
+                      <span className="text-sm font-semibold text-stone-900">{emp.nombre}</span>
+                      <span className="text-xs text-stone-500 ml-2">
+                        {(emp.materiales || []).length} materiales
+                      </span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+                    {totalCosto > 0 && (
+                      <span className="text-sm font-semibold text-[var(--accent)]">{formatCurrency(totalCosto)}</span>
+                    )}
+                    <button onClick={() => startEdit(emp)} className={cx.btnIcon}><Pencil size={15} /></button>
+                    <button onClick={() => setDeleteTarget(emp)} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={15} /></button>
                   </div>
                 </div>
-                <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => startEdit(emp)} className={cx.btnIcon}><Pencil size={15} /></button>
-                  <button onClick={() => setDeleteTarget(emp)} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={15} /></button>
-                </div>
+                {/* Collapsed content */}
+                {isExpanded && (emp.materiales || []).length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-stone-100">
+                    <div className="border border-stone-100 rounded-lg overflow-hidden">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-stone-50">
+                            <th className="text-left px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Material</th>
+                            <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Cant.</th>
+                            <th className="text-center px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">P.Unit</th>
+                            <th className="text-right px-3 py-2 text-[10px] font-semibold text-stone-400 uppercase">Total</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {emp.materiales.map((m, i) => {
+                            const pu = Number(m.cantidad_presentacion) > 0 ? Number(m.precio_presentacion) / Number(m.cantidad_presentacion) : 0;
+                            const cant = parseFloat(m.cantidad) || 0;
+                            return (
+                              <tr key={i} className="border-t border-stone-50">
+                                <td className="px-3 py-2 text-stone-800">{m.nombre || `Material #${m.material_id}`}</td>
+                                <td className="px-3 py-2 text-center text-stone-600">{cant} {m.unidad_medida || ''}</td>
+                                <td className="px-3 py-2 text-center text-stone-500">{formatCurrency(pu)}</td>
+                                <td className="px-3 py-2 text-right text-stone-800 font-medium">{formatCurrency(pu * cant)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                )}
               </div>
-              {collapsed[emp.id] === false && (emp.materiales || []).length > 0 && (
-                <div className="mt-3 pt-3 border-t border-stone-200 space-y-1">
-                  {emp.materiales.map((m, i) => {
-                    const pu = Number(m.cantidad_presentacion) > 0 ? Number(m.precio_presentacion) / Number(m.cantidad_presentacion) : 0;
-                    const cant = parseFloat(m.cantidad) || 0;
-                    return (
-                      <div key={i} className="flex justify-between text-xs">
-                        <span className="text-stone-500">{m.nombre || `Material #${m.material_id}`}</span>
-                        <span className="text-stone-400">
-                          {cant} {m.unidad_medida || ''} × {formatCurrency(pu)} = <span className="text-stone-800">{formatCurrency(pu * cant)}</span>
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       <ConfirmDialog
         open={!!deleteTarget}
