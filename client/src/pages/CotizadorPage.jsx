@@ -606,13 +606,13 @@ export default function CotizadorPage() {
                 onChange={(item) => selectMaterial(mat._id, item)}
                 placeholder="Seleccionar material..."
               />
-              <div className="flex gap-2 items-center">
+              <div className="flex flex-wrap gap-2 items-center">
                 <input
                   type="number"
                   value={mat.cantidad}
                   onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
                   placeholder="Cant."
-                  className="w-full max-w-[7rem] bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
+                  className="w-full max-w-[8rem] bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                 />
                 <span className="text-stone-400 text-xs">{mat.unidad_medida || ''}</span>
                 <span className="text-stone-400 text-xs">x {formatCurrency(mat.precio)}</span>
@@ -711,12 +711,12 @@ export default function CotizadorPage() {
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Left column: main form */}
-        <div className="xl:col-span-2 space-y-8">
+        <div className="xl:col-span-2 space-y-5 lg:space-y-8">
 
           {/* ── Producto ── */}
           <div>
             <h3 className="text-lg font-semibold text-stone-900 mb-4">Producto<InfoTip text="Define el nombre y tipo de presentacion. Si vendes un producto entero (torta, pie), indica cuantas porciones tiene." /></h3>
-            <div className={`${cx.card} p-6`}>
+            <div className={`${cx.card} p-4 sm:p-6`}>
               <div className={`grid gap-4 grid-cols-1 ${tipoPresentacion === 'entero' ? 'sm:grid-cols-[9fr_7fr_4fr]' : 'sm:grid-cols-[3fr_2fr]'}`}>
                 <div>
                   <label className={cx.label}>Nombre del producto</label>
@@ -764,7 +764,7 @@ export default function CotizadorPage() {
             {/* Single card with divide-y for all preps */}
             <div className={`${cx.card} divide-y divide-stone-100`}>
               {preparaciones.map((prep) => (
-                <div key={prep._id} className="p-5">
+                <div key={prep._id} className="p-3 sm:p-5">
                   {/* Header row — click to collapse */}
                   <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleCollapse(prep._id)}>
                     <div className="flex items-center gap-3">
@@ -829,19 +829,19 @@ export default function CotizadorPage() {
                               onChange={(item) => selectInsumo(prep._id, ins._id, item)}
                               placeholder="Seleccionar insumo..."
                             />
-                            <div className="flex gap-2 items-center">
+                            <div className="flex flex-wrap gap-2 items-center">
                               <input
                                 type="number"
                                 value={ins.cantidad}
                                 onChange={(e) => updateInsumo(prep._id, ins._id, { cantidad: e.target.value })}
                                 placeholder="Cant."
-                                className="w-full max-w-[7rem] bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
+                                className="w-full max-w-[8rem] bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                               />
                               <CustomSelect
                                 value={ins.uso_unidad || ins.unidad_medida || ''}
                                 onChange={(v) => updateInsumo(prep._id, ins._id, { uso_unidad: v })}
                                 options={getUnidadesCompatibles(ins.unidad_medida).map(u => ({ value: u, label: u }))}
-                                compact className="w-14"
+                                compact className="w-16"
                               />
                               <span className="text-stone-400 text-xs">x {formatCurrency(costoEnUsoUnidad(ins))}</span>
                               <span className="ml-auto text-stone-800 text-sm font-medium">
@@ -945,7 +945,7 @@ export default function CotizadorPage() {
           {/* ── Composicion del producto — light bg section ── */}
           <div>
             <h3 className="text-lg font-semibold text-stone-900 mb-4">Composicion del producto<InfoTip text="Indica cuantos gramos/ml de cada preparacion necesitas para hacer UN producto completo. El sistema calculara automaticamente cuantos productos puedes hacer por tanda y el costo." /></h3>
-            <div className="bg-stone-50 rounded-xl p-5">
+            <div className="bg-stone-50 rounded-xl p-3 sm:p-5">
               {preparaciones.filter(p => p.nombre).length === 0 ? (
                 <p className="text-stone-400 text-sm text-center py-4">Agrega preparaciones arriba para definir la composicion.</p>
               ) : (
@@ -1017,7 +1017,7 @@ export default function CotizadorPage() {
                             <div>
                               <label className={cx.label}>Para el producto</label>
                               <div className="flex items-center gap-1">
-                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-full max-w-[7rem] bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" placeholder="0" />
+                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-full max-w-[8rem] bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" placeholder="0" />
                                 <CustomSelect
                                   value={prep.porcion_unidad || prep.unidad || ''}
                                   onChange={(v) => updatePreparacion(prep._id, 'porcion_unidad', v)}
@@ -1118,7 +1118,7 @@ export default function CotizadorPage() {
 
         {/* ── Right column: Resumen — premium sticky card ── */}
         <div className="xl:col-span-1 xl:self-start xl:sticky xl:top-6">
-          <div className={`${cx.card} p-6`}>
+          <div className={`${cx.card} p-4 sm:p-6`}>
             <h3 className="text-lg font-semibold text-stone-900 mb-5">Resumen<InfoTip text="El costo neto incluye insumos + empaque. El margen define tu ganancia. El precio sugerido redondea a un valor comercial (.90 o .00)." /></h3>
 
             {tipoPresentacion === 'entero' ? (
