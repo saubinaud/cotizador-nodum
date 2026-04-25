@@ -361,7 +361,7 @@ export default function PrepPredPage() {
                         value={ins.cantidad}
                         onChange={(e) => updateInsumo(ins._id, 'cantidad', e.target.value)}
                         placeholder="0"
-                        className="w-20 bg-white rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                        className="w-24 bg-white rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
                       />
                       <CustomSelect
                         value={ins.uso_unidad || ins.unidad_medida || ''}

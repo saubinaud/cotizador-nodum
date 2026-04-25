@@ -1,6 +1,16 @@
 @import "tailwindcss";
 @source ".";
 
+/* Hide number input spinners */
+input[type="number"]::-webkit-inner-spin-button,
+input[type="number"]::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"] {
+  -moz-appearance: textfield;
+}
+
 :root {
   --accent: #e8590c;
   --accent-hover: #c2410c;

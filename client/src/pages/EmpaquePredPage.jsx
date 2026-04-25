@@ -241,7 +241,7 @@ export default function EmpaquePredPage() {
                         value={mat.cantidad}
                         onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
                         placeholder="1"
-                        className="w-20 bg-white rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
+                        className="w-24 bg-white rounded-lg px-2 py-2 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30"
                       />
                       <span className="text-stone-400 text-xs">{mat.unidad_medida || ''}</span>
                     </div>
