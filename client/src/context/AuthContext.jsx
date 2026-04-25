@@ -26,7 +26,7 @@ export function AuthProvider({ children }) {
           const u = data.data?.user || data.data || data;
           setUser(u);
           localStorage.setItem('nodum_user', JSON.stringify(u));
-          localStorage.setItem('nodum_moneda_simbolo', getSimbolo(u.moneda));
+          localStorage.setItem('nodum_moneda_simbolo', u.simbolo || 'S/');
         })
         .catch(() => {
           logout();
@@ -54,7 +54,7 @@ export function AuthProvider({ children }) {
     setUser(u);
     localStorage.setItem('nodum_token', t);
     localStorage.setItem('nodum_user', JSON.stringify(u));
-    localStorage.setItem('nodum_moneda_simbolo', getSimbolo(u.moneda));
+    localStorage.setItem('nodum_moneda_simbolo', u.simbolo || 'S/');
     return u;
   }, []);
 

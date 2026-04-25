@@ -58,6 +58,18 @@ async function runMigrations() {
     await client.query(`ALTER TABLE prep_pred_insumos ADD COLUMN IF NOT EXISTS cantidad_base NUMERIC(12,4)`);
     await client.query(`ALTER TABLE prep_pred_insumos ADD COLUMN IF NOT EXISTS costo_linea NUMERIC(12,4)`);
 
+    // paises table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS paises (
+        code VARCHAR(5) PRIMARY KEY,
+        nombre VARCHAR(50) NOT NULL,
+        moneda VARCHAR(5) NOT NULL,
+        simbolo VARCHAR(10) NOT NULL,
+        igv_default NUMERIC(5,4) DEFAULT 0.18
+      )
+    `);
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pais_code VARCHAR(5) REFERENCES paises(code)`);
+
     // preparaciones_predeterminadas — add capacidad/unidad_capacidad
     await client.query(`
       ALTER TABLE preparaciones_predeterminadas

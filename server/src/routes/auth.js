@@ -7,6 +7,17 @@ const auth = require('../middleware/auth');
 
 const router = express.Router();
 
+// GET /api/auth/paises — public, returns countries from DB
+router.get('/paises', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT code, nombre, moneda, simbolo, igv_default FROM paises ORDER BY nombre');
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Paises error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
@@ -47,6 +58,10 @@ router.post('/login', async (req, res) => {
       { expiresIn: '12h' }
     );
 
+    // Get pais data
+    const paisData = await pool.query('SELECT moneda, simbolo FROM paises WHERE code = $1', [user.pais_code || user.pais || 'PE']);
+    const pais = paisData.rows[0] || { moneda: 'PEN', simbolo: 'S/' };
+
     return res.json({
       success: true,
       data: {
@@ -61,8 +76,9 @@ router.post('/login', async (req, res) => {
           ruc: user.ruc,
           razon_social: user.razon_social,
           permisos: user.permisos,
-          pais: user.pais,
-          moneda: user.moneda,
+          pais: user.pais_code || user.pais,
+          moneda: pais.moneda,
+          simbolo: pais.simbolo,
           logo_url: user.logo_url,
         },
       },
@@ -77,7 +93,9 @@ router.post('/login', async (req, res) => {
 router.get('/me', auth, async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, ruc, razon_social, permisos, pais, moneda, logo_url FROM usuarios WHERE id = $1',
+      `SELECT u.id, u.email, u.nombre, u.rol, u.nombre_comercial AS empresa, u.igv_rate, u.ruc, u.razon_social, u.permisos,
+              u.pais_code AS pais, p.moneda, p.simbolo, u.logo_url
+       FROM usuarios u LEFT JOIN paises p ON p.code = u.pais_code WHERE u.id = $1`,
       [req.user.id]
     );
     if (result.rows.length === 0) {
@@ -133,8 +151,7 @@ router.post('/cambiar-password', auth, async (req, res) => {
 // PUT /api/auth/perfil
 router.put('/perfil', auth, async (req, res) => {
   try {
-    const { nombre, nombre_comercial, ruc, razon_social, igv_rate: rawIgv, pais, moneda } = req.body;
-    // Normalize IGV: frontend sends integer (18), DB needs decimal (0.18)
+    const { nombre, nombre_comercial, ruc, razon_social, igv_rate: rawIgv, pais } = req.body;
     const igvDecimal = rawIgv != null ? (Number(rawIgv) > 1 ? Number(rawIgv) / 100 : Number(rawIgv)) : null;
 
     const result = await pool.query(
@@ -144,12 +161,11 @@ router.put('/perfil', auth, async (req, res) => {
         ruc = COALESCE($3, ruc),
         razon_social = COALESCE($4, razon_social),
         igv_rate = COALESCE($5::numeric, igv_rate),
-        pais = COALESCE($6, pais),
-        moneda = COALESCE($7, moneda),
+        pais_code = COALESCE($6, pais_code),
         updated_at = NOW()
-       WHERE id = $8
-       RETURNING id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, ruc, razon_social, permisos, pais, moneda, logo_url`,
-      [nombre || null, nombre_comercial || null, ruc || null, razon_social || null, igvDecimal, pais || null, moneda || null, req.user.id]
+       WHERE id = $7
+       RETURNING id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, ruc, razon_social, permisos, pais_code AS pais, logo_url`,
+      [nombre || null, nombre_comercial || null, ruc || null, razon_social || null, igvDecimal, pais || null, req.user.id]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
@@ -167,7 +183,9 @@ router.put('/perfil', auth, async (req, res) => {
       );
     }
 
-    return res.json({ success: true, data: { user: result.rows[0] } });
+    const paisInfo = await pool.query('SELECT moneda, simbolo FROM paises WHERE code = $1', [result.rows[0].pais || 'PE']);
+    const enriched = { ...result.rows[0], moneda: paisInfo.rows[0]?.moneda || 'PEN', simbolo: paisInfo.rows[0]?.simbolo || 'S/' };
+    return res.json({ success: true, data: { user: enriched } });
   } catch (err) {
     console.error('Update profile error:', err);
     return res.status(500).json({ success: false, error: 'Error interno del servidor' });
