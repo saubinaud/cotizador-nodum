@@ -684,7 +684,7 @@ export default function CotizadorPage() {
   }
 
   return (
-    <div className="max-w-7xl mx-auto overflow-x-hidden pb-12">
+    <div className="max-w-7xl mx-auto pb-12">
       {/* Page header — clean, Apple-style */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-stone-900">
