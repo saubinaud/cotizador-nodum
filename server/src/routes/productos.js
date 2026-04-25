@@ -50,13 +50,15 @@ router.post('/', async (req, res) => {
             );
 
             const insumoData = await client.query(
-              'SELECT precio_presentacion, cantidad_presentacion FROM insumos WHERE id = $1',
+              'SELECT precio_presentacion, cantidad_presentacion, unidad_medida FROM insumos WHERE id = $1',
               [ins.insumo_id]
             );
             if (insumoData.rows.length > 0) {
               allInsumos.push({
                 precio_presentacion: parseFloat(insumoData.rows[0].precio_presentacion),
                 cantidad_presentacion: parseFloat(insumoData.rows[0].cantidad_presentacion),
+                unidad_medida: insumoData.rows[0].unidad_medida,
+                uso_unidad: ins.uso_unidad || insumoData.rows[0].unidad_medida,
                 cantidad_usada: parseFloat(ins.cantidad_usada || ins.cantidad),
               });
             }
@@ -253,13 +255,15 @@ router.put('/:id', async (req, res) => {
               );
 
               const insumoData = await client.query(
-                'SELECT precio_presentacion, cantidad_presentacion FROM insumos WHERE id = $1',
+                'SELECT precio_presentacion, cantidad_presentacion, unidad_medida FROM insumos WHERE id = $1',
                 [ins.insumo_id]
               );
               if (insumoData.rows.length > 0) {
                 allInsumos.push({
                   precio_presentacion: parseFloat(insumoData.rows[0].precio_presentacion),
                   cantidad_presentacion: parseFloat(insumoData.rows[0].cantidad_presentacion),
+                  unidad_medida: insumoData.rows[0].unidad_medida,
+                  uso_unidad: ins.uso_unidad || insumoData.rows[0].unidad_medida,
                   cantidad_usada: parseFloat(ins.cantidad_usada || ins.cantidad),
                 });
               }
@@ -269,7 +273,7 @@ router.put('/:id', async (req, res) => {
       }
     } else {
       const insumosRes = await client.query(
-        `SELECT ppi.cantidad AS cantidad_usada, i.precio_presentacion, i.cantidad_presentacion
+        `SELECT ppi.cantidad AS cantidad_usada, ppi.uso_unidad, i.precio_presentacion, i.cantidad_presentacion, i.unidad_medida
          FROM producto_prep_insumos ppi
          JOIN insumos i ON i.id = ppi.insumo_id
          JOIN producto_preparaciones pp ON pp.id = ppi.producto_preparacion_id
@@ -279,6 +283,8 @@ router.put('/:id', async (req, res) => {
       allInsumos = insumosRes.rows.map((r) => ({
         precio_presentacion: parseFloat(r.precio_presentacion),
         cantidad_presentacion: parseFloat(r.cantidad_presentacion),
+        unidad_medida: r.unidad_medida,
+        uso_unidad: r.uso_unidad || r.unidad_medida,
         cantidad_usada: parseFloat(r.cantidad_usada),
       }));
     }

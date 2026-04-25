@@ -13,6 +13,23 @@ function round4(n) {
   return Math.round(n * 10000) / 10000;
 }
 
+// Convert quantity from uso_unidad to insumo's unidad_medida
+const FACTORES = {
+  'g→kg': 0.001, 'kg→g': 1000,
+  'g→oz': 0.03527, 'oz→g': 28.3495,
+  'kg→oz': 35.274, 'oz→kg': 0.02835,
+  'ml→L': 0.001, 'L→ml': 1000,
+  'ml→l': 0.001, 'l→ml': 1000,
+  'l→L': 1, 'L→l': 1,
+};
+
+function convertirCantidad(cantidad, usoUnidad, unidadOriginal) {
+  if (!usoUnidad || !unidadOriginal || usoUnidad === unidadOriginal) return cantidad;
+  const key = `${usoUnidad}→${unidadOriginal}`;
+  if (FACTORES[key]) return cantidad * FACTORES[key];
+  return cantidad;
+}
+
 function calcularCostos(detalle) {
   const { insumos = [], costo_empaque = 0, margen = 0, igv_rate = 0 } = detalle;
 
@@ -20,7 +37,9 @@ function calcularCostos(detalle) {
 
   const insumos_detalle = insumos.map((ins) => {
     const costo_unitario = round4(ins.precio_presentacion / ins.cantidad_presentacion);
-    const costo_linea = round4(ins.cantidad_usada * costo_unitario);
+    // Convert cantidad from uso_unidad to the insumo's original unit
+    const cantidadConvertida = convertirCantidad(ins.cantidad_usada, ins.uso_unidad, ins.unidad_medida);
+    const costo_linea = round4(cantidadConvertida * costo_unitario);
     costo_insumos += costo_linea;
     return { ...ins, costo_unitario, costo_linea };
   });
@@ -46,7 +65,7 @@ async function recalcularProducto(pool, productoId, motivo) {
     const producto = prodRes.rows[0];
 
     const insumosRes = await client.query(
-      `SELECT ppi.cantidad AS cantidad_usada, i.precio_presentacion, i.cantidad_presentacion
+      `SELECT ppi.cantidad AS cantidad_usada, ppi.uso_unidad, i.precio_presentacion, i.cantidad_presentacion, i.unidad_medida
        FROM producto_prep_insumos ppi
        JOIN insumos i ON i.id = ppi.insumo_id
        JOIN producto_preparaciones pp ON pp.id = ppi.producto_preparacion_id
@@ -72,6 +91,8 @@ async function recalcularProducto(pool, productoId, motivo) {
     const insumos = insumosRes.rows.map((r) => ({
       precio_presentacion: parseFloat(r.precio_presentacion),
       cantidad_presentacion: parseFloat(r.cantidad_presentacion),
+      unidad_medida: r.unidad_medida,
+      uso_unidad: r.uso_unidad || r.unidad_medida,
       cantidad_usada: parseFloat(r.cantidad_usada),
     }));
 
