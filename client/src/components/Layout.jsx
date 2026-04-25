@@ -90,10 +90,7 @@ export default function Layout() {
             </div>
           )}
           {!isCollapsed && (
-            <div>
-              <h1 className="text-base font-bold text-stone-800 tracking-wide">Kudi</h1>
-              <p className="text-[10px] text-stone-400 uppercase tracking-widest">Cotizador</p>
-            </div>
+            <h1 className="text-base font-bold text-stone-800 tracking-wide">Kudi</h1>
           )}
         </div>
       </div>
