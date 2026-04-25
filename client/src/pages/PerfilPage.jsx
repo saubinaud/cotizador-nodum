@@ -3,7 +3,10 @@ import { useAuth } from '../context/AuthContext';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
-import { User, Lock, Save, Pencil, X } from 'lucide-react';
+import { User, Lock, Save, Pencil, X, Upload, Loader2 } from 'lucide-react';
+import { PAISES, getPaisByCode } from '../config/paises';
+import { getSimbolo } from '../config/paises';
+import { API_BASE } from '../config/api';
 
 export default function PerfilPage() {
   const { user, setUser } = useAuth();
@@ -20,6 +23,7 @@ export default function PerfilPage() {
     confirm_password: '',
   });
   const [saving, setSaving] = useState(false);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
 
   const startEditing = () => {
     setProfileForm({
@@ -28,6 +32,7 @@ export default function PerfilPage() {
       ruc: user?.ruc || '',
       razon_social: user?.razon_social || '',
       igv_rate: user?.igv_rate || 0.18,
+      pais: user?.pais || 'PE',
     });
     setEditing(true);
   };
@@ -40,16 +45,59 @@ export default function PerfilPage() {
   const handleSaveProfile = async () => {
     setSavingProfile(true);
     try {
-      const data = await api.put('/auth/perfil', profileForm);
+      const paisInfo = getPaisByCode(profileForm.pais);
+      const payload = { ...profileForm, moneda: paisInfo?.moneda || 'PEN' };
+      const data = await api.put('/auth/perfil', payload);
       const updatedUser = data.data?.user || data.data;
       setUser(updatedUser);
       localStorage.setItem('nodum_user', JSON.stringify(updatedUser));
+      localStorage.setItem('nodum_moneda_simbolo', getSimbolo(updatedUser.moneda));
       toast.success('Perfil actualizado');
       setEditing(false);
     } catch (err) {
       toast.error(err.message || 'Error actualizando perfil');
     } finally {
       setSavingProfile(false);
+    }
+  };
+
+  const handleLogoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('La imagen no debe superar 2MB');
+      return;
+    }
+    setUploadingLogo(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const token = localStorage.getItem('nodum_token');
+          const res = await fetch(`${API_BASE}/auth/logo`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({ image: reader.result }),
+          });
+          const data = await res.json();
+          if (!data.success) throw new Error(data.error || 'Error subiendo logo');
+          const updatedUser = { ...user, logo_url: data.data.logo_url };
+          setUser(updatedUser);
+          localStorage.setItem('nodum_user', JSON.stringify(updatedUser));
+          toast.success('Logo actualizado');
+        } catch (err) {
+          toast.error(err.message || 'Error subiendo logo');
+        } finally {
+          setUploadingLogo(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err) {
+      toast.error('Error procesando imagen');
+      setUploadingLogo(false);
     }
   };
 
@@ -90,8 +138,28 @@ export default function PerfilPage() {
       <div className={`${cx.card} p-5`}>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
-              <User size={28} className="text-white" />
+            <div className="relative group">
+              {user?.logo_url ? (
+                <img src={user.logo_url} alt="Logo" className="w-16 h-16 rounded-2xl object-cover" />
+              ) : (
+                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
+                  <User size={28} className="text-white" />
+                </div>
+              )}
+              <label className="absolute inset-0 flex items-center justify-center bg-black/50 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                {uploadingLogo ? (
+                  <Loader2 size={20} className="text-white animate-spin" />
+                ) : (
+                  <Upload size={20} className="text-white" />
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handleLogoUpload}
+                  className="hidden"
+                  disabled={uploadingLogo}
+                />
+              </label>
             </div>
             <div>
               <h3 className="text-white font-semibold text-lg">{user?.nombre || 'Usuario'}</h3>
@@ -145,15 +213,31 @@ export default function PerfilPage() {
                 />
               </div>
             </div>
-            <div>
-              <label className={cx.label}>Tasa IGV (decimal, ej: 0.18)</label>
-              <input
-                type="number"
-                step="0.01"
-                value={profileForm.igv_rate}
-                onChange={(e) => setProfileForm({ ...profileForm, igv_rate: e.target.value })}
-                className={cx.input + ' w-32'}
-              />
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className={cx.label}>Tasa IGV (decimal, ej: 0.18)</label>
+                <input
+                  type="number"
+                  step="0.01"
+                  value={profileForm.igv_rate}
+                  onChange={(e) => setProfileForm({ ...profileForm, igv_rate: e.target.value })}
+                  className={cx.input + ' w-32'}
+                />
+              </div>
+              <div>
+                <label className={cx.label}>Pais</label>
+                <select
+                  value={profileForm.pais}
+                  onChange={(e) => setProfileForm({ ...profileForm, pais: e.target.value })}
+                  className={cx.input}
+                >
+                  {PAISES.map((p) => (
+                    <option key={p.code} value={p.code}>
+                      {p.name} ({p.simbolo})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="flex gap-2">
               <button
@@ -193,6 +277,14 @@ export default function PerfilPage() {
             <div>
               <label className={cx.label}>Tasa IGV</label>
               <p className="text-white text-sm">{igvDisplay}%</p>
+            </div>
+            <div>
+              <label className={cx.label}>Pais</label>
+              <p className="text-white text-sm">{getPaisByCode(user?.pais)?.name || user?.pais || 'Peru'}</p>
+            </div>
+            <div>
+              <label className={cx.label}>Moneda</label>
+              <p className="text-white text-sm">{user?.moneda || 'PEN'} ({getSimbolo(user?.moneda)})</p>
             </div>
             <div>
               <label className={cx.label}>Rol</label>

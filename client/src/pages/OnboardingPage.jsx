@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { API_BASE } from '../config/api';
 import { cx } from '../styles/tokens';
 import { Calculator, Loader2 } from 'lucide-react';
+import { PAISES, getPaisByCode } from '../config/paises';
 
 export default function OnboardingPage() {
   const [params] = useSearchParams();
@@ -24,6 +25,7 @@ export default function OnboardingPage() {
     tipo_contribuyente: '',
     nombre_comercial: '',
     igv_rate: '18',
+    pais: 'PE',
     password: '',
     password_confirm: '',
   });
@@ -211,6 +213,25 @@ export default function OnboardingPage() {
               onChange={handleChange('nombre_comercial')}
               className={cx.input}
             />
+          </div>
+
+          <div>
+            <label className={cx.label}>Pais</label>
+            <select
+              value={form.pais}
+              onChange={(e) => {
+                const code = e.target.value;
+                const p = getPaisByCode(code);
+                setForm((prev) => ({ ...prev, pais: code }));
+              }}
+              className={cx.input}
+            >
+              {PAISES.map((p) => (
+                <option key={p.code} value={p.code}>
+                  {p.name} ({p.simbolo} {p.moneda})
+                </option>
+              ))}
+            </select>
           </div>
 
           <div>

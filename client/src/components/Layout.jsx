@@ -72,9 +72,13 @@ export default function Layout() {
     <>
       <div className="p-5 border-b border-zinc-800">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
-            <Calculator size={18} className="text-white" />
-          </div>
+          {user?.logo_url ? (
+            <img src={user.logo_url} alt="Logo" className="w-9 h-9 rounded-xl object-cover" />
+          ) : (
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
+              <Calculator size={18} className="text-white" />
+            </div>
+          )}
           <div>
             <h1 className="text-base font-bold text-white tracking-wide">NODUM</h1>
             <p className="text-[10px] text-zinc-500 uppercase tracking-widest">Cotizador</p>
@@ -148,9 +152,13 @@ export default function Layout() {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
-              <Calculator size={14} className="text-white" />
-            </div>
+            {user?.logo_url ? (
+              <img src={user.logo_url} alt="Logo" className="w-7 h-7 rounded-lg object-cover" />
+            ) : (
+              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-[#FA7B21] to-[#FCA929] flex items-center justify-center">
+                <Calculator size={14} className="text-white" />
+              </div>
+            )}
             <span className="text-sm font-bold text-white">NODUM</span>
           </div>
           <div className="w-9" />

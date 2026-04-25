@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { API_BASE } from '../config/api';
+import { getSimbolo } from '../config/paises';
 
 const AuthContext = createContext(null);
 
@@ -25,6 +26,7 @@ export function AuthProvider({ children }) {
           const u = data.data?.user || data.data || data;
           setUser(u);
           localStorage.setItem('nodum_user', JSON.stringify(u));
+          localStorage.setItem('nodum_moneda_simbolo', getSimbolo(u.moneda));
         })
         .catch(() => {
           logout();
@@ -52,6 +54,7 @@ export function AuthProvider({ children }) {
     setUser(u);
     localStorage.setItem('nodum_token', t);
     localStorage.setItem('nodum_user', JSON.stringify(u));
+    localStorage.setItem('nodum_moneda_simbolo', getSimbolo(u.moneda));
     return u;
   }, []);
 
@@ -60,6 +63,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     localStorage.removeItem('nodum_token');
     localStorage.removeItem('nodum_user');
+    localStorage.removeItem('nodum_moneda_simbolo');
   }, []);
 
   return (

@@ -71,6 +71,11 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS empaque_tipo VARCHAR(10) NOT NULL DEFAULT 'entero'
     `);
 
+    // usuarios — pais, moneda, logo_url
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS pais VARCHAR(5) DEFAULT 'PE'`);
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS moneda VARCHAR(5) DEFAULT 'PEN'`);
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS logo_url TEXT`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

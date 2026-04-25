@@ -1,6 +1,7 @@
 export function formatCurrency(n) {
-  if (n == null || isNaN(n)) return 'S/ 0.00';
-  return `S/ ${Number(n).toFixed(2)}`;
+  const simbolo = (typeof localStorage !== 'undefined' && localStorage.getItem('nodum_moneda_simbolo')) || 'S/';
+  if (n == null || isNaN(n)) return `${simbolo} 0.00`;
+  return `${simbolo} ${Number(n).toFixed(2)}`;
 }
 
 export function formatPercent(n) {
