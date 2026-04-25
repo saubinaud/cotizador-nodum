@@ -553,8 +553,8 @@ export default function CotizadorPage() {
         <table className="w-full hidden lg:table">
           <thead>
             <tr>
-              <th className={cx.th + ' w-2/5'}>Material</th>
-              <th className={cx.th + ' w-1/6'}>Cantidad</th>
+              <th className={cx.th + ' w-1/3'}>Material</th>
+              <th className={cx.th + ' w-1/5'}>Cantidad</th>
               <th className={cx.th + ' w-1/6'}>Precio Unit.</th>
               <th className={cx.th + ' w-1/6 text-right'}>Subtotal</th>
               <th className={cx.th + ' w-10'}></th>
@@ -765,7 +765,7 @@ export default function CotizadorPage() {
                                 value={ins.uso_unidad || ins.unidad_medida || ''}
                                 onChange={(v) => updateInsumo(prep._id, ins._id, { uso_unidad: v })}
                                 options={getUnidadesCompatibles(ins.unidad_medida).map(u => ({ value: u, label: u }))}
-                                className="w-16"
+                                compact className="w-14"
                               />
                               <span className="text-stone-400 text-xs">x {formatCurrency(costoEnUsoUnidad(ins))}</span>
                               <span className="ml-auto text-stone-800 text-sm font-medium">
@@ -783,8 +783,8 @@ export default function CotizadorPage() {
                       <table className="w-full hidden lg:table">
                         <thead>
                           <tr>
-                            <th className={cx.th + ' w-2/5'}>Insumo</th>
-                            <th className={cx.th + ' w-1/6'}>Cantidad</th>
+                            <th className={cx.th + ' w-1/3'}>Insumo</th>
+                            <th className={cx.th + ' w-1/5'}>Cantidad</th>
                             <th className={cx.th + ' w-1/6'}>Costo Unit.</th>
                             <th className={cx.th + ' w-1/6 text-right'}>Subtotal</th>
                             <th className={cx.th + ' w-10'}></th>
@@ -814,7 +814,7 @@ export default function CotizadorPage() {
                                     value={ins.uso_unidad || ins.unidad_medida || ''}
                                     onChange={(v) => updateInsumo(prep._id, ins._id, { uso_unidad: v })}
                                     options={getUnidadesCompatibles(ins.unidad_medida).map(u => ({ value: u, label: u }))}
-                                    className="w-16"
+                                    compact className="w-14"
                                   />
                                 </div>
                               </td>
@@ -911,7 +911,7 @@ export default function CotizadorPage() {
                                     { value: 'uni', label: 'uni' },
                                     { value: 'oz', label: 'oz' },
                                   ]}
-                                  className="w-16"
+                                  compact className="w-14"
                                 />
                               </div>
                             </td>
@@ -953,7 +953,7 @@ export default function CotizadorPage() {
                                     { value: 'uni', label: 'uni' },
                                     { value: 'oz', label: 'oz' },
                                   ]}
-                                  className="w-16"
+                                  compact className="w-14"
                                 />
                               </div>
                             </div>

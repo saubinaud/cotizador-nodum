@@ -166,7 +166,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-stone-50 flex">
       {/* Desktop sidebar */}
-      <aside className={`hidden lg:flex ${collapsed ? 'w-16' : 'w-64'} flex-col bg-white border-r border-stone-100 fixed inset-y-0 left-0 z-30 transition-all duration-200`}>
+      <aside className={`hidden lg:flex ${collapsed ? 'w-16' : 'w-56'} flex-col bg-white border-r border-stone-100 fixed inset-y-0 left-0 z-30 transition-all duration-200`}>
         {renderSidebarContent(collapsed)}
       </aside>
 
@@ -187,7 +187,7 @@ export default function Layout() {
       )}
 
       {/* Main content */}
-      <div className={`flex-1 ${collapsed ? 'lg:ml-16' : 'lg:ml-64'} transition-all duration-200`}>
+      <div className={`flex-1 ${collapsed ? 'lg:ml-16' : 'lg:ml-56'} transition-all duration-200`}>
         {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-stone-200 sticky top-0 z-20">
           <button onClick={() => setOpen(true)} className="p-2 text-stone-400 hover:text-stone-800">
