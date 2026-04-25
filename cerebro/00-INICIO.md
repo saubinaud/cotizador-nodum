@@ -24,3 +24,4 @@
 8. [07-HISTORIAL-CAMBIOS.md](07-HISTORIAL-CAMBIOS.md) — Registro de todo lo implementado
 9. [08-PENDIENTES.md](08-PENDIENTES.md) — Features por implementar
 10. [09-DESIGN-SYSTEM.md](09-DESIGN-SYSTEM.md) — UX/UI: colores, tipografia, componentes, anti-patrones
+11. [10-PLAN-PL.md](10-PLAN-PL.md) — Plan maestro P&L: 6 fases, tablas, endpoints, UI
