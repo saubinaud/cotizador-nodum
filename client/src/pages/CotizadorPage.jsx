@@ -186,12 +186,15 @@ export default function CotizadorPage() {
     });
   }, [catalogInsumos]);
 
-  // Load catalogs
+  // Load all catalogs in a single batch request
   useEffect(() => {
-    api.get('/insumos').then((d) => setCatalogInsumos(d.data || [])).catch(() => {});
-    api.get('/materiales').then((d) => setCatalogMateriales(d.data || [])).catch(() => {});
-    api.get('/predeterminados/preparaciones').then((d) => setCatalogPreps(d.data || [])).catch(() => {});
-    api.get('/predeterminados/empaques').then((d) => setCatalogEmpaques(d.data || [])).catch(() => {});
+    api.get('/productos/catalogs').then((d) => {
+      const c = d.data || {};
+      setCatalogInsumos(c.insumos || []);
+      setCatalogMateriales(c.materiales || []);
+      setCatalogPreps(c.preparaciones_pred || []);
+      setCatalogEmpaques(c.empaques_pred || []);
+    }).catch(() => {});
   }, []);
 
   // Load product for edit mode

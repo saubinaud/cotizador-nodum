@@ -187,6 +187,57 @@ router.get('/', async (req, res) => {
   }
 });
 
+// GET /api/productos/catalogs — returns all catalog data in one request
+router.get('/catalogs', async (req, res) => {
+  try {
+    const [insumos, materiales, prepsPred, empaquesPred] = await Promise.all([
+      pool.query('SELECT * FROM insumos WHERE usuario_id = $1 ORDER BY nombre', [req.user.id]),
+      pool.query('SELECT * FROM materiales WHERE usuario_id = $1 ORDER BY nombre', [req.user.id]),
+      (async () => {
+        const preps = await pool.query('SELECT * FROM preparaciones_predeterminadas WHERE usuario_id = $1 ORDER BY nombre', [req.user.id]);
+        const result = [];
+        for (const prep of preps.rows) {
+          const ins = await pool.query(
+            `SELECT ppi.id, ppi.insumo_id, ppi.cantidad, ppi.uso_unidad,
+                    i.nombre, i.unidad_medida, i.precio_presentacion, i.cantidad_presentacion
+             FROM prep_pred_insumos ppi JOIN insumos i ON i.id = ppi.insumo_id
+             WHERE ppi.preparacion_pred_id = $1`, [prep.id]
+          );
+          result.push({ ...prep, insumos: ins.rows });
+        }
+        return result;
+      })(),
+      (async () => {
+        const emps = await pool.query('SELECT * FROM empaques_predeterminados WHERE usuario_id = $1 ORDER BY nombre', [req.user.id]);
+        const result = [];
+        for (const emp of emps.rows) {
+          const mats = await pool.query(
+            `SELECT epm.id, epm.material_id, epm.cantidad,
+                    m.nombre, m.unidad_medida, m.precio_presentacion, m.cantidad_presentacion
+             FROM empaque_pred_materiales epm JOIN materiales m ON m.id = epm.material_id
+             WHERE epm.empaque_pred_id = $1`, [emp.id]
+          );
+          result.push({ ...emp, materiales: mats.rows });
+        }
+        return result;
+      })(),
+    ]);
+
+    return res.json({
+      success: true,
+      data: {
+        insumos: insumos.rows,
+        materiales: materiales.rows,
+        preparaciones_pred: prepsPred,
+        empaques_pred: empaquesPred,
+      }
+    });
+  } catch (err) {
+    console.error('Catalogs error:', err);
+    return res.status(500).json({ success: false, error: 'Error cargando catalogos' });
+  }
+});
+
 // GET /api/productos/:id
 router.get('/:id', async (req, res) => {
   try {
