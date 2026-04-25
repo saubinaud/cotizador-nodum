@@ -96,13 +96,13 @@ export default function ProyeccionPage() {
           <TrendingUp size={20} className="text-white" />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-stone-800">Proyección de Ventas</h2>
-          <p className="text-stone-400 text-xs">Calcula cuánto necesitas vender para alcanzar tu meta</p>
+          <h2 className="text-2xl font-bold text-stone-900">Proyección de Ventas</h2>
+          <p className="text-stone-500 text-xs">Calcula cuánto necesitas vender para alcanzar tu meta</p>
         </div>
       </div>
 
       {/* Target input */}
-      <div className={`${cx.card} p-5`}>
+      <div className={`${cx.card} p-6`}>
         <div className="flex items-center gap-2 mb-3">
           <Target size={16} className="text-[var(--accent)]" />
           <span className="text-stone-800 text-sm font-medium">Meta de ganancia</span>
@@ -281,7 +281,7 @@ export default function ProyeccionPage() {
 
       {/* Totals */}
       {totalUnidades > 0 && (
-        <div className={`${cx.card} p-5`}>
+        <div className={`${cx.card} p-6`}>
           <div className="flex items-center gap-2 mb-4">
             <Calculator size={16} className="text-[var(--accent)]" />
             <span className="text-stone-800 text-sm font-medium">Resumen de proyección</span>

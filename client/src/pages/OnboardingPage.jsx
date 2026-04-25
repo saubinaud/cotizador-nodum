@@ -160,9 +160,9 @@ export default function OnboardingPage() {
           <div className="w-12 h-12 rounded-2xl bg-[var(--accent)] flex items-center justify-center mb-3">
             <Calculator size={24} className="text-white" />
           </div>
-          <h1 className="text-xl font-bold text-stone-800">Completa tu registro</h1>
+          <h1 className="text-2xl font-bold text-stone-900">Completa tu registro</h1>
           {inviteData?.email && (
-            <p className="text-stone-400 text-sm mt-1">{inviteData.email}</p>
+            <p className="text-stone-500 text-sm mt-1">{inviteData.email}</p>
           )}
         </div>
 

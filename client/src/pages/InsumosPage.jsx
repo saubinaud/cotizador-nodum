@@ -147,8 +147,8 @@ export default function InsumosPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-stone-800">Insumos</h2>
-          <p className="text-stone-400 text-sm mt-0.5">{insumos.filter((i) => !i._new).length} insumos registrados</p>
+          <h2 className="text-2xl font-bold text-stone-900">Insumos</h2>
+          <p className="text-stone-500 text-sm mt-0.5">{insumos.filter((i) => !i._new).length} insumos registrados</p>
         </div>
         <button onClick={addNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={16} />
@@ -198,7 +198,7 @@ export default function InsumosPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-stone-800 font-medium text-sm">{ins.nombre}</h3>
-                  <p className="text-stone-400 text-xs mt-1">{ins.cantidad_presentacion} {ins.unidad_medida} - {formatCurrency(ins.precio_presentacion)}</p>
+                  <p className="text-stone-500 text-xs mt-1">{ins.cantidad_presentacion} {ins.unidad_medida} - {formatCurrency(ins.precio_presentacion)}</p>
                 </div>
                 <span className="text-[var(--accent)] text-sm font-semibold">{formatCurrency(costoUnitario(ins))}/{ins.unidad_medida}</span>
               </div>

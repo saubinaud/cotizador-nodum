@@ -244,8 +244,8 @@ export default function PrepPredPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-stone-800">Preparaciones Predeterminadas</h2>
-          <p className="text-stone-400 text-sm mt-0.5">{preps.length} preparaciones</p>
+          <h2 className="text-2xl font-bold text-stone-900">Preparaciones Predeterminadas</h2>
+          <p className="text-stone-500 text-sm mt-0.5">{preps.length} preparaciones</p>
         </div>
         <button onClick={startNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={16} /> Nueva Preparacion
@@ -254,7 +254,7 @@ export default function PrepPredPage() {
 
       {/* Edit/create form */}
       {editData && (
-        <div className={`${cx.card} p-5 mb-6 border-[var(--accent)]`}>
+        <div className={`${cx.card} p-6 mb-6 border-[var(--accent)]`}>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
             <div>
               <label className={cx.label}>Nombre</label>
@@ -415,13 +415,13 @@ export default function PrepPredPage() {
             return s + cu * (parseFloat(ins.cantidad) || 0);
           }, 0);
           return (
-            <div key={prep.id} className={`${cx.card} p-4`}>
+            <div key={prep.id} className={`${cx.card} p-5`}>
               <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [prep.id]: prev[prep.id] === false ? true : false }))}>
                 <div className="flex items-center gap-2 flex-1">
                   {collapsed[prep.id] === false ? <ChevronUp size={16} className="text-stone-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />}
                   <div>
                     <h3 className="text-stone-800 font-medium text-sm">{prep.nombre}</h3>
-                    <p className="text-stone-400 text-xs mt-0.5">
+                    <p className="text-stone-500 text-xs mt-0.5">
                       {prep.capacidad && `Rinde: ${parseFloat(prep.capacidad)} ${prep.unidad_capacidad || prep.unidad || ''} — `}
                       {(prep.insumos || []).length} insumos
                       {totalCosto > 0 && <span className="text-[var(--accent)] ml-2 font-semibold">{formatCurrency(totalCosto)}</span>}

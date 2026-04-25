@@ -34,8 +34,8 @@ export default function LoginPage() {
           <div className="w-14 h-14 rounded-2xl bg-[var(--accent)] flex items-center justify-center mb-4 shadow-lg shadow-[var(--accent)]/20">
             <Calculator size={28} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-stone-800 tracking-wide">NODUM</h1>
-          <p className="text-stone-400 text-sm mt-1">Cotizador de productos</p>
+          <h1 className="text-2xl font-bold text-stone-900 tracking-wide">NODUM</h1>
+          <p className="text-stone-500 text-sm mt-1">Cotizador de productos</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

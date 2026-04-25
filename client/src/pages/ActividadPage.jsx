@@ -72,8 +72,8 @@ export default function ActividadPage() {
     <div className="max-w-3xl mx-auto">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-stone-800">Mi Actividad</h2>
-          <p className="text-stone-400 text-sm mt-0.5">Historial de cambios en tus datos</p>
+          <h2 className="text-2xl font-bold text-stone-900">Mi Actividad</h2>
+          <p className="text-stone-500 text-sm mt-0.5">Historial de cambios en tus datos</p>
         </div>
         <button onClick={loadLogs} className={cx.btnSecondary + ' flex items-center gap-2'}>
           <RefreshCw size={14} /> Actualizar

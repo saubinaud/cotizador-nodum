@@ -233,8 +233,8 @@ export default function DashboardPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-stone-800">Mis Productos</h2>
-          <p className="text-stone-400 text-sm mt-0.5">{products.length} productos</p>
+          <h2 className="text-2xl font-bold text-stone-900">Mis Productos</h2>
+          <p className="text-stone-500 text-sm mt-0.5">{products.length} productos</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -337,7 +337,7 @@ export default function DashboardPage() {
                 <div className="flex justify-between items-start mb-3">
                   <div>
                     <h3 className="text-stone-800 font-medium text-sm">{p.nombre}</h3>
-                    <p className="text-stone-400 text-xs mt-0.5">{formatDate(p.updated_at)}</p>
+                    <p className="text-stone-500 text-xs mt-0.5">{formatDate(p.updated_at)}</p>
                   </div>
                   <span className="text-[var(--accent)] font-bold text-lg">{formatCurrency(precioComercial(p.precio_final))}</span>
                 </div>

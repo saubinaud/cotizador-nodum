@@ -67,8 +67,8 @@ export default function AdminActividadPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-stone-800">Actividad</h2>
-          <p className="text-stone-400 text-sm mt-0.5">Registro de actividad del sistema</p>
+          <h2 className="text-2xl font-bold text-stone-900">Actividad</h2>
+          <p className="text-stone-500 text-sm mt-0.5">Registro de actividad del sistema</p>
         </div>
         <button onClick={refresh} className={cx.btnSecondary + ' flex items-center gap-2'}>
           <RefreshCw size={14} /> Actualizar

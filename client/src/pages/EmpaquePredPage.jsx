@@ -145,8 +145,8 @@ export default function EmpaquePredPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-stone-800">Empaques Predeterminados</h2>
-          <p className="text-stone-400 text-sm mt-0.5">{empaques.length} empaques</p>
+          <h2 className="text-2xl font-bold text-stone-900">Empaques Predeterminados</h2>
+          <p className="text-stone-500 text-sm mt-0.5">{empaques.length} empaques</p>
         </div>
         <button onClick={startNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={16} /> Nuevo Empaque
@@ -155,7 +155,7 @@ export default function EmpaquePredPage() {
 
       {/* Edit/create form */}
       {editData && (
-        <div className={`${cx.card} p-5 mb-6 border-[var(--accent)]`}>
+        <div className={`${cx.card} p-6 mb-6 border-[var(--accent)]`}>
           <div className="mb-4">
             <label className={cx.label}>Nombre del empaque</label>
             <input
@@ -289,13 +289,13 @@ export default function EmpaquePredPage() {
             return s + pu * (parseFloat(m.cantidad) || 0);
           }, 0);
           return (
-            <div key={emp.id} className={`${cx.card} p-4`}>
+            <div key={emp.id} className={`${cx.card} p-5`}>
               <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [emp.id]: prev[emp.id] === false ? true : false }))}>
                 <div className="flex items-center gap-2 flex-1">
                   {collapsed[emp.id] === false ? <ChevronUp size={16} className="text-stone-400 flex-shrink-0" /> : <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />}
                   <div>
                     <h3 className="text-stone-800 font-medium text-sm">{emp.nombre}</h3>
-                    <p className="text-stone-400 text-xs mt-0.5">
+                    <p className="text-stone-500 text-xs mt-0.5">
                       {(emp.materiales || []).length} materiales
                       {totalCosto > 0 && <span className="text-[var(--accent)] ml-2 font-semibold">{formatCurrency(totalCosto)}</span>}
                     </p>

@@ -137,8 +137,8 @@ export default function AdminUsuariosPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-stone-800">Usuarios</h2>
-          <p className="text-stone-400 text-sm mt-0.5">{users.length} usuarios registrados</p>
+          <h2 className="text-2xl font-bold text-stone-900">Usuarios</h2>
+          <p className="text-stone-500 text-sm mt-0.5">{users.length} usuarios registrados</p>
         </div>
         <button onClick={() => { setShowCreate(true); setOnboardingLink(''); }} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <UserPlus size={16} /> Nuevo Usuario
@@ -147,9 +147,9 @@ export default function AdminUsuariosPage() {
 
       {/* Create form modal */}
       {showCreate && (
-        <div className={`${cx.card} p-5 mb-6 border-[var(--accent)]`}>
+        <div className={`${cx.card} p-6 mb-6 border-[var(--accent)]`}>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-stone-800 font-semibold">Crear usuario</h3>
+            <h3 className="text-lg font-semibold text-stone-900">Crear usuario</h3>
             <button onClick={() => { setShowCreate(false); setOnboardingLink(''); }} className={cx.btnIcon}><X size={16} /></button>
           </div>
 
@@ -243,12 +243,12 @@ export default function AdminUsuariosPage() {
       {/* Mobile cards */}
       <div className="space-y-3 lg:hidden">
         {users.map((u) => (
-          <div key={u.id} className={`${cx.card} p-4`}>
+          <div key={u.id} className={`${cx.card} p-5`}>
             <div className="flex justify-between items-start">
               <div>
                 <h3 className="text-stone-800 font-medium text-sm">{u.nombre || u.email}</h3>
-                <p className="text-stone-400 text-xs mt-0.5">{u.email}</p>
-                <p className="text-stone-400 text-xs mt-1">{u.empresa || u.nombre_comercial || '-'}</p>
+                <p className="text-stone-500 text-xs mt-0.5">{u.email}</p>
+                <p className="text-stone-500 text-xs mt-1">{u.empresa || u.nombre_comercial || '-'}</p>
               </div>
               <div className="flex items-center gap-2">
                 {u.rol === 'admin' && <span className={cx.badge('bg-violet-50 text-violet-600')}>admin</span>}

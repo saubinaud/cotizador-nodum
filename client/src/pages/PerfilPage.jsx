@@ -132,10 +132,10 @@ export default function PerfilPage() {
 
   return (
     <div className="max-w-xl mx-auto space-y-6">
-      <h2 className="text-xl font-bold text-stone-800">Mi Perfil</h2>
+      <h2 className="text-2xl font-bold text-stone-900">Mi Perfil</h2>
 
       {/* Profile info */}
-      <div className={`${cx.card} p-5`}>
+      <div className={`${cx.card} p-6`}>
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center gap-4">
             <div className="relative group">
@@ -163,7 +163,7 @@ export default function PerfilPage() {
             </div>
             <div>
               <h3 className="text-stone-800 font-semibold text-lg">{user?.nombre || 'Usuario'}</h3>
-              <p className="text-stone-400 text-sm">{user?.email}</p>
+              <p className="text-stone-500 text-sm">{user?.email}</p>
             </div>
           </div>
           {!editing && (
@@ -312,8 +312,8 @@ export default function PerfilPage() {
       </div>
 
       {/* Theme selector */}
-      <div className={`${cx.card} p-5`}>
-        <h3 className="text-stone-800 font-semibold mb-3">Tema</h3>
+      <div className={`${cx.card} p-6`}>
+        <h3 className="text-lg font-semibold text-stone-900 mb-3">Tema</h3>
         <div className="flex gap-3">
           {[
             { key: 'coral', color: '#f97316', name: 'Coral' },
@@ -341,10 +341,10 @@ export default function PerfilPage() {
       </div>
 
       {/* Change password */}
-      <div className={`${cx.card} p-5`}>
+      <div className={`${cx.card} p-6`}>
         <div className="flex items-center gap-2 mb-4">
           <Lock size={16} className="text-stone-400" />
-          <h3 className="text-stone-800 font-semibold">Cambiar contrasena</h3>
+          <h3 className="text-lg font-semibold text-stone-900">Cambiar contrasena</h3>
         </div>
 
         <form onSubmit={handleChangePassword} className="space-y-4">

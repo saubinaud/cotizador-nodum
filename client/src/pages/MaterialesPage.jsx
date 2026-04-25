@@ -144,8 +144,8 @@ export default function MaterialesPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-xl font-bold text-stone-800">Materiales</h2>
-          <p className="text-stone-400 text-sm mt-0.5">{materiales.filter((m) => !m._new).length} materiales registrados</p>
+          <h2 className="text-2xl font-bold text-stone-900">Materiales</h2>
+          <p className="text-stone-500 text-sm mt-0.5">{materiales.filter((m) => !m._new).length} materiales registrados</p>
         </div>
         <button onClick={addNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={16} /> Nuevo Material
@@ -189,7 +189,7 @@ export default function MaterialesPage() {
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="text-stone-800 font-medium text-sm">{mat.nombre}</h3>
-                  <p className="text-stone-400 text-xs mt-1">
+                  <p className="text-stone-500 text-xs mt-1">
                     {mat.proveedor && <span>{mat.proveedor} - </span>}
                     {mat.cantidad_presentacion} {mat.unidad_medida} - {formatCurrency(mat.precio_presentacion)}
                   </p>
