@@ -114,18 +114,32 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/insumos/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const usage = await pool.query(
+    // Check usage in products
+    const usageProductos = await pool.query(
       `SELECT COUNT(*) FROM producto_prep_insumos ppi
        JOIN producto_preparaciones pp ON pp.id = ppi.producto_preparacion_id
        JOIN productos prod ON prod.id = pp.producto_id
        WHERE ppi.insumo_id = $1 AND prod.usuario_id = $2`,
       [req.params.id, req.user.id]
     );
-
-    if (parseInt(usage.rows[0].count) > 0) {
+    if (parseInt(usageProductos.rows[0].count) > 0) {
       return res.status(409).json({
         success: false,
         error: 'No se puede eliminar: el insumo esta en uso en productos',
+      });
+    }
+
+    // Check usage in predeterminadas
+    const usagePred = await pool.query(
+      `SELECT COUNT(*) FROM prep_pred_insumos ppi
+       JOIN preparaciones_predeterminadas pp ON pp.id = ppi.preparacion_pred_id
+       WHERE ppi.insumo_id = $1 AND pp.usuario_id = $2`,
+      [req.params.id, req.user.id]
+    );
+    if (parseInt(usagePred.rows[0].count) > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'No se puede eliminar: el insumo esta en uso en preparaciones predeterminadas',
       });
     }
 
