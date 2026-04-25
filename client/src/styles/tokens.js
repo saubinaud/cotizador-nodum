@@ -1,40 +1,27 @@
-// Airbnb-inspired design tokens — clean, spacious, professional
+// Apple minimal + Airbnb clean + Seiko Presage depth
 export const cx = {
-  // Buttons — Airbnb style: solid rounded, generous padding
   btnPrimary:
-    'px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-medium rounded-lg transition-all duration-150 active:scale-[0.97] disabled:opacity-50',
+    'px-4 py-2 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-[13px] font-semibold rounded-lg transition-colors duration-150 active:scale-[0.97] disabled:opacity-40',
   btnSecondary:
-    'px-5 py-2.5 bg-white hover:bg-stone-50 border border-stone-300 text-stone-800 text-sm font-medium rounded-lg transition-all duration-150 active:scale-[0.97]',
+    'px-4 py-2 bg-white hover:bg-stone-50 border border-stone-300 text-stone-700 text-[13px] font-semibold rounded-lg transition-colors duration-150 active:scale-[0.97]',
   btnGhost:
-    'px-3 py-2 text-stone-600 hover:text-stone-900 hover:bg-stone-100 text-sm font-medium rounded-lg transition-all duration-150',
+    'px-3 py-1.5 text-stone-500 hover:text-stone-800 hover:bg-stone-100 text-[13px] font-medium rounded-lg transition-colors duration-150',
   btnDanger:
-    'px-3 py-2 text-rose-600 hover:text-rose-700 hover:bg-rose-50 text-sm font-medium rounded-lg transition-all duration-150',
+    'px-3 py-1.5 text-rose-600 hover:bg-rose-50 text-[13px] font-medium rounded-lg transition-colors duration-150',
   btnIcon:
-    'p-2 text-stone-400 hover:text-stone-700 hover:bg-stone-100 rounded-lg transition-all duration-150',
-
-  // Inputs — Airbnb: white bg, clear border, rounded-lg
+    'p-1.5 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors duration-150',
   input:
-    'w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-stone-800 text-sm placeholder:text-stone-400 focus:outline-none focus:border-stone-800 focus:ring-0 transition-all duration-150',
+    'w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-800 text-[13px] placeholder:text-stone-400 focus:outline-none focus:border-stone-500 transition-colors duration-150',
   select:
-    'w-full px-3.5 py-2.5 bg-white border border-stone-300 rounded-lg text-stone-800 text-sm focus:outline-none focus:border-stone-800 focus:ring-0 transition-all duration-150 appearance-none',
-
-  // Labels
-  label: 'block text-stone-600 text-xs font-semibold mb-1.5 tracking-wide',
-
-  // Cards — Airbnb: clean border, subtle shadow on hover
+    'w-full px-3 py-2 bg-white border border-stone-300 rounded-lg text-stone-800 text-[13px] focus:outline-none focus:border-stone-500 transition-colors duration-150 appearance-none',
+  label: 'block text-stone-500 text-[11px] font-semibold mb-1 tracking-wide',
   card: 'bg-white border border-stone-200 rounded-xl',
   cardHover:
-    'bg-white border border-stone-200 rounded-xl hover:shadow-md hover:border-stone-300 transition-all duration-200 cursor-pointer',
-
-  // Table
-  th: 'px-4 py-3 text-left text-stone-500 text-[11px] font-semibold uppercase tracking-wide',
-  td: 'px-4 py-3.5 text-sm',
-  tr: 'border-b border-stone-100 last:border-0 hover:bg-stone-50 transition-colors',
-
-  // Badges — rounded-full, Airbnb pill style
+    'bg-white border border-stone-200 rounded-xl hover:shadow-md transition-shadow duration-200 cursor-pointer',
+  th: 'px-3 py-2.5 text-left text-stone-400 text-[10px] font-semibold uppercase tracking-wider',
+  td: 'px-3 py-3 text-[13px]',
+  tr: 'border-b border-stone-100 last:border-0 hover:bg-stone-50/50 transition-colors',
   badge: (color) =>
-    `inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-semibold uppercase tracking-wide ${color}`,
-
-  // Skeleton
+    `inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold ${color}`,
   skeleton: 'bg-stone-100 rounded-xl animate-pulse',
 };

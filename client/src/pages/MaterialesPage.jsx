@@ -234,7 +234,7 @@ export default function MaterialesPage() {
                     <td className={cx.td + ' text-[var(--accent)] font-semibold'}>{formatCurrency(costoUnitario(editData))}</td>
                     <td className={cx.td + ' text-right'}>
                       <div className="flex justify-end gap-1">
-                        <button onClick={saveEdit} className={cx.btnIcon + ' text-teal-600 hover:text-teal-500'}><Save size={15} /></button>
+                        <button onClick={saveEdit} className={cx.btnIcon + ' text-[var(--success)] hover:text-[var(--success)]'}><Save size={15} /></button>
                         <button onClick={cancelEdit} className={cx.btnIcon}><X size={15} /></button>
                       </div>
                     </td>

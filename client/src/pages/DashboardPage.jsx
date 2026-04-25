@@ -567,7 +567,7 @@ export default function DashboardPage() {
                                 <td className="px-3 py-2 text-center text-stone-500">{display(currVal)}</td>
                                 <td className="px-3 py-2 text-center">
                                   {variacion ? (
-                                    <span className={`text-xs font-medium ${variacion.value > 0 ? 'text-teal-600' : variacion.value < 0 ? 'text-rose-600' : 'text-stone-400'}`}>
+                                    <span className={`text-xs font-medium ${variacion.value > 0 ? 'text-[var(--success)]' : variacion.value < 0 ? 'text-rose-600' : 'text-stone-400'}`}>
                                       {variacion.text}
                                     </span>
                                   ) : changed ? (
@@ -607,7 +607,7 @@ export default function DashboardPage() {
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="text-sm text-stone-800">
-                          {i === 0 && <span className="text-[10px] bg-teal-50 text-teal-600 px-1.5 py-0.5 rounded mr-2">Actual</span>}
+                          {i === 0 && <span className="text-[10px] bg-[var(--accent-light)] text-[var(--success)] px-1.5 py-0.5 rounded mr-2">Actual</span>}
                           Version {h.version}
                         </p>
                         <p className="text-xs text-stone-400">{h.motivo}</p>
@@ -734,7 +734,7 @@ export default function DashboardPage() {
                   <div className="flex justify-between text-sm"><span className="text-stone-500">Precio venta</span><span className="text-stone-800">{formatCurrency(detailData.precio_venta)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-stone-500">IGV ({(Number(detailData.igv_rate) < 1 ? Number(detailData.igv_rate) * 100 : Number(detailData.igv_rate)).toFixed(1)}%)</span><span className="text-stone-800">{formatCurrency(Number(detailData.precio_final) - Number(detailData.precio_venta))}</span></div>
                   <div className="flex justify-between text-base font-bold border-t border-stone-200 pt-2"><span className="text-stone-600">Precio final</span><span className="text-[var(--accent)]">{formatCurrency(detailData.precio_final)}</span></div>
-                  <div className="flex justify-between text-sm mt-1"><span className="text-stone-400">Sugerido</span><span className="text-teal-600 font-semibold">{formatCurrency(precioComercial(detailData.precio_final))}</span></div>
+                  <div className="flex justify-between text-sm mt-1"><span className="text-stone-400">Sugerido</span><span className="text-[var(--success)] font-semibold">{formatCurrency(precioComercial(detailData.precio_final))}</span></div>
                 </div>
               </>
             )}

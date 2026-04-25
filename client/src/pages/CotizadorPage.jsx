@@ -724,7 +724,7 @@ export default function CotizadorPage() {
                       </button>
                       <button
                         onClick={() => saveAsPredeterminada(prep)}
-                        className={cx.btnIcon + ' hover:text-teal-600'}
+                        className={cx.btnIcon + ' hover:text-[var(--success)]'}
                         title="Guardar como predeterminada"
                       >
                         <BookmarkPlus size={15} />
@@ -1145,7 +1145,7 @@ export default function CotizadorPage() {
                   </div>
                   <div className="flex justify-between items-baseline">
                     <span className="text-stone-400 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
-                    <span className="text-lg font-semibold text-teal-600">{formatCurrency(precioComercial(costos.precioFinal))}</span>
+                    <span className="text-lg font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinal))}</span>
                   </div>
                 </div>
 
@@ -1172,7 +1172,7 @@ export default function CotizadorPage() {
                   </div>
                   <div className="flex justify-between items-baseline">
                     <span className="text-stone-400 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
-                    <span className="text-sm font-semibold text-teal-600">{formatCurrency(precioComercial(costos.precioFinalPorcion))}</span>
+                    <span className="text-sm font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinalPorcion))}</span>
                   </div>
                 </div>
               </>
@@ -1236,7 +1236,7 @@ export default function CotizadorPage() {
                   </div>
                   <div className="flex justify-between items-baseline mt-1">
                     <span className="text-stone-400 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
-                    <span className="text-lg font-semibold text-teal-600">{formatCurrency(precioComercial(costos.precioFinal))}</span>
+                    <span className="text-lg font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinal))}</span>
                   </div>
                 </div>
               </>
