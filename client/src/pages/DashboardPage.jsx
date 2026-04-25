@@ -19,6 +19,15 @@ import {
   MoreVertical,
 } from 'lucide-react';
 
+function normU(u) { if (!u) return ''; if (u === 'l') return 'L'; return u; }
+const FACTORES = { 'g→kg': 0.001, 'kg→g': 1000, 'g→oz': 0.03527, 'oz→g': 28.3495, 'kg→oz': 35.274, 'oz→kg': 0.02835, 'ml→L': 0.001, 'L→ml': 1000 };
+function costoConvertido(cuBase, unidadOriginal, usoUnidad) {
+  const o = normU(unidadOriginal), u = normU(usoUnidad);
+  if (!u || !o || u === o) return cuBase;
+  const f = FACTORES[`${u}→${o}`];
+  return f ? cuBase * f : cuBase;
+}
+
 export default function DashboardPage() {
   const api = useApi();
   const toast = useToast();
@@ -145,13 +154,14 @@ export default function DashboardPage() {
 
           let totalPrep = 0;
           (prep.insumos || []).forEach((ins) => {
-            const cu = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+            const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+            const cu = costoConvertido(cuBase, ins.unidad_medida, ins.uso_unidad);
             const cant = parseFloat(ins.cantidad_usada || ins.cantidad) || 0;
             const sub = cu * cant;
             totalPrep += sub;
             lines.push([
               ins.nombre || '',
-              ins.unidad_medida || '',
+              ins.uso_unidad || ins.unidad_medida || '',
               cant,
               cu.toFixed(4),
               sub.toFixed(2),
@@ -666,11 +676,12 @@ export default function DashboardPage() {
                         </thead>
                         <tbody>
                           {(prep.insumos || []).map((ins, ii) => {
-                            const cu = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+                            const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+                            const cu = costoConvertido(cuBase, ins.unidad_medida, ins.uso_unidad);
                             const cant = parseFloat(ins.cantidad_usada || ins.cantidad) || 0;
                             return (
                               <tr key={ii} className="border-t border-zinc-700/50">
-                                <td className="px-3 py-2 text-white">{ins.nombre} <span className="text-zinc-500 text-xs">{ins.unidad_medida}</span></td>
+                                <td className="px-3 py-2 text-white">{ins.nombre} <span className="text-zinc-500 text-xs">{ins.uso_unidad || ins.unidad_medida}</span></td>
                                 <td className="px-3 py-2 text-center text-zinc-300">{cant}</td>
                                 <td className="px-3 py-2 text-center text-zinc-400">{formatCurrency(cu)}</td>
                                 <td className="px-3 py-2 text-right text-white">{formatCurrency(cu * cant)}</td>
