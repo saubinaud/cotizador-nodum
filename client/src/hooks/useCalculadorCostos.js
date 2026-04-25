@@ -1,5 +1,23 @@
 import { useMemo } from 'react';
 
+const CONVERSIONES = {
+  g: { kg: 1000, g: 1, mg: 0.001, oz: 28.3495 },
+  kg: { g: 0.001, kg: 1, oz: 0.0283495 },
+  ml: { l: 1000, ml: 1 },
+  l: { ml: 0.001, l: 1 },
+  uni: { uni: 1 },
+  oz: { g: 0.0352739, kg: 35.274, oz: 1 },
+};
+
+function convertirUnidad(valor, deUnidad, aUnidad) {
+  if (!deUnidad || !aUnidad || deUnidad === aUnidad) return valor;
+  const grupo = CONVERSIONES[aUnidad];
+  if (grupo && grupo[deUnidad]) return valor * grupo[deUnidad];
+  const grupoRev = CONVERSIONES[deUnidad];
+  if (grupoRev && grupoRev[aUnidad]) return valor / grupoRev[aUnidad];
+  return valor;
+}
+
 export function useCalculadorCostos(preparaciones = [], materiales = [], margen = 50, igvRate = 18, tipoPresentacion = 'unidad', unidadesPorProducto = 1) {
   return useMemo(() => {
     // Cost for THE WHOLE PRODUCT from preparations
@@ -10,9 +28,10 @@ export function useCalculadorCostos(preparaciones = [], materiales = [], margen 
 
       const rendimiento = Number(prep.capacidad) || 0;
       const cantParaProducto = Number(prep.cantidad_por_unidad) || 0;
+      const cantEnUnidadPrep = convertirUnidad(cantParaProducto, prep.porcion_unidad || prep.unidad || '', prep.unidad || '');
 
-      if (rendimiento > 0 && cantParaProducto > 0) {
-        return sum + (prepCost / rendimiento) * cantParaProducto;
+      if (rendimiento > 0 && cantEnUnidadPrep > 0) {
+        return sum + (prepCost / rendimiento) * cantEnUnidadPrep;
       }
       return sum + prepCost; // no porciones = full prep cost is the product cost
     }, 0);

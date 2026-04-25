@@ -16,7 +16,26 @@ import {
   ChevronUp,
   GripVertical,
   ImageIcon,
+  BookmarkPlus,
 } from 'lucide-react';
+
+const CONVERSIONES = {
+  g: { kg: 1000, g: 1, mg: 0.001, oz: 28.3495 },
+  kg: { g: 0.001, kg: 1, oz: 0.0283495 },
+  ml: { l: 1000, ml: 1 },
+  l: { ml: 0.001, l: 1 },
+  uni: { uni: 1 },
+  oz: { g: 0.0352739, kg: 35.274, oz: 1 },
+};
+
+function convertirUnidad(valor, deUnidad, aUnidad) {
+  if (!deUnidad || !aUnidad || deUnidad === aUnidad) return valor;
+  const grupo = CONVERSIONES[aUnidad];
+  if (grupo && grupo[deUnidad]) return valor * grupo[deUnidad];
+  const grupoRev = CONVERSIONES[deUnidad];
+  if (grupoRev && grupoRev[aUnidad]) return valor / grupoRev[aUnidad];
+  return valor;
+}
 
 function InfoTip({ text }) {
   return (
@@ -47,6 +66,7 @@ const emptyPreparacion = () => ({
   capacidad: '',
   unidad: '',
   cantidad_por_unidad: '',
+  porcion_unidad: '',
   insumos: [emptyInsumoRow()],
   collapsed: false,
 });
@@ -116,6 +136,7 @@ export default function CotizadorPage() {
               capacidad: parseFloat(prep.capacidad) || '',
               unidad: prep.unidad_capacidad || prep.unidad || '',
               cantidad_por_unidad: parseFloat(prep.cantidad_por_unidad) || '',
+              porcion_unidad: prep.porcion_unidad || prep.unidad_capacidad || prep.unidad || '',
               collapsed: false,
               insumos: (prep.insumos || []).map((ins) => {
                 const cu = Number(ins.cantidad_presentacion) > 0
@@ -186,6 +207,25 @@ export default function CotizadorPage() {
       }),
     };
     setPreparaciones((prev) => [...prev, newPrep]);
+  };
+
+  const saveAsPredeterminada = async (prep) => {
+    if (!prep.nombre) {
+      toast.error('Dale un nombre a la preparacion primero');
+      return;
+    }
+    try {
+      await api.post('/predeterminados/preparaciones', {
+        nombre: prep.nombre,
+        insumos: (prep.insumos || [])
+          .filter((i) => i.insumo_id)
+          .map((i) => ({ insumo_id: i.insumo_id, cantidad: Number(i.cantidad) || 0 })),
+      });
+      toast.success(`"${prep.nombre}" guardada como predeterminada`);
+      api.get('/predeterminados/preparaciones').then((d) => setCatalogPreps(d.data || [])).catch(() => {});
+    } catch (err) {
+      toast.error(err.message || 'Error guardando preparacion');
+    }
   };
 
   const removePreparacion = (prepId) => {
@@ -318,6 +358,7 @@ export default function CotizadorPage() {
           capacidad: p.capacidad,
           unidad: p.unidad,
           cantidad_por_unidad: Number(p.cantidad_por_unidad) || null,
+          porcion_unidad: p.porcion_unidad || p.unidad || null,
           insumos: p.insumos
             .filter((i) => i.insumo_id)
             .map((i) => ({
@@ -557,19 +598,19 @@ export default function CotizadorPage() {
               <InfoTip text="Cada preparacion es una receta base (masa, relleno, etc). Indica cuanto rinde en total. Puedes usar preparaciones predeterminadas guardadas previamente." />
               <div className="flex items-center gap-2">
                 {catalogPreps.length > 0 && (
-                  <div className="w-56">
+                  <div className="w-48">
                     <SearchableSelect
                       options={catalogPreps}
                       value={null}
                       onChange={(pred) => loadPredeterminada(pred)}
-                      placeholder="Predeterminada..."
+                      placeholder="Cargar plantilla..."
                       displayKey="nombre"
                       valueKey="id"
                     />
                   </div>
                 )}
-                <button onClick={addPreparacion} className={cx.btnGhost + ' flex items-center gap-1'}>
-                  <Plus size={14} /> Nueva
+                <button onClick={addPreparacion} className={cx.btnPrimary + ' flex items-center gap-1 text-xs'}>
+                  <Plus size={14} /> Nueva preparacion
                 </button>
               </div>
             </div>
@@ -622,6 +663,13 @@ export default function CotizadorPage() {
                     </div>
                     <button onClick={() => toggleCollapse(prep._id)} className={cx.btnIcon + ' mb-1'}>
                       {prep.collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
+                    </button>
+                    <button
+                      onClick={() => saveAsPredeterminada(prep)}
+                      className={cx.btnIcon + ' hover:text-green-400 mb-1'}
+                      title="Guardar como predeterminada"
+                    >
+                      <BookmarkPlus size={15} />
                     </button>
                     {preparaciones.length > 1 && (
                       <button onClick={() => removePreparacion(prep._id)} className={cx.btnIcon + ' hover:text-red-400 mb-1'}>
@@ -758,8 +806,9 @@ export default function CotizadorPage() {
                         const costoPrep = (prep.insumos || []).reduce((s, i) => s + (Number(i.costo_unitario) || 0) * (Number(i.cantidad) || 0), 0);
                         const rendimiento = Number(prep.capacidad) || 0;
                         const cantPorUni = Number(prep.cantidad_por_unidad) || 0;
-                        const alcanzaPara = rendimiento > 0 && cantPorUni > 0 ? Math.floor(rendimiento / cantPorUni) : 0;
-                        const costoPorUni = rendimiento > 0 && cantPorUni > 0 ? (costoPrep / rendimiento) * cantPorUni : costoPrep;
+                        const cantEnUnidadPrep = convertirUnidad(cantPorUni, prep.porcion_unidad || prep.unidad, prep.unidad);
+                        const alcanzaPara = rendimiento > 0 && cantEnUnidadPrep > 0 ? Math.floor(rendimiento / cantEnUnidadPrep) : 0;
+                        const costoPorUni = rendimiento > 0 && cantEnUnidadPrep > 0 ? (costoPrep / rendimiento) * cantEnUnidadPrep : costoPrep;
                         return (
                           <tr key={prep._id} className="border-b border-zinc-800/50 last:border-0">
                             <td className={cx.td + ' text-white font-medium'}>{prep.nombre}</td>
@@ -767,7 +816,18 @@ export default function CotizadorPage() {
                             <td className={cx.td}>
                               <div className="flex items-center gap-1">
                                 <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className={cx.input + ' w-20 text-center'} placeholder="0" />
-                                <span className="text-zinc-500 text-xs">{prep.unidad || ''}</span>
+                                <select
+                                  value={prep.porcion_unidad || prep.unidad || ''}
+                                  onChange={(e) => updatePreparacion(prep._id, 'porcion_unidad', e.target.value)}
+                                  className="w-12 bg-zinc-800 rounded-lg px-1 py-1.5 text-zinc-400 text-xs text-center focus:outline-none appearance-none"
+                                >
+                                  <option value="g">g</option>
+                                  <option value="kg">kg</option>
+                                  <option value="ml">ml</option>
+                                  <option value="l">l</option>
+                                  <option value="uni">uni</option>
+                                  <option value="oz">oz</option>
+                                </select>
                               </div>
                             </td>
                             <td className={cx.td + ' text-zinc-300'}>{alcanzaPara > 0 ? `${alcanzaPara} productos` : '--'}</td>
@@ -783,8 +843,9 @@ export default function CotizadorPage() {
                       const costoPrep = (prep.insumos || []).reduce((s, i) => s + (Number(i.costo_unitario) || 0) * (Number(i.cantidad) || 0), 0);
                       const rendimiento = Number(prep.capacidad) || 0;
                       const cantPorUni = Number(prep.cantidad_por_unidad) || 0;
-                      const alcanzaPara = rendimiento > 0 && cantPorUni > 0 ? Math.floor(rendimiento / cantPorUni) : 0;
-                      const costoPorUni = rendimiento > 0 && cantPorUni > 0 ? (costoPrep / rendimiento) * cantPorUni : costoPrep;
+                      const cantEnUnidadPrep = convertirUnidad(cantPorUni, prep.porcion_unidad || prep.unidad, prep.unidad);
+                      const alcanzaPara = rendimiento > 0 && cantEnUnidadPrep > 0 ? Math.floor(rendimiento / cantEnUnidadPrep) : 0;
+                      const costoPorUni = rendimiento > 0 && cantEnUnidadPrep > 0 ? (costoPrep / rendimiento) * cantEnUnidadPrep : costoPrep;
                       return (
                         <div key={prep._id} className="bg-zinc-800 rounded-xl p-3 space-y-2">
                           <div className="flex justify-between items-center">
@@ -796,7 +857,18 @@ export default function CotizadorPage() {
                               <label className={cx.label}>Para el producto</label>
                               <div className="flex items-center gap-1">
                                 <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-20 bg-zinc-900 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30" placeholder="0" />
-                                <span className="text-zinc-500 text-xs">{prep.unidad || ''}</span>
+                                <select
+                                  value={prep.porcion_unidad || prep.unidad || ''}
+                                  onChange={(e) => updatePreparacion(prep._id, 'porcion_unidad', e.target.value)}
+                                  className="w-12 bg-zinc-800 rounded-lg px-1 py-1.5 text-zinc-400 text-xs text-center focus:outline-none appearance-none"
+                                >
+                                  <option value="g">g</option>
+                                  <option value="kg">kg</option>
+                                  <option value="ml">ml</option>
+                                  <option value="l">l</option>
+                                  <option value="uni">uni</option>
+                                  <option value="oz">oz</option>
+                                </select>
                               </div>
                             </div>
                             <div className="text-xs text-zinc-400">
