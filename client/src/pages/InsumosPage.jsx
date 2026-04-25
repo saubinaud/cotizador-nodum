@@ -131,6 +131,17 @@ export default function InsumosPage() {
   };
 
   const costoUnitario = (ins) => {
+    // Use WAC (costo_base) if available, otherwise calculate from catalog
+    if (ins.costo_base && Number(ins.costo_base) > 0) return Number(ins.costo_base);
+    const pres = Number(ins.cantidad_presentacion) || 0;
+    const precio = Number(ins.precio_presentacion) || 0;
+    if (pres === 0) return 0;
+    return precio / pres;
+  };
+
+  const tieneWAC = (ins) => ins.costo_base && Number(ins.costo_base) > 0;
+
+  const costoCatalogo = (ins) => {
     const pres = Number(ins.cantidad_presentacion) || 0;
     const precio = Number(ins.precio_presentacion) || 0;
     if (pres === 0) return 0;
@@ -210,7 +221,10 @@ export default function InsumosPage() {
                   <h3 className="text-stone-800 font-medium text-sm">{ins.nombre}</h3>
                   <p className="text-stone-500 text-xs mt-1">{ins.cantidad_presentacion} {ins.unidad_medida} - {formatCurrency(ins.precio_presentacion)}</p>
                 </div>
-                <span className="text-[var(--accent)] text-sm font-semibold">{formatCurrency(costoUnitario(ins))}/{ins.unidad_medida}</span>
+                <div className="text-right">
+                  <span className="text-[var(--accent)] text-sm font-semibold">{formatCurrency(costoUnitario(ins))}/{ins.unidad_base || ins.unidad_medida}</span>
+                  {tieneWAC(ins) && <p className="text-[10px] text-teal-600">WAC</p>}
+                </div>
               </div>
               <div className="flex gap-2 mt-3 border-t border-stone-200 pt-3">
                 <button onClick={() => loadPriceHistory(ins.id)} className={cx.btnGhost + ' flex items-center justify-center gap-1'} title="Historial de precios"><TrendingUp size={13} /></button>
@@ -267,7 +281,10 @@ export default function InsumosPage() {
                   <td className={cx.td + ' text-stone-600'}>{ins.cantidad_presentacion}</td>
                   <td className={cx.td + ' text-stone-600'}>{ins.unidad_medida}</td>
                   <td className={cx.td + ' text-stone-600'}>{formatCurrency(ins.precio_presentacion)}</td>
-                  <td className={cx.td + ' text-[var(--accent)] font-semibold'}>{formatCurrency(costoUnitario(ins))}/{ins.unidad_medida}</td>
+                  <td className={cx.td + ' text-[var(--accent)] font-semibold'}>
+                    {formatCurrency(costoUnitario(ins))}/{ins.unidad_base || ins.unidad_medida}
+                    {tieneWAC(ins) && <span className="text-[10px] text-teal-600 ml-1">WAC</span>}
+                  </td>
                   <td className={cx.td + ' text-right'}>
                     <div className="flex justify-end gap-1">
                       <button onClick={() => loadPriceHistory(ins.id)} className={cx.btnIcon} title="Historial de precios"><TrendingUp size={15} /></button>
