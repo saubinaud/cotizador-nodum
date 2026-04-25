@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
+import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency, formatPercent, formatDate, precioComercial } from '../utils/format';
@@ -31,8 +32,10 @@ function costoConvertido(cuBase, unidadOriginal, usoUnidad) {
 
 export default function DashboardPage() {
   const api = useApi();
+  const { user } = useAuth();
   const toast = useToast();
   const navigate = useNavigate();
+  const precioMode = user?.precio_decimales || 'variable';
 
   const [products, setProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -320,7 +323,7 @@ export default function DashboardPage() {
                   <h3 className="text-sm font-semibold text-stone-900 truncate">{p.nombre}</h3>
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-stone-400 text-xs">Margen: {formatPercent(p.margen)}</span>
-                    <span className="text-[var(--accent)] font-bold text-sm">{formatCurrency(precioComercial(p.precio_final))}</span>
+                    <span className="text-[var(--accent)] font-bold text-sm">{formatCurrency(precioComercial(p.precio_final, precioMode))}</span>
                   </div>
                 </div>
                 {/* Action buttons */}
@@ -349,7 +352,7 @@ export default function DashboardPage() {
                     <h3 className="text-stone-800 font-medium text-sm truncate">{p.nombre}</h3>
                     <p className="text-stone-500 text-xs mt-0.5">{formatDate(p.updated_at)}</p>
                   </div>
-                  <span className="text-[var(--accent)] font-bold text-lg">{formatCurrency(precioComercial(p.precio_final))}</span>
+                  <span className="text-[var(--accent)] font-bold text-lg">{formatCurrency(precioComercial(p.precio_final, precioMode))}</span>
                 </div>
                 <div className="flex gap-4 text-xs text-stone-500 mb-3">
                   <span>Costo: {formatCurrency(p.costo_neto)}</span>
@@ -661,7 +664,7 @@ export default function DashboardPage() {
                   <p className="text-sm text-stone-500 mt-1">Margen: {formatPercent(detailModal.margen)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-stone-900">{formatCurrency(precioComercial(detailModal.precio_final))}</p>
+                  <p className="text-2xl font-bold text-stone-900">{formatCurrency(precioComercial(detailModal.precio_final, precioMode))}</p>
                   <p className="text-xs text-stone-400">Precio sugerido</p>
                 </div>
               </div>
@@ -755,7 +758,7 @@ export default function DashboardPage() {
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-stone-400">Sugerido</span>
-                      <span className="text-[var(--success)] font-semibold">{formatCurrency(precioComercial(detailData.precio_final))}</span>
+                      <span className="text-[var(--success)] font-semibold">{formatCurrency(precioComercial(detailData.precio_final, precioMode))}</span>
                     </div>
                   </div>
 
