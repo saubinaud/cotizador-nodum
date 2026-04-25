@@ -14,7 +14,7 @@ router.post('/usuarios', async (req, res) => {
   try {
     const { email, nombre, empresa: nombre_comercial, rol, permisos } = req.body;
     const validRol = ['cliente', 'admin'].includes(rol) ? rol : 'cliente';
-    const ALL_MODULES = ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion'];
+    const ALL_MODULES = ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion', 'pl'];
     const validPermisos = Array.isArray(permisos) ? permisos.filter((p) => ALL_MODULES.includes(p)) : ALL_MODULES;
 
     if (!email || !nombre) {
@@ -114,7 +114,7 @@ router.delete('/usuarios/:id', async (req, res) => {
 router.patch('/usuarios/:id/permisos', async (req, res) => {
   try {
     const { permisos } = req.body;
-    const ALL_MODULES = ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion'];
+    const ALL_MODULES = ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion', 'pl'];
 
     if (!Array.isArray(permisos)) {
       return res.status(400).json({ success: false, error: 'Permisos debe ser un array' });

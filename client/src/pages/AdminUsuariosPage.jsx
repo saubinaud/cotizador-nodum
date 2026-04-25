@@ -14,6 +14,7 @@ const ALL_MODULES = [
   { key: 'preparaciones', label: 'Prep. Predeterminadas' },
   { key: 'empaques', label: 'Empaques Predeterminados' },
   { key: 'proyeccion', label: 'Proyección de Ventas' },
+  { key: 'pl', label: 'P&L (Finanzas)' },
 ];
 
 const DEFAULT_PERMISOS = ALL_MODULES.map((m) => m.key);

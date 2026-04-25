@@ -13,6 +13,7 @@ const materialesRoutes = require('./routes/materiales');
 const productosRoutes = require('./routes/productos');
 const predeterminadosRoutes = require('./routes/predeterminados');
 const historialRoutes = require('./routes/historial');
+const plRoutes = require('./routes/pl');
 const runMigrations = require('./models/migrate');
 
 const app = express();
@@ -42,6 +43,7 @@ app.use('/api/materiales', materialesRoutes);
 app.use('/api/productos', productosRoutes);
 app.use('/api/predeterminados', predeterminadosRoutes);
 app.use('/api/historial', historialRoutes);
+app.use('/api/pl', plRoutes);
 
 // --------------- 404 Handler ---------------
 

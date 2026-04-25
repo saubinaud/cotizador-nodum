@@ -97,6 +97,70 @@ async function runMigrations() {
     // usuarios — precio_decimales (decimales/enteros/variable)
     await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS precio_decimales VARCHAR(10) NOT NULL DEFAULT 'variable'`);
 
+    // ==================== P&L TABLES ====================
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS periodos (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        nombre VARCHAR(100) NOT NULL,
+        tipo VARCHAR(20) NOT NULL DEFAULT 'mensual',
+        fecha_inicio DATE NOT NULL,
+        fecha_fin DATE NOT NULL,
+        estado VARCHAR(20) NOT NULL DEFAULT 'abierto',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS categorias_gasto (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        nombre VARCHAR(100) NOT NULL,
+        tipo VARCHAR(20) NOT NULL DEFAULT 'variable',
+        recurrente BOOLEAN NOT NULL DEFAULT false,
+        monto_default NUMERIC(12,2),
+        orden INTEGER NOT NULL DEFAULT 0,
+        activa BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS gastos (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        periodo_id INTEGER NOT NULL REFERENCES periodos(id) ON DELETE CASCADE,
+        categoria_id INTEGER REFERENCES categorias_gasto(id) ON DELETE SET NULL,
+        descripcion VARCHAR(255),
+        monto NUMERIC(12,2) NOT NULL,
+        fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS ventas_periodo (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        periodo_id INTEGER NOT NULL REFERENCES periodos(id) ON DELETE CASCADE,
+        producto_id INTEGER REFERENCES productos(id) ON DELETE SET NULL,
+        descripcion VARCHAR(255),
+        cantidad INTEGER NOT NULL DEFAULT 1,
+        precio_unitario NUMERIC(12,2) NOT NULL,
+        monto_total NUMERIC(12,2) NOT NULL,
+        fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Update default permisos to include 'pl'
+    await client.query(`
+      ALTER TABLE usuarios
+        ALTER COLUMN permisos SET DEFAULT '["dashboard","cotizador","insumos","materiales","preparaciones","empaques","proyeccion","pl"]'::jsonb
+    `);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);
