@@ -401,7 +401,9 @@ export default function PrepPredPage() {
       <div className="space-y-3">
         {preps.map((prep) => {
           const totalCosto = (prep.insumos || []).reduce((s, ins) => {
-            const cu = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+            const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+            const factor = (ins.uso_unidad && ins.uso_unidad !== ins.unidad_medida) ? convertirUnidad(1, ins.unidad_medida || '', ins.uso_unidad || '') : 1;
+            const cu = factor > 0 ? cuBase / factor : cuBase;
             return s + cu * (parseFloat(ins.cantidad) || 0);
           }, 0);
           return (
@@ -423,13 +425,16 @@ export default function PrepPredPage() {
               {(prep.insumos || []).length > 0 && (
                 <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
                   {prep.insumos.map((ins, i) => {
-                    const cu = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+                    const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;
+                    const factor = (ins.uso_unidad && ins.uso_unidad !== ins.unidad_medida) ? convertirUnidad(1, ins.unidad_medida || '', ins.uso_unidad || '') : 1;
+                    const cu = factor > 0 ? cuBase / factor : cuBase;
                     const cant = parseFloat(ins.cantidad) || 0;
+                    const unidadMostrar = ins.uso_unidad || ins.unidad_medida || '';
                     return (
                       <div key={i} className="flex justify-between text-xs">
                         <span className="text-zinc-400">{ins.nombre || `Insumo #${ins.insumo_id}`}</span>
                         <span className="text-zinc-500">
-                          {cant} {ins.unidad_medida || ''} × {formatCurrency(cu)} = <span className="text-white">{formatCurrency(cu * cant)}</span>
+                          {cant} {unidadMostrar} × {formatCurrency(cu)} = <span className="text-white">{formatCurrency(cu * cant)}</span>
                         </span>
                       </div>
                     );
