@@ -12,11 +12,11 @@ input[type="number"] {
 }
 
 body {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 #root {
-  overflow-x: hidden;
+  overflow-x: clip;
 }
 
 :root {
