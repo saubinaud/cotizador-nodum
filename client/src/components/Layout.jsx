@@ -40,10 +40,10 @@ function SidebarLink({ to, label, icon: Icon, onClick }) {
       to={to}
       onClick={onClick}
       className={({ isActive }) =>
-        `flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 ${
+        `flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-200 ${
           isActive
-            ? 'bg-[var(--accent-light)] text-[var(--accent)] border-l-2 border-[var(--accent)]'
-            : 'text-stone-500 hover:text-stone-800 hover:bg-stone-100'
+            ? 'bg-[var(--accent-light)] text-[var(--accent)]'
+            : 'text-stone-500 hover:text-stone-800 hover:bg-stone-50'
         }`
       }
     >
@@ -86,7 +86,7 @@ export default function Layout() {
         </div>
       </div>
 
-      <nav className="flex-1 p-3 space-y-1 overflow-y-auto">
+      <nav className="flex-1 px-4 py-4 space-y-1 overflow-y-auto">
         {links.map((l) => (
           <SidebarLink key={l.to} {...l} onClick={closeSidebar} />
         ))}
@@ -124,7 +124,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-stone-50 flex">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex w-60 flex-col bg-white border-r border-stone-200 fixed inset-y-0 left-0 z-30">
+      <aside className="hidden lg:flex w-64 flex-col bg-white border-r border-stone-100 fixed inset-y-0 left-0 z-30">
         {sidebarContent}
       </aside>
 
@@ -145,7 +145,7 @@ export default function Layout() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 lg:ml-60">
+      <div className="flex-1 lg:ml-64">
         {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-stone-200 sticky top-0 z-20">
           <button onClick={() => setOpen(true)} className="p-2 text-stone-400 hover:text-stone-800">
@@ -164,7 +164,7 @@ export default function Layout() {
           <div className="w-9" />
         </header>
 
-        <main className="p-4 lg:p-6">
+        <main className="p-5 lg:p-8">
           <Outlet />
         </main>
       </div>
