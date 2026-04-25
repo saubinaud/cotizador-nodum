@@ -92,6 +92,7 @@ export default function CotizadorPage() {
   const [preparaciones, setPreparaciones] = useState([emptyPreparacion()]);
   const [materiales, setMateriales] = useState([]);
   const [margen, setMargen] = useState(50);
+  const [margenPorcion, setMargenPorcion] = useState(50);
   // igv_rate in DB is decimal (0.18), hook expects integer (18)
   const [igvRate, setIgvRate] = useState(user?.igv_rate ? Math.round(user.igv_rate * 100) : 18);
   const [tipoPresentacion, setTipoPresentacion] = useState('unidad');
@@ -103,7 +104,7 @@ export default function CotizadorPage() {
   const [catalogMateriales, setCatalogMateriales] = useState([]);
   const [catalogPreps, setCatalogPreps] = useState([]);
 
-  const costos = useCalculadorCostos(preparaciones, materiales, margen, igvRate, tipoPresentacion, unidadesPorProducto);
+  const costos = useCalculadorCostos(preparaciones, materiales, margen, igvRate, tipoPresentacion, unidadesPorProducto, margenPorcion);
 
   // Load catalogs
   useEffect(() => {
@@ -125,6 +126,7 @@ export default function CotizadorPage() {
         setUnidadesPorProducto(parseInt(p.unidades_por_producto) || 1);
         // DB stores decimals (0.5, 0.18), UI uses integers (50, 18)
         setMargen(p.margen ? Math.round(p.margen * 100) : 50);
+        setMargenPorcion(p.margen_porcion ? Math.round(p.margen_porcion * 100) : (p.margen ? Math.round(p.margen * 100) : 50));
         setIgvRate(p.igv_rate ? Math.round(p.igv_rate * 100) : (user?.igv_rate ? Math.round(user.igv_rate * 100) : 18));
 
         if (p.preparaciones?.length) {
@@ -334,6 +336,7 @@ export default function CotizadorPage() {
     setPreparaciones([emptyPreparacion()]);
     setMateriales([]);
     setMargen(50);
+    setMargenPorcion(50);
     setTipoPresentacion('unidad');
     setUnidadesPorProducto(1);
     setImagenUrl('');
@@ -351,6 +354,7 @@ export default function CotizadorPage() {
         nombre: nombre.trim(),
         imagen_url: imagenUrl.trim() || null,
         margen,          // backend normalizes integer% → decimal
+        margen_porcion: margenPorcion,
         igv_rate: igvRate / 100,
         tipo_presentacion: tipoPresentacion,
         unidades_por_producto: tipoPresentacion === 'entero' ? unidadesPorProducto : 1,
@@ -539,53 +543,28 @@ export default function CotizadorPage() {
             <InfoTip text="Si vendes un producto entero (ej: torta de 8 porciones), selecciona 'Producto entero' e indica cuantas porciones tiene." />
           </div>
           <div className={`${cx.card} p-5`}>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-              <div>
+            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4">
+              <div className="sm:col-span-2">
                 <label className={cx.label}>Nombre del producto</label>
-                <input
-                  type="text"
-                  value={nombre}
-                  onChange={(e) => setNombre(e.target.value)}
-                  className={cx.input + ' text-lg'}
-                  placeholder="Ej: Cheesecake de fresa"
-                  autoFocus
-                />
+                <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={cx.input} placeholder="Ej: Cheesecake de fresa" autoFocus />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className={cx.label}>Presentacion<InfoTip text="'Por unidad' si vendes items individuales. 'Presentacion entera' si vendes algo divisible (torta, bandeja, etc)." /></label>
+                <select value={tipoPresentacion} onChange={(e) => setTipoPresentacion(e.target.value)} className={cx.select}>
+                  <option value="unidad">Por unidad</option>
+                  <option value="entero">Presentacion entera</option>
+                </select>
+              </div>
+              {tipoPresentacion === 'entero' && (
                 <div>
-                  <label className={cx.label}>Presentacion<InfoTip text="'Por unidad' si vendes items individuales. 'Producto entero' si vendes algo divisible (torta, bandeja, etc)." /></label>
-                  <select
-                    value={tipoPresentacion}
-                    onChange={(e) => setTipoPresentacion(e.target.value)}
-                    className={cx.select}
-                  >
-                    <option value="unidad">Por unidad</option>
-                    <option value="entero">Producto entero</option>
-                  </select>
+                  <label className={cx.label}>Porciones</label>
+                  <input type="number" min="1" value={unidadesPorProducto} onChange={(e) => setUnidadesPorProducto(Math.max(1, parseInt(e.target.value) || 1))} className={cx.input} />
                 </div>
-                {tipoPresentacion === 'entero' && (
-                  <div>
-                    <label className={cx.label}>Unidades por producto</label>
-                    <input
-                      type="number"
-                      min="1"
-                      value={unidadesPorProducto}
-                      onChange={(e) => setUnidadesPorProducto(Math.max(1, parseInt(e.target.value) || 1))}
-                      className={cx.input}
-                    />
-                  </div>
-                )}
-              </div>
+              )}
             </div>
             <div>
               <label className={cx.label}>Imagen URL (opcional)</label>
-              <input
-                type="text"
-                value={imagenUrl}
-                onChange={(e) => setImagenUrl(e.target.value)}
-                className={cx.input}
-                placeholder="https://..."
-              />
+              <input type="text" value={imagenUrl} onChange={(e) => setImagenUrl(e.target.value)} className={cx.input} placeholder="https://..." />
             </div>
           </div>
 
@@ -977,9 +956,9 @@ export default function CotizadorPage() {
                   </div>
                 </div>
 
-                {/* Margen slider */}
+                {/* Margen slider - producto entero */}
                 <div>
-                  <label className={cx.label}>Margen<InfoTip text="Porcentaje de ganancia sobre el costo. 50% significa que el costo es la mitad del precio de venta." /></label>
+                  <label className={cx.label}>Margen producto entero<InfoTip text="Porcentaje de ganancia sobre el costo. 50% significa que el costo es la mitad del precio de venta." /></label>
                   <div className="flex items-center gap-3">
                     <input
                       type="range"
@@ -1018,6 +997,16 @@ export default function CotizadorPage() {
                   <div className="flex justify-between items-baseline">
                     <span className="text-zinc-500 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
                     <span className="text-lg font-semibold text-green-400">{formatCurrency(precioComercial(costos.precioFinal))}</span>
+                  </div>
+                </div>
+
+                {/* Margen por porcion */}
+                <div className="border-t border-zinc-800 pt-4">
+                  <label className={cx.label}>Margen por porcion</label>
+                  <div className="flex items-center gap-3">
+                    <input type="range" min="0" max="90" step="1" value={margenPorcion} onChange={(e) => setMargenPorcion(Number(e.target.value))} className="flex-1 accent-[#FA7B21] h-1.5" />
+                    <input type="number" value={margenPorcion} onChange={(e) => setMargenPorcion(Math.min(90, Math.max(0, Number(e.target.value) || 0)))} className="w-16 bg-zinc-800 rounded-lg px-2 py-1.5 text-white text-sm text-center focus:outline-none focus:ring-1 focus:ring-[#FA7B21]/30" />
+                    <span className="text-zinc-500 text-sm">%</span>
                   </div>
                 </div>
 

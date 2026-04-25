@@ -18,7 +18,7 @@ function convertirUnidad(valor, deUnidad, aUnidad) {
   return valor;
 }
 
-export function useCalculadorCostos(preparaciones = [], materiales = [], margen = 50, igvRate = 18, tipoPresentacion = 'unidad', unidadesPorProducto = 1) {
+export function useCalculadorCostos(preparaciones = [], materiales = [], margen = 50, igvRate = 18, tipoPresentacion = 'unidad', unidadesPorProducto = 1, margenPorcion = null) {
   return useMemo(() => {
     // Cost for THE WHOLE PRODUCT from preparations
     const costoInsumosProducto = preparaciones.reduce((sum, prep) => {
@@ -56,9 +56,10 @@ export function useCalculadorCostos(preparaciones = [], materiales = [], margen 
     const precioVentaProducto = costoNetoProducto > 0 && margenDecimal < 1 ? costoNetoProducto / (1 - margenDecimal) : costoNetoProducto;
     const precioFinalProducto = precioVentaProducto * (1 + igvDecimal);
 
-    // PER PORTION pricing
+    // PER PORTION pricing (can have its own margin)
     const costoNetoPorcion = costoInsumosPorPorcion + costoEmpaqueUnidad;
-    const precioVentaPorcion = costoNetoPorcion > 0 && margenDecimal < 1 ? costoNetoPorcion / (1 - margenDecimal) : costoNetoPorcion;
+    const margenPorcionDecimal = margenPorcion !== null ? Number(margenPorcion) / 100 : margenDecimal;
+    const precioVentaPorcion = costoNetoPorcion > 0 && margenPorcionDecimal < 1 ? costoNetoPorcion / (1 - margenPorcionDecimal) : costoNetoPorcion;
     const precioFinalPorcion = precioVentaPorcion * (1 + igvDecimal);
 
     // Return values that the backend/save needs (use product-level values)
@@ -72,6 +73,7 @@ export function useCalculadorCostos(preparaciones = [], materiales = [], margen 
       costoNeto: costoNetoProducto,
       costoNetoPorcion,
       margen: Number(margen),
+      margenPorcion: margenPorcion !== null ? Number(margenPorcion) : Number(margen),
       unidades,
       precioVenta: precioVentaProducto,
       precioVentaPorcion,
@@ -80,5 +82,5 @@ export function useCalculadorCostos(preparaciones = [], materiales = [], margen 
       precioFinal: precioFinalProducto,
       precioFinalPorcion,
     };
-  }, [preparaciones, materiales, margen, igvRate, tipoPresentacion, unidadesPorProducto]);
+  }, [preparaciones, materiales, margen, igvRate, tipoPresentacion, unidadesPorProducto, margenPorcion]);
 }

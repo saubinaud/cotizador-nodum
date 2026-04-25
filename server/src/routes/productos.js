@@ -11,23 +11,23 @@ router.use(auth);
 router.post('/', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { nombre, margen, preparaciones, materiales, imagen_url, tipo_presentacion, unidades_por_producto } = req.body;
+    const { nombre, margen, margen_porcion, preparaciones, materiales, imagen_url, tipo_presentacion, unidades_por_producto } = req.body;
 
     if (!nombre) {
       return res.status(400).json({ success: false, error: 'Nombre es requerido' });
     }
 
     const igv_rate = req.user.igv_rate || 0.18;
-    // Frontend sends integer % (50 = 50%), DB stores decimal (0.5)
     const margenDecimal = parseFloat(margen) > 1 ? parseFloat(margen) / 100 : parseFloat(margen) || 0;
+    const margenPorcionDecimal = margen_porcion != null ? (parseFloat(margen_porcion) > 1 ? parseFloat(margen_porcion) / 100 : parseFloat(margen_porcion) || 0) : null;
 
     await client.query('BEGIN');
 
     const prodRes = await client.query(
-      `INSERT INTO productos (usuario_id, nombre, margen, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO productos (usuario_id, nombre, margen, margen_porcion, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [req.user.id, nombre, margenDecimal, igv_rate, imagen_url || null, tipo_presentacion || 'unidad', parseInt(unidades_por_producto) || 1]
+      [req.user.id, nombre, margenDecimal, margenPorcionDecimal, igv_rate, imagen_url || null, tipo_presentacion || 'unidad', parseInt(unidades_por_producto) || 1]
     );
     const producto = prodRes.rows[0];
 
@@ -126,7 +126,7 @@ router.get('/', async (req, res) => {
     const result = await pool.query(
       `SELECT id, nombre, margen, igv_rate,
               costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final,
-              imagen_url, tipo_presentacion, unidades_por_producto, created_at, updated_at
+              imagen_url, tipo_presentacion, unidades_por_producto, margen_porcion, created_at, updated_at
        FROM productos
        WHERE usuario_id = $1
        ORDER BY nombre ASC`,
@@ -192,7 +192,7 @@ router.get('/:id', async (req, res) => {
 router.put('/:id', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { nombre, margen, preparaciones, materiales, imagen_url, tipo_presentacion, unidades_por_producto } = req.body;
+    const { nombre, margen, margen_porcion, preparaciones, materiales, imagen_url, tipo_presentacion, unidades_por_producto } = req.body;
 
     const existing = await client.query(
       'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
@@ -206,6 +206,9 @@ router.put('/:id', async (req, res) => {
     const margenDecimal = margen !== undefined
       ? (parseFloat(margen) > 1 ? parseFloat(margen) / 100 : parseFloat(margen) || 0)
       : undefined;
+    const margenPorcionDecimal = margen_porcion != null
+      ? (parseFloat(margen_porcion) > 1 ? parseFloat(margen_porcion) / 100 : parseFloat(margen_porcion) || 0)
+      : undefined;
 
     await client.query('BEGIN');
 
@@ -213,13 +216,14 @@ router.put('/:id', async (req, res) => {
       `UPDATE productos SET
         nombre = COALESCE($1, nombre),
         margen = COALESCE($2, margen),
+        margen_porcion = $8,
         igv_rate = $3,
         imagen_url = COALESCE($5, imagen_url),
         tipo_presentacion = COALESCE($6, tipo_presentacion),
         unidades_por_producto = COALESCE($7, unidades_por_producto),
         updated_at = NOW()
        WHERE id = $4`,
-      [nombre, margenDecimal, igv_rate, req.params.id, imagen_url, tipo_presentacion, unidades_por_producto ? parseInt(unidades_por_producto) : undefined]
+      [nombre, margenDecimal, igv_rate, req.params.id, imagen_url, tipo_presentacion, unidades_por_producto ? parseInt(unidades_por_producto) : undefined, margenPorcionDecimal]
     );
 
     let allInsumos = [];
