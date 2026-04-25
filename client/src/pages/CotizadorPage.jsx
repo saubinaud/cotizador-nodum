@@ -22,8 +22,9 @@ import {
 const CONVERSIONES = {
   g: { kg: 1000, g: 1, mg: 0.001, oz: 28.3495 },
   kg: { g: 0.001, kg: 1, oz: 0.0283495 },
-  ml: { l: 1000, ml: 1 },
-  l: { ml: 0.001, l: 1 },
+  ml: { L: 1000, ml: 1, l: 1000 },
+  L: { ml: 0.001, L: 1, l: 1 },
+  l: { ml: 0.001, L: 1, l: 1 },
   uni: { uni: 1 },
   oz: { g: 0.0352739, kg: 35.274, oz: 1 },
 };
@@ -633,7 +634,7 @@ export default function CotizadorPage() {
                         <option value="g">g</option>
                         <option value="kg">kg</option>
                         <option value="ml">ml</option>
-                        <option value="l">l</option>
+                        <option value="L">L</option>
                         <option value="uni">uni</option>
                         <option value="oz">oz</option>
                       </select>
@@ -805,7 +806,7 @@ export default function CotizadorPage() {
                                   <option value="g">g</option>
                                   <option value="kg">kg</option>
                                   <option value="ml">ml</option>
-                                  <option value="l">l</option>
+                                  <option value="L">L</option>
                                   <option value="uni">uni</option>
                                   <option value="oz">oz</option>
                                 </select>
@@ -846,7 +847,7 @@ export default function CotizadorPage() {
                                   <option value="g">g</option>
                                   <option value="kg">kg</option>
                                   <option value="ml">ml</option>
-                                  <option value="l">l</option>
+                                  <option value="L">L</option>
                                   <option value="uni">uni</option>
                                   <option value="oz">oz</option>
                                 </select>

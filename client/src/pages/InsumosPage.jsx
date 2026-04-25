@@ -6,7 +6,7 @@ import { formatCurrency } from '../utils/format';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { Plus, Save, X, Trash2, Pencil, Search } from 'lucide-react';
 
-const UNIDADES = ['g', 'ml', 'uni', 'oz', 'kg', 'l'];
+const UNIDADES = ['g', 'ml', 'uni', 'oz', 'kg', 'L'];
 
 const emptyRow = () => ({
   id: null,

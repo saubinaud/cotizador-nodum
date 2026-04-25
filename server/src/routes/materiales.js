@@ -116,17 +116,31 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/materiales/:id
 router.delete('/:id', async (req, res) => {
   try {
-    const usage = await pool.query(
+    // Check usage in products
+    const usageProductos = await pool.query(
       `SELECT COUNT(*) FROM producto_materiales pm
        JOIN productos p ON p.id = pm.producto_id
        WHERE pm.material_id = $1 AND p.usuario_id = $2`,
       [req.params.id, req.user.id]
     );
-
-    if (parseInt(usage.rows[0].count) > 0) {
+    if (parseInt(usageProductos.rows[0].count) > 0) {
       return res.status(409).json({
         success: false,
         error: 'No se puede eliminar: el material esta en uso en productos',
+      });
+    }
+
+    // Check usage in empaques predeterminados
+    const usagePred = await pool.query(
+      `SELECT COUNT(*) FROM empaque_pred_materiales epm
+       JOIN empaques_predeterminados ep ON ep.id = epm.empaque_pred_id
+       WHERE epm.material_id = $1 AND ep.usuario_id = $2`,
+      [req.params.id, req.user.id]
+    );
+    if (parseInt(usagePred.rows[0].count) > 0) {
+      return res.status(409).json({
+        success: false,
+        error: 'No se puede eliminar: el material esta en uso en empaques predeterminados',
       });
     }
 

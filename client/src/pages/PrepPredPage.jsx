@@ -172,7 +172,7 @@ export default function PrepPredPage() {
                 <option value="uni">uni</option>
                 <option value="oz">oz</option>
                 <option value="kg">kg</option>
-                <option value="l">l</option>
+                <option value="L">L</option>
               </select>
             </div>
           </div>
