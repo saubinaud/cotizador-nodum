@@ -50,6 +50,14 @@ async function runMigrations() {
     await client.query(`ALTER TABLE prep_pred_insumos ADD COLUMN IF NOT EXISTS uso_unidad VARCHAR(10)`);
     await client.query(`ALTER TABLE producto_prep_insumos ADD COLUMN IF NOT EXISTS uso_unidad VARCHAR(10)`);
 
+    // Normalized cost architecture
+    await client.query(`ALTER TABLE insumos ADD COLUMN IF NOT EXISTS unidad_base VARCHAR(5)`);
+    await client.query(`ALTER TABLE insumos ADD COLUMN IF NOT EXISTS costo_base NUMERIC(12,8)`);
+    await client.query(`ALTER TABLE producto_prep_insumos ADD COLUMN IF NOT EXISTS cantidad_base NUMERIC(12,4)`);
+    await client.query(`ALTER TABLE producto_prep_insumos ADD COLUMN IF NOT EXISTS costo_linea NUMERIC(12,4)`);
+    await client.query(`ALTER TABLE prep_pred_insumos ADD COLUMN IF NOT EXISTS cantidad_base NUMERIC(12,4)`);
+    await client.query(`ALTER TABLE prep_pred_insumos ADD COLUMN IF NOT EXISTS costo_linea NUMERIC(12,4)`);
+
     // preparaciones_predeterminadas — add capacidad/unidad_capacidad
     await client.query(`
       ALTER TABLE preparaciones_predeterminadas

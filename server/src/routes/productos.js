@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
 const { calcularCostos, round4 } = require('../services/calculador');
+const { aBase, calcCostoLinea } = require('../utils/unidades');
 
 const router = express.Router();
 
@@ -43,25 +44,32 @@ router.post('/', async (req, res) => {
 
         if (prep.insumos && prep.insumos.length > 0) {
           for (const ins of prep.insumos) {
-            await client.query(
-              `INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad, uso_unidad)
-               VALUES ($1, $2, $3, $4)`,
-              [prepId, ins.insumo_id, ins.cantidad_usada || ins.cantidad, ins.uso_unidad || null]
-            );
-
             const insumoData = await client.query(
-              'SELECT precio_presentacion, cantidad_presentacion, unidad_medida FROM insumos WHERE id = $1',
+              'SELECT precio_presentacion, cantidad_presentacion, unidad_medida, costo_base FROM insumos WHERE id = $1',
               [ins.insumo_id]
             );
-            if (insumoData.rows.length > 0) {
-              allInsumos.push({
-                precio_presentacion: parseFloat(insumoData.rows[0].precio_presentacion),
-                cantidad_presentacion: parseFloat(insumoData.rows[0].cantidad_presentacion),
-                unidad_medida: insumoData.rows[0].unidad_medida,
-                uso_unidad: ins.uso_unidad || insumoData.rows[0].unidad_medida,
-                cantidad_usada: parseFloat(ins.cantidad_usada || ins.cantidad),
-              });
-            }
+            const iData = insumoData.rows[0];
+            if (!iData) continue;
+
+            const cant = parseFloat(ins.cantidad_usada || ins.cantidad);
+            const usoU = ins.uso_unidad || iData.unidad_medida;
+            const cantBase = round4(aBase(cant, usoU));
+            const costoBase = parseFloat(iData.costo_base) || (parseFloat(iData.precio_presentacion) / aBase(parseFloat(iData.cantidad_presentacion), iData.unidad_medida));
+            const costoLinea = round4(cantBase * costoBase);
+
+            await client.query(
+              `INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad, uso_unidad, cantidad_base, costo_linea)
+               VALUES ($1, $2, $3, $4, $5, $6)`,
+              [prepId, ins.insumo_id, cant, usoU, cantBase, costoLinea]
+            );
+
+            allInsumos.push({
+              precio_presentacion: parseFloat(iData.precio_presentacion),
+              cantidad_presentacion: parseFloat(iData.cantidad_presentacion),
+              unidad_medida: iData.unidad_medida,
+              uso_unidad: usoU,
+              cantidad_usada: cant,
+            });
           }
         }
       }
@@ -161,7 +169,7 @@ router.get('/:id', async (req, res) => {
     const preparaciones = [];
     for (const prep of prepsRes.rows) {
       const insRes = await pool.query(
-        `SELECT ppi.id, ppi.insumo_id, ppi.cantidad AS cantidad_usada, ppi.uso_unidad,
+        `SELECT ppi.id, ppi.insumo_id, ppi.cantidad AS cantidad_usada, ppi.uso_unidad, ppi.cantidad_base, ppi.costo_linea,
                 i.nombre, i.unidad_medida, i.precio_presentacion, i.cantidad_presentacion
          FROM producto_prep_insumos ppi
          JOIN insumos i ON i.id = ppi.insumo_id
@@ -249,24 +257,31 @@ router.put('/:id', async (req, res) => {
 
           if (prep.insumos && prep.insumos.length > 0) {
             for (const ins of prep.insumos) {
-              await client.query(
-                'INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad, uso_unidad) VALUES ($1, $2, $3, $4)',
-                [prepId, ins.insumo_id, ins.cantidad_usada || ins.cantidad, ins.uso_unidad || null]
-              );
-
               const insumoData = await client.query(
-                'SELECT precio_presentacion, cantidad_presentacion, unidad_medida FROM insumos WHERE id = $1',
+                'SELECT precio_presentacion, cantidad_presentacion, unidad_medida, costo_base FROM insumos WHERE id = $1',
                 [ins.insumo_id]
               );
-              if (insumoData.rows.length > 0) {
-                allInsumos.push({
-                  precio_presentacion: parseFloat(insumoData.rows[0].precio_presentacion),
-                  cantidad_presentacion: parseFloat(insumoData.rows[0].cantidad_presentacion),
-                  unidad_medida: insumoData.rows[0].unidad_medida,
-                  uso_unidad: ins.uso_unidad || insumoData.rows[0].unidad_medida,
-                  cantidad_usada: parseFloat(ins.cantidad_usada || ins.cantidad),
-                });
-              }
+              const iData = insumoData.rows[0];
+              if (!iData) continue;
+
+              const cant = parseFloat(ins.cantidad_usada || ins.cantidad);
+              const usoU = ins.uso_unidad || iData.unidad_medida;
+              const cantBase = round4(aBase(cant, usoU));
+              const costoBase = parseFloat(iData.costo_base) || (parseFloat(iData.precio_presentacion) / aBase(parseFloat(iData.cantidad_presentacion), iData.unidad_medida));
+              const costoLinea = round4(cantBase * costoBase);
+
+              await client.query(
+                'INSERT INTO producto_prep_insumos (producto_preparacion_id, insumo_id, cantidad, uso_unidad, cantidad_base, costo_linea) VALUES ($1, $2, $3, $4, $5, $6)',
+                [prepId, ins.insumo_id, cant, usoU, cantBase, costoLinea]
+              );
+
+              allInsumos.push({
+                precio_presentacion: parseFloat(iData.precio_presentacion),
+                cantidad_presentacion: parseFloat(iData.cantidad_presentacion),
+                unidad_medida: iData.unidad_medida,
+                uso_unidad: usoU,
+                cantidad_usada: cant,
+              });
             }
           }
         }

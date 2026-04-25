@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
 const { recalcularProductosPorInsumo } = require('../services/calculador');
+const { getUnidadBase, calcCostoBase } = require('../utils/unidades');
 
 const router = express.Router();
 
@@ -63,11 +64,15 @@ router.post('/', async (req, res) => {
       });
     }
 
+    const um = unidad_medida || 'g';
+    const ub = getUnidadBase(um);
+    const cb = calcCostoBase(precio_presentacion, cantidad_presentacion, um);
+
     const result = await pool.query(
-      `INSERT INTO insumos (usuario_id, nombre, unidad_medida, cantidad_presentacion, precio_presentacion)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO insumos (usuario_id, nombre, unidad_medida, cantidad_presentacion, precio_presentacion, unidad_base, costo_base)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
        RETURNING *`,
-      [req.user.id, nombreNorm, unidad_medida || 'g', cantidad_presentacion, precio_presentacion]
+      [req.user.id, nombreNorm, um, cantidad_presentacion, precio_presentacion, ub, cb]
     );
 
     try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'insumo', result.rows[0].id, 'crear', JSON.stringify({ nombre })]); } catch (_) {}
@@ -97,16 +102,25 @@ router.put('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Insumo no encontrado' });
     }
 
+    // Recalculate base cost
+    const effUm = unidad_medida || existing.rows[0].unidad_medida || 'g';
+    const effCant = cantidad_presentacion || existing.rows[0].cantidad_presentacion;
+    const effPrecio = precio_presentacion || existing.rows[0].precio_presentacion;
+    const ub = getUnidadBase(effUm);
+    const cb = calcCostoBase(effPrecio, effCant, effUm);
+
     const result = await pool.query(
       `UPDATE insumos SET
         nombre = COALESCE($1, nombre),
         unidad_medida = COALESCE($2, unidad_medida),
         cantidad_presentacion = COALESCE($3, cantidad_presentacion),
         precio_presentacion = COALESCE($4, precio_presentacion),
+        unidad_base = $7,
+        costo_base = $8,
         updated_at = NOW()
        WHERE id = $5 AND usuario_id = $6
        RETURNING *`,
-      [nombre, unidad_medida, cantidad_presentacion, precio_presentacion, req.params.id, req.user.id]
+      [nombre, unidad_medida, cantidad_presentacion, precio_presentacion, req.params.id, req.user.id, ub, cb]
     );
 
     const old = existing.rows[0];
