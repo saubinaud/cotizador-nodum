@@ -416,9 +416,9 @@ export default function PrepPredPage() {
           }, 0);
           return (
             <div key={prep.id} className={`${cx.card} p-4`}>
-              <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [prep.id]: !prev[prep.id] }))}>
+              <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [prep.id]: prev[prep.id] === false ? true : false }))}>
                 <div className="flex items-center gap-2 flex-1">
-                  {collapsed[prep.id] ? <ChevronDown size={16} className="text-zinc-500 flex-shrink-0" /> : <ChevronUp size={16} className="text-zinc-500 flex-shrink-0" />}
+                  {collapsed[prep.id] === false ? <ChevronUp size={16} className="text-zinc-500 flex-shrink-0" /> : <ChevronDown size={16} className="text-zinc-500 flex-shrink-0" />}
                   <div>
                     <h3 className="text-white font-medium text-sm">{prep.nombre}</h3>
                     <p className="text-zinc-500 text-xs mt-0.5">
@@ -433,7 +433,7 @@ export default function PrepPredPage() {
                   <button onClick={() => setDeleteTarget(prep)} className={cx.btnIcon + ' hover:text-red-400'}><Trash2 size={15} /></button>
                 </div>
               </div>
-              {!collapsed[prep.id] && (prep.insumos || []).length > 0 && (
+              {collapsed[prep.id] === false && (prep.insumos || []).length > 0 && (
                 <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
                   {prep.insumos.map((ins, i) => {
                     const cuBase = Number(ins.cantidad_presentacion) > 0 ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion) : 0;

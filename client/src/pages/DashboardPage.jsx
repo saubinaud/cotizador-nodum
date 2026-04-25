@@ -310,10 +310,7 @@ export default function DashboardPage() {
                   <h3 className="text-white text-sm font-medium truncate">{p.nombre}</h3>
                   <div className="flex justify-between items-center mt-2">
                     <span className="text-zinc-500 text-xs">Margen: {formatPercent(p.margen)}</span>
-                    <div className="text-right">
-                      <span className="text-[#FA7B21] font-bold text-sm">{formatCurrency(p.precio_final)}</span>
-                      <p className="text-green-400 text-[10px] font-semibold">{formatCurrency(precioComercial(p.precio_final))}</p>
-                    </div>
+                    <span className="text-[#FA7B21] font-bold text-sm">{formatCurrency(precioComercial(p.precio_final))}</span>
                   </div>
                 </div>
                 {/* Action buttons */}
@@ -342,10 +339,7 @@ export default function DashboardPage() {
                     <h3 className="text-white font-medium text-sm">{p.nombre}</h3>
                     <p className="text-zinc-500 text-xs mt-0.5">{formatDate(p.updated_at)}</p>
                   </div>
-                  <div className="text-right">
-                    <span className="text-[#FA7B21] font-bold text-lg">{formatCurrency(p.precio_final)}</span>
-                    <p className="text-green-400 text-xs font-semibold">{formatCurrency(precioComercial(p.precio_final))}</p>
-                  </div>
+                  <span className="text-[#FA7B21] font-bold text-lg">{formatCurrency(precioComercial(p.precio_final))}</span>
                 </div>
                 <div className="flex gap-4 text-xs text-zinc-400 mb-3">
                   <span>Costo: {formatCurrency(p.costo_neto)}</span>
@@ -738,7 +732,7 @@ export default function DashboardPage() {
                   <div className="flex justify-between text-sm font-semibold border-t border-zinc-700 pt-2"><span className="text-zinc-300">Costo neto</span><span className="text-white">{formatCurrency(detailData.costo_neto)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-zinc-400">Margen</span><span className="text-white">{formatPercent(detailData.margen)}</span></div>
                   <div className="flex justify-between text-sm"><span className="text-zinc-400">Precio venta</span><span className="text-white">{formatCurrency(detailData.precio_venta)}</span></div>
-                  <div className="flex justify-between text-sm"><span className="text-zinc-400">IGV</span><span className="text-white">{formatCurrency(Number(detailData.precio_final) - Number(detailData.precio_venta))}</span></div>
+                  <div className="flex justify-between text-sm"><span className="text-zinc-400">IGV ({(Number(detailData.igv_rate) < 1 ? Number(detailData.igv_rate) * 100 : Number(detailData.igv_rate)).toFixed(1)}%)</span><span className="text-white">{formatCurrency(Number(detailData.precio_final) - Number(detailData.precio_venta))}</span></div>
                   <div className="flex justify-between text-base font-bold border-t border-zinc-700 pt-2"><span className="text-zinc-300">Precio final</span><span className="text-[#FA7B21]">{formatCurrency(detailData.precio_final)}</span></div>
                   <div className="flex justify-between text-sm mt-1"><span className="text-zinc-500">Sugerido</span><span className="text-green-400 font-semibold">{formatCurrency(precioComercial(detailData.precio_final))}</span></div>
                 </div>

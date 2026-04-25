@@ -290,9 +290,9 @@ export default function EmpaquePredPage() {
           }, 0);
           return (
             <div key={emp.id} className={`${cx.card} p-4`}>
-              <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [emp.id]: !prev[emp.id] }))}>
+              <div className="flex justify-between items-center cursor-pointer" onClick={() => setCollapsed((prev) => ({ ...prev, [emp.id]: prev[emp.id] === false ? true : false }))}>
                 <div className="flex items-center gap-2 flex-1">
-                  {collapsed[emp.id] ? <ChevronDown size={16} className="text-zinc-500 flex-shrink-0" /> : <ChevronUp size={16} className="text-zinc-500 flex-shrink-0" />}
+                  {collapsed[emp.id] === false ? <ChevronUp size={16} className="text-zinc-500 flex-shrink-0" /> : <ChevronDown size={16} className="text-zinc-500 flex-shrink-0" />}
                   <div>
                     <h3 className="text-white font-medium text-sm">{emp.nombre}</h3>
                     <p className="text-zinc-500 text-xs mt-0.5">
@@ -306,7 +306,7 @@ export default function EmpaquePredPage() {
                   <button onClick={() => setDeleteTarget(emp)} className={cx.btnIcon + ' hover:text-red-400'}><Trash2 size={15} /></button>
                 </div>
               </div>
-              {!collapsed[emp.id] && (emp.materiales || []).length > 0 && (
+              {collapsed[emp.id] === false && (emp.materiales || []).length > 0 && (
                 <div className="mt-3 pt-3 border-t border-zinc-800 space-y-1">
                   {emp.materiales.map((m, i) => {
                     const pu = Number(m.cantidad_presentacion) > 0 ? Number(m.precio_presentacion) / Number(m.cantidad_presentacion) : 0;
