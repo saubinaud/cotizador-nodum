@@ -14,7 +14,6 @@ import {
   RotateCcw,
   ChevronDown,
   ChevronUp,
-  GripVertical,
   ImageIcon,
   BookmarkPlus,
 } from 'lucide-react';
@@ -612,170 +611,132 @@ export default function CotizadorPage() {
     );
   }
 
+  // Compute available predeterminadas for prep template selector
+  const availablePreps = useMemo(() => {
+    if (catalogPreps.length === 0) return [];
+    const usedNames = new Set(preparaciones.map((p) => (p.nombre || '').toLowerCase()));
+    return catalogPreps.filter((p) => !usedNames.has((p.nombre || '').toLowerCase()));
+  }, [catalogPreps, preparaciones]);
+
   return (
     <div className="max-w-6xl mx-auto">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-        <h2 className="text-xl font-bold text-stone-800">
-          {id ? 'Editar Producto' : 'Nuevo Producto'}
-        </h2>
-        <div className="flex gap-2">
-          <button onClick={handleReset} className={cx.btnSecondary + ' flex items-center gap-2'}>
-            <RotateCcw size={14} /> Vaciar
-          </button>
-          <button onClick={handleSave} disabled={saving} className={cx.btnPrimary + ' flex items-center gap-2'}>
-            {saving ? (
-              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-            ) : (
-              <Save size={14} />
-            )}
-            Guardar
-          </button>
-        </div>
+      {/* Page header — clean, Apple-style */}
+      <div className="flex items-center justify-between mb-8">
+        <h1 className="text-2xl font-bold text-stone-900">
+          {id ? 'Editar producto' : 'Nuevo producto'}
+        </h1>
+        <button onClick={handleReset} className={cx.btnGhost + ' flex items-center gap-1.5'}>
+          <RotateCcw size={14} /> Vaciar
+        </button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
         {/* Left column: main form */}
-        <div className="xl:col-span-2 space-y-6">
-          {/* Product name */}
-          <div className="flex items-center gap-3 mb-3">
-            <span className="text-stone-400 text-sm font-bold mr-1">1.</span>
-            <div>
-              <h3 className="text-base font-bold text-stone-800">Producto</h3>
-              <p className="text-xs text-stone-400">Define el nombre y tipo de tu producto</p>
-            </div>
-            <InfoTip text="Si vendes un producto entero (ej: torta de 8 porciones), selecciona 'Producto entero' e indica cuantas porciones tiene." />
-          </div>
-          <div className={`${cx.card} p-5`}>
-            <div className="grid grid-cols-1 sm:grid-cols-4 gap-4 mb-4">
-              <div className="sm:col-span-2">
-                <label className={cx.label}>Nombre del producto</label>
-                <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={cx.input} placeholder="Ej: Cheesecake de fresa" autoFocus />
-              </div>
-              <div>
-                <label className={cx.label}>Presentacion<InfoTip text="'Por unidad' si vendes items individuales. 'Presentacion entera' si vendes algo divisible (torta, bandeja, etc)." /></label>
-                <select value={tipoPresentacion} onChange={(e) => setTipoPresentacion(e.target.value)} className={cx.select}>
-                  <option value="unidad">Por unidad</option>
-                  <option value="entero">Presentacion entera</option>
-                </select>
-              </div>
-              {tipoPresentacion === 'entero' && (
-                <div>
-                  <label className={cx.label}>Porciones</label>
-                  <input type="number" min="1" value={unidadesPorProducto} onChange={(e) => setUnidadesPorProducto(Math.max(1, parseInt(e.target.value) || 1))} className={cx.input} />
+        <div className="xl:col-span-2 space-y-8">
+
+          {/* ── Producto ── */}
+          <div>
+            <h3 className="text-lg font-semibold text-stone-900 mb-4">Producto</h3>
+            <div className={`${cx.card} p-6`}>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="sm:col-span-2">
+                  <label className={cx.label}>Nombre del producto</label>
+                  <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={cx.input + ' text-base'} placeholder="Ej: Cheesecake de fresa" autoFocus />
                 </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={cx.label}>Tipo<InfoTip text="'Por unidad' si vendes items individuales. 'Presentacion entera' si vendes algo divisible (torta, bandeja, etc)." /></label>
+                    <select value={tipoPresentacion} onChange={(e) => setTipoPresentacion(e.target.value)} className={cx.select}>
+                      <option value="unidad">Por unidad</option>
+                      <option value="entero">Prod. entero</option>
+                    </select>
+                  </div>
+                  {tipoPresentacion === 'entero' && (
+                    <div>
+                      <label className={cx.label}>Porciones</label>
+                      <input type="number" min="1" value={unidadesPorProducto} onChange={(e) => setUnidadesPorProducto(Math.max(1, parseInt(e.target.value) || 1))} className={cx.input} />
+                    </div>
+                  )}
+                </div>
+              </div>
+              {/* Imagen URL as small icon toggle — hidden by default, shown inline */}
+              {imagenUrl ? (
+                <div className="mt-4 flex items-center gap-2">
+                  <ImageIcon size={14} className="text-stone-400" />
+                  <input type="text" value={imagenUrl} onChange={(e) => setImagenUrl(e.target.value)} className={cx.input + ' flex-1 text-xs'} placeholder="URL de imagen..." />
+                  <button onClick={() => setImagenUrl('')} className={cx.btnIcon + ' hover:text-rose-500'} title="Quitar imagen">
+                    <Trash2 size={13} />
+                  </button>
+                </div>
+              ) : (
+                <button onClick={() => setImagenUrl(' ')} className="mt-3 text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1 transition-colors">
+                  <ImageIcon size={13} /> Agregar imagen
+                </button>
               )}
             </div>
-            <div>
-              <label className={cx.label}>Imagen URL (opcional)</label>
-              <input type="text" value={imagenUrl} onChange={(e) => setImagenUrl(e.target.value)} className={cx.input} placeholder="https://..." />
-            </div>
           </div>
 
-          {/* Preparaciones */}
+          {/* ── Preparaciones — Airbnb accordion ── */}
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-stone-400 text-sm font-bold mr-1">2.</span>
-              <div className="flex-1">
-                <h3 className="text-base font-bold text-stone-800">Preparaciones</h3>
-                <p className="text-xs text-stone-400">Crea las recetas base con sus insumos y rendimiento</p>
-              </div>
-              <InfoTip text="Cada preparacion es una receta base (masa, relleno, etc). Indica cuanto rinde en total. Puedes usar preparaciones predeterminadas guardadas previamente." />
-              <div className="flex items-center gap-2">
-                {catalogPreps.length > 0 && (() => {
-                  const usedNames = new Set(preparaciones.map((p) => (p.nombre || '').toLowerCase()));
-                  const available = catalogPreps.filter((p) => !usedNames.has((p.nombre || '').toLowerCase()));
-                  return available.length > 0 ? (
-                  <div className="w-48">
-                    <SearchableSelect
-                      options={available}
-                      value={null}
-                      onChange={(pred) => loadPredeterminada(pred)}
-                      placeholder="Cargar plantilla..."
-                      displayKey="nombre"
-                      valueKey="id"
-                    />
-                  </div>
-                  ) : null;
-                })()}
-                <button onClick={addPreparacion} className={cx.btnPrimary + ' flex items-center gap-1 text-xs'}>
-                  <Plus size={14} /> Nueva preparacion
-                </button>
-              </div>
-            </div>
+            <h3 className="text-lg font-semibold text-stone-900 mb-4">Preparaciones</h3>
 
-            <div className="space-y-4">
+            {/* Single card with divide-y for all preps */}
+            <div className={`${cx.card} divide-y divide-stone-100`}>
               {preparaciones.map((prep) => (
-                <div key={prep._id} className={cx.card}>
-                  {/* Prep header */}
-                  <div className="p-4 border-b border-stone-200 space-y-3">
-                    <div className="flex items-center gap-2">
-                      <GripVertical size={16} className="text-stone-300 flex-shrink-0" />
-                      <div className="flex-1">
-                        <input
-                          type="text"
-                          value={prep.nombre}
-                          onChange={(e) => updatePreparacion(prep._id, 'nombre', e.target.value)}
-                          placeholder="Nombre preparacion"
-                          className="w-full bg-transparent text-stone-800 text-sm font-medium placeholder:text-stone-400 focus:outline-none"
-                        />
+                <div key={prep._id} className="p-5">
+                  {/* Header row — click to collapse */}
+                  <div className="flex items-center justify-between cursor-pointer" onClick={() => toggleCollapse(prep._id)}>
+                    <div className="flex items-center gap-3">
+                      {prep.collapsed ? <ChevronDown size={16} className="text-stone-400" /> : <ChevronUp size={16} className="text-stone-400" />}
+                      <div>
+                        <span className="text-sm font-semibold text-stone-800">{prep.nombre || 'Nueva preparacion'}</span>
+                        {prep.capacidad && <span className="text-xs text-stone-400 ml-2">Rinde {prep.capacidad} {prep.unidad}</span>}
                       </div>
-                      <button onClick={() => toggleCollapse(prep._id)} className={cx.btnIcon}>
-                        {prep.collapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-                      </button>
-                      <button
-                        onClick={() => saveAsPredeterminada(prep)}
-                        className={cx.btnIcon + ' hover:text-[var(--success)]'}
-                        title="Guardar como predeterminada"
-                      >
-                        <BookmarkPlus size={15} />
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-[var(--accent)]">{formatCurrency(prepSubtotal(prep))}</span>
+                      <button onClick={(e) => { e.stopPropagation(); saveAsPredeterminada(prep); }} className={cx.btnIcon + ' hover:text-[var(--success)]'} title="Guardar como plantilla">
+                        <BookmarkPlus size={14} />
                       </button>
                       {preparaciones.length > 1 && (
-                        <button onClick={() => removePreparacion(prep._id)} className={cx.btnIcon + ' hover:text-rose-600'}>
-                          <Trash2 size={15} />
+                        <button onClick={(e) => { e.stopPropagation(); removePreparacion(prep._id); }} className={cx.btnIcon + ' hover:text-rose-500'}>
+                          <Trash2 size={14} />
                         </button>
                       )}
                     </div>
-                    <div className="flex items-end gap-3 pl-6">
-                      <div className="w-20">
-                        <label className={cx.label}>Rendimiento<InfoTip text="Cuanto produce esta preparacion en total. Ej: esta masa rinde 500g, esta mezcla rinde 1 litro." /></label>
-                        <input
-                          type="number"
-                          value={prep.capacidad}
-                          onChange={(e) => updatePreparacion(prep._id, 'capacidad', e.target.value)}
-                          placeholder="0"
-                          className="w-full bg-stone-50 rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
-                        />
-                      </div>
-                      <div className="w-16">
-                        <label className={cx.label}>Unidad</label>
-                        <select
-                          value={prep.unidad}
-                          onChange={(e) => updatePreparacion(prep._id, 'unidad', e.target.value)}
-                          className="w-full bg-stone-50 rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400 appearance-none"
-                        >
-                          <option value="">--</option>
-                          <option value="g">g</option>
-                          <option value="kg">kg</option>
-                          <option value="ml">ml</option>
-                          <option value="L">L</option>
-                          <option value="uni">uni</option>
-                          <option value="oz">oz</option>
-                        </select>
-                      </div>
-                      <div className="text-right min-w-[80px]">
-                        <p className="text-[10px] text-stone-400">Costo total</p>
-                        <p className="text-[var(--accent)] font-semibold text-sm">{formatCurrency(prepSubtotal(prep))}</p>
-                      </div>
-                    </div>
                   </div>
 
-                  {/* Insumos table */}
+                  {/* Expanded content */}
                   {!prep.collapsed && (
-                    <div className="p-4">
-                      {/* Mobile insumo cards */}
+                    <div className="mt-4 space-y-4">
+                      {/* Name + rendimiento row */}
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
+                        <div className="sm:col-span-2">
+                          <label className={cx.label}>Nombre</label>
+                          <input type="text" value={prep.nombre} onChange={(e) => updatePreparacion(prep._id, 'nombre', e.target.value)} placeholder="Ej: Masa galleta" className={cx.input} />
+                        </div>
+                        <div>
+                          <label className={cx.label}>Rendimiento</label>
+                          <input type="number" value={prep.capacidad} onChange={(e) => updatePreparacion(prep._id, 'capacidad', e.target.value)} placeholder="500" className={cx.input} />
+                        </div>
+                        <div>
+                          <label className={cx.label}>Unidad</label>
+                          <select value={prep.unidad} onChange={(e) => updatePreparacion(prep._id, 'unidad', e.target.value)} className={cx.select}>
+                            <option value="">--</option>
+                            <option value="g">g</option>
+                            <option value="kg">kg</option>
+                            <option value="ml">ml</option>
+                            <option value="L">L</option>
+                            <option value="uni">uni</option>
+                            <option value="oz">oz</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      {/* Insumos — mobile cards */}
                       <div className="space-y-3 lg:hidden">
                         {prep.insumos.map((ins) => (
-                          <div key={ins._id} className="bg-stone-100 rounded-xl p-3 space-y-2">
+                          <div key={ins._id} className="bg-stone-50 rounded-xl p-3 space-y-2">
                             <SearchableSelect
                               options={enrichedInsumos}
                               value={ins.insumo_id}
@@ -811,7 +772,7 @@ export default function CotizadorPage() {
                         ))}
                       </div>
 
-                      {/* Desktop insumo table */}
+                      {/* Insumos — desktop table */}
                       <table className="w-full hidden lg:table">
                         <thead>
                           <tr>
@@ -871,30 +832,42 @@ export default function CotizadorPage() {
 
                       <button
                         onClick={() => addInsumo(prep._id)}
-                        className={cx.btnGhost + ' mt-2 flex items-center gap-1 text-xs'}
+                        className={cx.btnGhost + ' mt-1 flex items-center gap-1 text-xs'}
                       >
-                        <Plus size={13} /> Agregar Insumo
+                        <Plus size={13} /> Agregar insumo
                       </button>
                     </div>
                   )}
                 </div>
               ))}
             </div>
+
+            {/* Add prep buttons — below the card */}
+            <div className="flex items-center gap-3 mt-3">
+              {catalogPreps.length > 0 && availablePreps.length > 0 && (
+                <div className="w-48">
+                  <SearchableSelect
+                    options={availablePreps}
+                    value={null}
+                    onChange={(pred) => loadPredeterminada(pred)}
+                    placeholder="Usar plantilla..."
+                    displayKey="nombre"
+                    valueKey="id"
+                  />
+                </div>
+              )}
+              <button onClick={addPreparacion} className={cx.btnGhost + ' flex items-center gap-1.5'}>
+                <Plus size={14} /> Nueva preparacion
+              </button>
+            </div>
           </div>
 
-          {/* Porciones */}
+          {/* ── Composicion del producto — light bg section ── */}
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-stone-400 text-sm font-bold mr-1">3.</span>
-              <div>
-                <h3 className="text-base font-bold text-stone-800">Composicion del producto</h3>
-                <p className="text-xs text-stone-400">Define cuanto de cada preparacion usas para hacer un producto completo</p>
-              </div>
-              <InfoTip text="Indica cuantos gramos/ml de cada preparacion necesitas para hacer UN producto completo. El sistema calculara automaticamente cuantos productos puedes hacer por tanda y el costo." />
-            </div>
-            <div className={`${cx.card} p-4`}>
+            <h3 className="text-lg font-semibold text-stone-900 mb-4">Composicion del producto<InfoTip text="Indica cuantos gramos/ml de cada preparacion necesitas para hacer UN producto completo. El sistema calculara automaticamente cuantos productos puedes hacer por tanda y el costo." /></h3>
+            <div className="bg-stone-50 rounded-xl p-5">
               {preparaciones.filter(p => p.nombre).length === 0 ? (
-                <p className="text-stone-400 text-sm text-center py-4">Primero agrega tus preparaciones en el paso 2. Aqui se calculara automaticamente cuanto necesitas de cada una.</p>
+                <p className="text-stone-400 text-sm text-center py-4">Agrega preparaciones arriba para definir la composicion.</p>
               ) : (
                 <>
                   {/* Desktop table */}
@@ -917,7 +890,7 @@ export default function CotizadorPage() {
                         const alcanzaPara = rendimiento > 0 && cantEnUnidadPrep > 0 ? Math.floor(rendimiento / cantEnUnidadPrep) : 0;
                         const costoPorUni = rendimiento > 0 && cantEnUnidadPrep > 0 ? (costoPrep / rendimiento) * cantEnUnidadPrep : costoPrep;
                         return (
-                          <tr key={prep._id} className="border-b border-stone-100 last:border-0">
+                          <tr key={prep._id} className="border-b border-stone-200/50 last:border-0">
                             <td className={cx.td + ' text-stone-800 font-medium'}>{prep.nombre}</td>
                             <td className={cx.td + ' text-stone-500'}>{rendimiento > 0 ? `${rendimiento} ${prep.unidad || ''}` : '--'}</td>
                             <td className={cx.td}>
@@ -926,7 +899,7 @@ export default function CotizadorPage() {
                                 <select
                                   value={prep.porcion_unidad || prep.unidad || ''}
                                   onChange={(e) => updatePreparacion(prep._id, 'porcion_unidad', e.target.value)}
-                                  className="w-12 bg-stone-100 rounded-lg px-1 py-1.5 text-stone-500 text-xs text-center focus:outline-none appearance-none"
+                                  className="w-12 bg-white rounded-lg px-1 py-1.5 text-stone-500 text-xs text-center focus:outline-none appearance-none"
                                 >
                                   <option value="g">g</option>
                                   <option value="kg">kg</option>
@@ -954,7 +927,7 @@ export default function CotizadorPage() {
                       const alcanzaPara = rendimiento > 0 && cantEnUnidadPrep > 0 ? Math.floor(rendimiento / cantEnUnidadPrep) : 0;
                       const costoPorUni = rendimiento > 0 && cantEnUnidadPrep > 0 ? (costoPrep / rendimiento) * cantEnUnidadPrep : costoPrep;
                       return (
-                        <div key={prep._id} className="bg-stone-100 rounded-xl p-3 space-y-2">
+                        <div key={prep._id} className="bg-white rounded-xl p-3 space-y-2">
                           <div className="flex justify-between items-center">
                             <span className="text-stone-800 text-sm font-medium">{prep.nombre}</span>
                             <span className="text-stone-500 text-xs">{rendimiento > 0 ? `Rinde: ${rendimiento} ${prep.unidad || ''}` : ''}</span>
@@ -963,11 +936,11 @@ export default function CotizadorPage() {
                             <div>
                               <label className={cx.label}>Para el producto</label>
                               <div className="flex items-center gap-1">
-                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-20 bg-white rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" placeholder="0" />
+                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-20 bg-white rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" placeholder="0" />
                                 <select
                                   value={prep.porcion_unidad || prep.unidad || ''}
                                   onChange={(e) => updatePreparacion(prep._id, 'porcion_unidad', e.target.value)}
-                                  className="w-12 bg-stone-100 rounded-lg px-1 py-1.5 text-stone-500 text-xs text-center focus:outline-none appearance-none"
+                                  className="w-12 bg-stone-50 rounded-lg px-1 py-1.5 text-stone-500 text-xs text-center focus:outline-none appearance-none"
                                 >
                                   <option value="g">g</option>
                                   <option value="kg">kg</option>
@@ -992,23 +965,16 @@ export default function CotizadorPage() {
             </div>
           </div>
 
-          {/* Empaque / Materiales */}
+          {/* ── Empaque / Materiales ── */}
           <div>
-            <div className="flex items-center gap-3 mb-3">
-              <span className="text-stone-400 text-sm font-bold mr-1">4.</span>
-              <div>
-                <h3 className="text-base font-bold text-stone-800">Empaque / Materiales</h3>
-                <p className="text-xs text-stone-400">{tipoPresentacion === 'entero' ? 'Materiales de empaque para el producto entero y por porcion' : 'Materiales de empaque para tu producto'}</p>
-              </div>
-              <InfoTip text={tipoPresentacion === 'entero' ? "Separa el empaque del producto entero (caja grande) del empaque por porcion (cajita individual). El costo por porcion se multiplica automaticamente por la cantidad de porciones." : "Agrega los materiales de empaque que necesitas para presentar tu producto."} />
-            </div>
+            <h3 className="text-lg font-semibold text-stone-900 mb-4">Empaque</h3>
 
             {tipoPresentacion === 'entero' ? (
-              <>
+              <div className="space-y-5">
                 {/* Empaque producto entero */}
-                <div className="mb-4">
+                <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-semibold text-stone-500">Producto entero</h4>
+                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Producto entero</p>
                     <div className="flex items-center gap-2">
                       {catalogEmpaques.length > 0 && (
                         <div className="w-40">
@@ -1026,7 +992,7 @@ export default function CotizadorPage() {
                 {/* Empaque por unidad */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="text-xs font-semibold text-stone-500">Por unidad ({unidadesPorProducto} uni)</h4>
+                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Por porcion ({unidadesPorProducto} uni)</p>
                     <div className="flex items-center gap-2">
                       {catalogEmpaques.length > 0 && (
                         <div className="w-40">
@@ -1040,7 +1006,7 @@ export default function CotizadorPage() {
                   </div>
                   {renderMaterialsList(materiales.filter(m => m.empaque_tipo === 'unidad'))}
                 </div>
-              </>
+              </div>
             ) : (
               <>
                 <div className="flex items-center justify-between mb-3">
@@ -1068,45 +1034,41 @@ export default function CotizadorPage() {
           </div>
         </div>
 
-        {/* Right column: cost summary (sticky) */}
+        {/* ── Right column: Resumen — premium sticky card ── */}
         <div className="xl:col-span-1">
-          <div className={`${cx.card} p-6 xl:sticky xl:top-6 space-y-4`}>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-stone-400 text-sm font-bold mr-1">5.</span>
-              <h3 className="text-base font-bold text-stone-800">Resumen</h3>
-              <InfoTip text="El costo neto incluye insumos + empaque. El margen define tu ganancia. El precio sugerido redondea a un valor comercial atractivo (.90 o .00)." />
-            </div>
+          <div className={`${cx.card} p-6 xl:sticky xl:top-6`}>
+            <h3 className="text-lg font-semibold text-stone-900 mb-5">Resumen</h3>
 
             {tipoPresentacion === 'entero' ? (
               <>
-                {/* Product costs */}
-                <div className="space-y-3">
+                {/* Cost lines */}
+                <div className="space-y-3 pb-4 border-b border-stone-100">
                   <div className="flex justify-between text-sm">
-                    <span className="text-stone-500">Costo insumos (producto)</span>
-                    <span className="text-stone-800">{formatCurrency(costos.costoInsumosProducto)}</span>
+                    <span className="text-stone-500">Costo insumos</span>
+                    <span className="text-stone-800 font-medium">{formatCurrency(costos.costoInsumosProducto)}</span>
                   </div>
                   {costos.costoEmpaqueEntero > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-stone-500">Empaque producto</span>
-                      <span className="text-stone-800">{formatCurrency(costos.costoEmpaqueEntero)}</span>
+                      <span className="text-stone-800 font-medium">{formatCurrency(costos.costoEmpaqueEntero)}</span>
                     </div>
                   )}
                   {costos.costoEmpaqueUnidad > 0 && (
                     <div className="flex justify-between text-sm">
                       <span className="text-stone-500">Empaque/porcion &times; {costos.unidades}</span>
-                      <span className="text-stone-800">{formatCurrency(costos.costoEmpaqueUnidad * costos.unidades)}</span>
+                      <span className="text-stone-800 font-medium">{formatCurrency(costos.costoEmpaqueUnidad * costos.unidades)}</span>
                     </div>
                   )}
-                  <div className="border-t border-stone-200 pt-3 flex justify-between text-sm font-semibold">
-                    <span className="text-stone-600">Costo neto (producto)</span>
+                  <div className="flex justify-between text-sm font-semibold pt-2">
+                    <span className="text-stone-600">Costo neto</span>
                     <span className="text-stone-800">{formatCurrency(costos.costoNeto)}</span>
                   </div>
                 </div>
 
                 {/* Margen slider - producto entero */}
-                <div>
-                  <label className={cx.label}>Margen producto entero<InfoTip text="Porcentaje de ganancia sobre el costo. 50% significa que el costo es la mitad del precio de venta." /></label>
-                  <div className="flex items-center gap-3">
+                <div className="py-4 border-b border-stone-100">
+                  <label className={cx.label}>Margen producto entero</label>
+                  <div className="flex items-center gap-3 mt-1">
                     <input
                       type="range"
                       min="0"
@@ -1127,8 +1089,8 @@ export default function CotizadorPage() {
                 </div>
 
                 {/* Pricing - Producto entero */}
-                <div className="space-y-2">
-                  <p className="text-[10px] text-stone-400 uppercase tracking-wider font-semibold">Producto entero</p>
+                <div className="py-4 border-b border-stone-100 space-y-2">
+                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Producto entero</p>
                   <div className="flex justify-between text-sm">
                     <span className="text-stone-500">Precio venta</span>
                     <span className="text-stone-800">{formatCurrency(costos.precioVenta)}</span>
@@ -1139,20 +1101,20 @@ export default function CotizadorPage() {
                       {user?.tipo_negocio === 'informal' ? 'No aplica' : `${formatCurrency(costos.igvMonto)} (${costos.igvRate}%)`}
                     </span>
                   </div>
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-stone-600 font-semibold">Precio final</span>
-                    <span className="text-2xl font-bold text-[var(--accent)]">{formatCurrency(costos.precioFinal)}</span>
+                  <div className="flex justify-between items-baseline pt-1">
+                    <span className="text-stone-600 text-sm">Precio final</span>
+                    <span className="text-2xl font-bold text-stone-900">{formatCurrency(costos.precioFinal)}</span>
                   </div>
                   <div className="flex justify-between items-baseline">
-                    <span className="text-stone-400 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
-                    <span className="text-lg font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinal))}</span>
+                    <span className="text-stone-400 text-xs">Sugerido</span>
+                    <span className="text-base font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinal))}</span>
                   </div>
                 </div>
 
                 {/* Margen por porcion */}
-                <div className="border-t border-stone-200 pt-4">
+                <div className="py-4 border-b border-stone-100">
                   <label className={cx.label}>Margen por porcion</label>
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 mt-1">
                     <input type="range" min="0" max="90" step="1" value={margenPorcion} onChange={(e) => setMargenPorcion(Number(e.target.value))} className="flex-1 accent-[var(--accent)] h-1.5" />
                     <input type="number" value={margenPorcion} onChange={(e) => setMargenPorcion(Math.min(90, Math.max(0, Number(e.target.value) || 0)))} className="w-16 bg-stone-100 rounded-lg px-2 py-1.5 text-stone-800 text-sm text-center focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" />
                     <span className="text-stone-400 text-sm">%</span>
@@ -1160,43 +1122,43 @@ export default function CotizadorPage() {
                 </div>
 
                 {/* Pricing - Por porcion */}
-                <div className="border-t border-stone-200 pt-4 space-y-2">
-                  <p className="text-[10px] text-stone-400 uppercase tracking-wider font-semibold">Por porcion (1/{costos.unidades})</p>
+                <div className="pt-4 space-y-2">
+                  <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide mb-2">Por porcion (1/{costos.unidades})</p>
                   <div className="flex justify-between text-sm">
                     <span className="text-stone-500">Costo</span>
                     <span className="text-stone-800">{formatCurrency(costos.costoNetoPorcion)}</span>
                   </div>
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-stone-600 font-semibold">Precio final</span>
-                    <span className="text-lg font-bold text-[var(--accent)]">{formatCurrency(costos.precioFinalPorcion)}</span>
+                  <div className="flex justify-between items-baseline pt-1">
+                    <span className="text-stone-600 text-sm">Precio final</span>
+                    <span className="text-2xl font-bold text-stone-900">{formatCurrency(costos.precioFinalPorcion)}</span>
                   </div>
                   <div className="flex justify-between items-baseline">
-                    <span className="text-stone-400 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
-                    <span className="text-sm font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinalPorcion))}</span>
+                    <span className="text-stone-400 text-xs">Sugerido</span>
+                    <span className="text-base font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinalPorcion))}</span>
                   </div>
                 </div>
               </>
             ) : (
               <>
-                <div className="space-y-3">
+                <div className="space-y-3 pb-4 border-b border-stone-100">
                   <div className="flex justify-between text-sm">
                     <span className="text-stone-500">Costo insumos</span>
-                    <span className="text-stone-800">{formatCurrency(costos.costoInsumos)}</span>
+                    <span className="text-stone-800 font-medium">{formatCurrency(costos.costoInsumos)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-stone-500">Costo empaque</span>
-                    <span className="text-stone-800">{formatCurrency(costos.costoEmpaque)}</span>
+                    <span className="text-stone-800 font-medium">{formatCurrency(costos.costoEmpaque)}</span>
                   </div>
-                  <div className="border-t border-stone-200 pt-3 flex justify-between text-sm font-semibold">
+                  <div className="flex justify-between text-sm font-semibold pt-2">
                     <span className="text-stone-600">Costo neto</span>
                     <span className="text-stone-800">{formatCurrency(costos.costoNeto)}</span>
                   </div>
                 </div>
 
                 {/* Margen slider */}
-                <div>
-                  <label className={cx.label}>Margen<InfoTip text="Porcentaje de ganancia sobre el costo. 50% significa que el costo es la mitad del precio de venta." /></label>
-                  <div className="flex items-center gap-3">
+                <div className="py-4 border-b border-stone-100">
+                  <label className={cx.label}>Margen</label>
+                  <div className="flex items-center gap-3 mt-1">
                     <input
                       type="range"
                       min="0"
@@ -1216,7 +1178,7 @@ export default function CotizadorPage() {
                   </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="py-4 border-b border-stone-100 space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-stone-500">Precio de venta</span>
                     <span className="text-stone-800 font-medium">{formatCurrency(costos.precioVenta)}</span>
@@ -1229,23 +1191,25 @@ export default function CotizadorPage() {
                   </div>
                 </div>
 
-                <div className="border-t border-stone-200 pt-4">
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-stone-600 font-semibold">Precio final</span>
-                    <span className="text-2xl font-bold text-[var(--accent)]">{formatCurrency(costos.precioFinal)}</span>
+                {/* Final price — BIG, prominent */}
+                <div className="pt-4">
+                  <div className="flex justify-between items-baseline mb-1">
+                    <span className="text-stone-600 text-sm">Precio final</span>
+                    <span className="text-2xl font-bold text-stone-900">{formatCurrency(costos.precioFinal)}</span>
                   </div>
-                  <div className="flex justify-between items-baseline mt-1">
-                    <span className="text-stone-400 text-xs">Sugerido<InfoTip text="Precio redondeado a .90 o .00 para que sea mas atractivo comercialmente." /></span>
-                    <span className="text-lg font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinal))}</span>
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-stone-400 text-xs">Sugerido</span>
+                    <span className="text-base font-semibold text-[var(--success)]">{formatCurrency(precioComercial(costos.precioFinal))}</span>
                   </div>
                 </div>
               </>
             )}
 
+            {/* Save button — full width, prominent */}
             <button
               onClick={handleSave}
               disabled={saving}
-              className={cx.btnPrimary + ' w-full flex items-center justify-center gap-2 mt-2'}
+              className={cx.btnPrimary + ' w-full mt-5 py-3 text-sm flex items-center justify-center gap-2'}
             >
               {saving ? (
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
