@@ -602,6 +602,13 @@ export default function CotizadorPage() {
     );
   };
 
+  // Compute available predeterminadas for prep template selector
+  const availablePreps = useMemo(() => {
+    if (catalogPreps.length === 0) return [];
+    const usedNames = new Set(preparaciones.map((p) => (p.nombre || '').toLowerCase()));
+    return catalogPreps.filter((p) => !usedNames.has((p.nombre || '').toLowerCase()));
+  }, [catalogPreps, preparaciones]);
+
   if (loadingProduct) {
     return (
       <div className="space-y-4">
@@ -611,13 +618,6 @@ export default function CotizadorPage() {
       </div>
     );
   }
-
-  // Compute available predeterminadas for prep template selector
-  const availablePreps = useMemo(() => {
-    if (catalogPreps.length === 0) return [];
-    const usedNames = new Set(preparaciones.map((p) => (p.nombre || '').toLowerCase()));
-    return catalogPreps.filter((p) => !usedNames.has((p.nombre || '').toLowerCase()));
-  }, [catalogPreps, preparaciones]);
 
   return (
     <div className="max-w-7xl mx-auto overflow-x-hidden">
