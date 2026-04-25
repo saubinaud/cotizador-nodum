@@ -681,10 +681,13 @@ export default function CotizadorPage() {
               </div>
               <InfoTip text="Cada preparacion es una receta base (masa, relleno, etc). Indica cuanto rinde en total. Puedes usar preparaciones predeterminadas guardadas previamente." />
               <div className="flex items-center gap-2">
-                {catalogPreps.length > 0 && (
+                {catalogPreps.length > 0 && (() => {
+                  const usedNames = new Set(preparaciones.map((p) => (p.nombre || '').toLowerCase()));
+                  const available = catalogPreps.filter((p) => !usedNames.has((p.nombre || '').toLowerCase()));
+                  return available.length > 0 ? (
                   <div className="w-48">
                     <SearchableSelect
-                      options={catalogPreps}
+                      options={available}
                       value={null}
                       onChange={(pred) => loadPredeterminada(pred)}
                       placeholder="Cargar plantilla..."
@@ -692,7 +695,8 @@ export default function CotizadorPage() {
                       valueKey="id"
                     />
                   </div>
-                )}
+                  ) : null;
+                })()}
                 <button onClick={addPreparacion} className={cx.btnPrimary + ' flex items-center gap-1 text-xs'}>
                   <Plus size={14} /> Nueva preparacion
                 </button>
