@@ -93,7 +93,7 @@ export default function ProyeccionPage() {
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent)] flex items-center justify-center">
-          <TrendingUp size={20} className="text-stone-800" />
+          <TrendingUp size={20} className="text-white" />
         </div>
         <div>
           <h2 className="text-xl font-bold text-stone-800">Proyección de Ventas</h2>

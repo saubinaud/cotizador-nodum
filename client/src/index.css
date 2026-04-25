@@ -11,6 +11,14 @@ input[type="number"] {
   -moz-appearance: textfield;
 }
 
+body {
+  overflow-x: hidden;
+}
+
+#root {
+  overflow-x: hidden;
+}
+
 :root {
   --accent: #e8590c;
   --accent-hover: #c2410c;

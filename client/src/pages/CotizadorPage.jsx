@@ -534,7 +534,7 @@ export default function CotizadorPage() {
                   value={mat.cantidad}
                   onChange={(e) => updateMaterial(mat._id, 'cantidad', e.target.value)}
                   placeholder="Cant."
-                  className="w-28 bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
+                  className="w-full max-w-[7rem] bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                 />
                 <span className="text-stone-400 text-xs">{mat.unidad_medida || ''}</span>
                 <span className="text-stone-400 text-xs">x {formatCurrency(mat.precio)}</span>
@@ -620,7 +620,7 @@ export default function CotizadorPage() {
   }, [catalogPreps, preparaciones]);
 
   return (
-    <div className="max-w-7xl mx-auto">
+    <div className="max-w-7xl mx-auto overflow-x-hidden">
       {/* Page header — clean, Apple-style */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-stone-900">
@@ -757,7 +757,7 @@ export default function CotizadorPage() {
                                 value={ins.cantidad}
                                 onChange={(e) => updateInsumo(prep._id, ins._id, { cantidad: e.target.value })}
                                 placeholder="Cant."
-                                className="w-28 bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
+                                className="w-full max-w-[7rem] bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:border-stone-400"
                               />
                               <CustomSelect
                                 value={ins.uso_unidad || ins.unidad_medida || ''}
@@ -939,7 +939,7 @@ export default function CotizadorPage() {
                             <div>
                               <label className={cx.label}>Para el producto</label>
                               <div className="flex items-center gap-1">
-                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-28 bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" placeholder="0" />
+                                <input type="number" min="0" step="0.01" value={prep.cantidad_por_unidad} onChange={(e) => updatePreparacion(prep._id, 'cantidad_por_unidad', e.target.value)} className="w-full max-w-[7rem] bg-white rounded-lg px-3 py-2.5 text-stone-800 text-sm text-center border border-stone-200 focus:outline-none focus:ring-1 focus:ring-[var(--accent)]/30" placeholder="0" />
                                 <CustomSelect
                                   value={prep.porcion_unidad || prep.unidad || ''}
                                   onChange={(v) => updatePreparacion(prep._id, 'porcion_unidad', v)}
