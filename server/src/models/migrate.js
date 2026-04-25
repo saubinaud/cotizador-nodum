@@ -41,6 +41,13 @@ async function runMigrations() {
         ADD COLUMN IF NOT EXISTS cantidad_por_unidad NUMERIC(12,4)
     `);
 
+    // preparaciones_predeterminadas — add capacidad/unidad_capacidad
+    await client.query(`
+      ALTER TABLE preparaciones_predeterminadas
+        ADD COLUMN IF NOT EXISTS capacidad NUMERIC(12,4),
+        ADD COLUMN IF NOT EXISTS unidad_capacidad VARCHAR(20)
+    `);
+
     // producto_materiales — empaque_tipo (entero/unidad)
     await client.query(`
       ALTER TABLE producto_materiales

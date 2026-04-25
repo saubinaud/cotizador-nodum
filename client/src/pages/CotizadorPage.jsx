@@ -217,6 +217,8 @@ export default function CotizadorPage() {
     try {
       await api.post('/predeterminados/preparaciones', {
         nombre: prep.nombre,
+        capacidad: prep.capacidad || null,
+        unidad: prep.unidad || null,
         insumos: (prep.insumos || [])
           .filter((i) => i.insumo_id)
           .map((i) => ({ insumo_id: i.insumo_id, cantidad: Number(i.cantidad) || 0 })),

@@ -40,7 +40,7 @@ router.get('/preparaciones', async (req, res) => {
 router.post('/preparaciones', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { nombre, insumos } = req.body;
+    const { nombre, insumos, capacidad, unidad } = req.body;
 
     if (!nombre) {
       return res.status(400).json({ success: false, error: 'Nombre es requerido' });
@@ -49,8 +49,8 @@ router.post('/preparaciones', async (req, res) => {
     await client.query('BEGIN');
 
     const result = await client.query(
-      'INSERT INTO preparaciones_predeterminadas (usuario_id, nombre) VALUES ($1, $2) RETURNING *',
-      [req.user.id, nombre]
+      'INSERT INTO preparaciones_predeterminadas (usuario_id, nombre, capacidad, unidad_capacidad) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.user.id, nombre, capacidad || null, unidad || null]
     );
     const prep = result.rows[0];
 
@@ -79,7 +79,7 @@ router.post('/preparaciones', async (req, res) => {
 router.put('/preparaciones/:id', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { nombre, insumos } = req.body;
+    const { nombre, insumos, capacidad, unidad } = req.body;
 
     const existing = await client.query(
       'SELECT id FROM preparaciones_predeterminadas WHERE id = $1 AND usuario_id = $2',
@@ -92,8 +92,8 @@ router.put('/preparaciones/:id', async (req, res) => {
     await client.query('BEGIN');
 
     await client.query(
-      'UPDATE preparaciones_predeterminadas SET nombre = COALESCE($1, nombre), updated_at = NOW() WHERE id = $2',
-      [nombre, req.params.id]
+      'UPDATE preparaciones_predeterminadas SET nombre = COALESCE($1, nombre), capacidad = $3, unidad_capacidad = $4, updated_at = NOW() WHERE id = $2',
+      [nombre, req.params.id, capacidad || null, unidad || null]
     );
 
     if (insumos !== undefined) {
