@@ -12,28 +12,30 @@ async function seedCategorias(usuarioId) {
   if (parseInt(existing.rows[0].count) > 0) return;
 
   const defaults = [
-    // Ingresos operativos
-    { nombre: 'Ventas en efectivo', seccion: 'operativo', tipo: 'ingreso', orden: 1 },
-    { nombre: 'Ventas Yape/Plin', seccion: 'operativo', tipo: 'ingreso', orden: 2 },
-    { nombre: 'Ventas transferencia', seccion: 'operativo', tipo: 'ingreso', orden: 3 },
-    { nombre: 'Ventas con tarjeta', seccion: 'operativo', tipo: 'ingreso', orden: 4 },
-    { nombre: 'Otros ingresos', seccion: 'operativo', tipo: 'ingreso', orden: 5 },
+    // Ingresos operativos (WHAT, not HOW paid)
+    { nombre: 'Ventas', seccion: 'operativo', tipo: 'ingreso', orden: 1 },
+    { nombre: 'Catering / Pedidos especiales', seccion: 'operativo', tipo: 'ingreso', orden: 2 },
+    { nombre: 'Delivery', seccion: 'operativo', tipo: 'ingreso', orden: 3 },
+    { nombre: 'Otros ingresos', seccion: 'operativo', tipo: 'ingreso', orden: 4 },
     // Egresos operativos
     { nombre: 'Compras de insumos', seccion: 'operativo', tipo: 'egreso', orden: 10 },
     { nombre: 'Compras de materiales/empaque', seccion: 'operativo', tipo: 'egreso', orden: 11 },
     { nombre: 'Planilla/sueldos', seccion: 'operativo', tipo: 'egreso', orden: 12 },
-    { nombre: 'Alquiler', seccion: 'operativo', tipo: 'egreso', orden: 13 },
-    { nombre: 'Luz', seccion: 'operativo', tipo: 'egreso', orden: 14 },
-    { nombre: 'Agua', seccion: 'operativo', tipo: 'egreso', orden: 15 },
-    { nombre: 'Gas', seccion: 'operativo', tipo: 'egreso', orden: 16 },
-    { nombre: 'Marketing/publicidad', seccion: 'operativo', tipo: 'egreso', orden: 17 },
-    { nombre: 'Delivery/transporte', seccion: 'operativo', tipo: 'egreso', orden: 18 },
-    { nombre: 'Mantenimiento', seccion: 'operativo', tipo: 'egreso', orden: 19 },
-    { nombre: 'Software/suscripciones', seccion: 'operativo', tipo: 'egreso', orden: 20 },
-    { nombre: 'Seguros', seccion: 'operativo', tipo: 'egreso', orden: 21 },
-    { nombre: 'Impuestos', seccion: 'operativo', tipo: 'egreso', orden: 22 },
-    { nombre: 'Gastos bancarios', seccion: 'operativo', tipo: 'egreso', orden: 23 },
-    { nombre: 'Otros gastos operativos', seccion: 'operativo', tipo: 'egreso', orden: 24 },
+    { nombre: 'Beneficios sociales', seccion: 'operativo', tipo: 'egreso', orden: 13 },
+    { nombre: 'Alquiler', seccion: 'operativo', tipo: 'egreso', orden: 14 },
+    { nombre: 'Luz', seccion: 'operativo', tipo: 'egreso', orden: 15 },
+    { nombre: 'Agua', seccion: 'operativo', tipo: 'egreso', orden: 16 },
+    { nombre: 'Gas', seccion: 'operativo', tipo: 'egreso', orden: 17 },
+    { nombre: 'Marketing/publicidad', seccion: 'operativo', tipo: 'egreso', orden: 18 },
+    { nombre: 'Delivery/transporte', seccion: 'operativo', tipo: 'egreso', orden: 19 },
+    { nombre: 'Limpieza / Fumigación', seccion: 'operativo', tipo: 'egreso', orden: 20 },
+    { nombre: 'Mantenimiento', seccion: 'operativo', tipo: 'egreso', orden: 21 },
+    { nombre: 'Software/suscripciones', seccion: 'operativo', tipo: 'egreso', orden: 22 },
+    { nombre: 'Municipalidad / Licencias', seccion: 'operativo', tipo: 'egreso', orden: 23 },
+    { nombre: 'Seguros', seccion: 'operativo', tipo: 'egreso', orden: 24 },
+    { nombre: 'Impuestos', seccion: 'operativo', tipo: 'egreso', orden: 25 },
+    { nombre: 'Gastos bancarios', seccion: 'operativo', tipo: 'egreso', orden: 26 },
+    { nombre: 'Otros gastos operativos', seccion: 'operativo', tipo: 'egreso', orden: 27 },
     // Inversión
     { nombre: 'Compra de equipos', seccion: 'inversion', tipo: 'egreso', orden: 30 },
     { nombre: 'Mejoras del local', seccion: 'inversion', tipo: 'egreso', orden: 31 },
@@ -72,12 +74,12 @@ router.get('/cuentas', async (req, res) => {
 // POST /api/flujo/cuentas
 router.post('/cuentas', async (req, res) => {
   try {
-    const { nombre, tipo, saldo_actual } = req.body;
+    const { nombre, tipo, saldo_actual, fondo_caja } = req.body;
     if (!nombre) return res.status(400).json({ success: false, error: 'Nombre requerido' });
     const validTipo = ['efectivo', 'banco', 'digital'].includes(tipo) ? tipo : 'efectivo';
     const result = await pool.query(
-      'INSERT INTO flujo_cuentas (usuario_id, nombre, tipo, saldo_actual) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.user.id, nombre, validTipo, parseFloat(saldo_actual) || 0]
+      'INSERT INTO flujo_cuentas (usuario_id, nombre, tipo, saldo_actual, fondo_caja) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [req.user.id, nombre, validTipo, parseFloat(saldo_actual) || 0, parseFloat(fondo_caja) || 0]
     );
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -89,13 +91,14 @@ router.post('/cuentas', async (req, res) => {
 // PUT /api/flujo/cuentas/:id
 router.put('/cuentas/:id', async (req, res) => {
   try {
-    const { nombre, tipo, saldo_actual, activa } = req.body;
+    const { nombre, tipo, saldo_actual, activa, fondo_caja, alerta_saldo_minimo } = req.body;
     const result = await pool.query(
       `UPDATE flujo_cuentas SET
         nombre = COALESCE($1, nombre), tipo = COALESCE($2, tipo),
-        saldo_actual = COALESCE($3::numeric, saldo_actual), activa = COALESCE($4, activa)
+        saldo_actual = COALESCE($3::numeric, saldo_actual), activa = COALESCE($4, activa),
+        fondo_caja = COALESCE($7::numeric, fondo_caja), alerta_saldo_minimo = COALESCE($8::numeric, alerta_saldo_minimo)
        WHERE id = $5 AND usuario_id = $6 RETURNING *`,
-      [nombre, tipo, saldo_actual, activa, req.params.id, req.user.id]
+      [nombre, tipo, saldo_actual, activa, req.params.id, req.user.id, fondo_caja, alerta_saldo_minimo]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
     return res.json({ success: true, data: result.rows[0] });
@@ -171,6 +174,26 @@ router.delete('/categorias/:id', async (req, res) => {
   }
 });
 
+// ==================== DENOMINACIONES ====================
+
+// GET /api/flujo/denominaciones — get denominations for user's country
+router.get('/denominaciones', async (req, res) => {
+  try {
+    // Get user's country
+    const userRes = await pool.query('SELECT pais_code FROM usuarios WHERE id = $1', [req.user.id]);
+    const paisCode = userRes.rows[0]?.pais_code || 'PE';
+
+    const result = await pool.query(
+      'SELECT * FROM denominaciones WHERE pais_code = $1 ORDER BY orden',
+      [paisCode]
+    );
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Denominaciones error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
 // ==================== MOVIMIENTOS (CRUD for cash flow entries) ====================
 
 // POST /api/flujo/movimientos — create a cash flow entry
@@ -241,6 +264,95 @@ router.delete('/movimientos/:id', async (req, res) => {
     return res.json({ success: true, data: { message: 'Movimiento eliminado' } });
   } catch (err) {
     console.error('Delete flujo movimiento error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// ==================== TRANSFERENCIAS ====================
+
+// GET /api/flujo/transferencias?periodo_id=X
+router.get('/transferencias', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    let query = `SELECT ft.*, co.nombre AS cuenta_origen_nombre, cd.nombre AS cuenta_destino_nombre
+     FROM flujo_transferencias ft
+     JOIN flujo_cuentas co ON co.id = ft.cuenta_origen_id
+     JOIN flujo_cuentas cd ON cd.id = ft.cuenta_destino_id
+     WHERE ft.usuario_id = $1`;
+    const params = [req.user.id];
+
+    if (periodo_id) {
+      const per = await pool.query('SELECT fecha_inicio, fecha_fin FROM periodos WHERE id = $1', [periodo_id]);
+      if (per.rows.length > 0) {
+        query += ` AND ft.fecha BETWEEN $2 AND $3`;
+        params.push(per.rows[0].fecha_inicio, per.rows[0].fecha_fin);
+      }
+    }
+    query += ' ORDER BY ft.fecha DESC, ft.created_at DESC';
+
+    const result = await pool.query(query, params);
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Transferencias error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// POST /api/flujo/transferencias — transfer between accounts
+router.post('/transferencias', async (req, res) => {
+  try {
+    const { cuenta_origen_id, cuenta_destino_id, monto, fecha, descripcion, referencia } = req.body;
+    if (!cuenta_origen_id || !cuenta_destino_id || !monto) {
+      return res.status(400).json({ success: false, error: 'Cuentas y monto requeridos' });
+    }
+    if (cuenta_origen_id === cuenta_destino_id) {
+      return res.status(400).json({ success: false, error: 'Las cuentas deben ser diferentes' });
+    }
+
+    const montoAbs = Math.abs(parseFloat(monto));
+
+    // Verify accounts belong to user
+    const cuentas = await pool.query(
+      'SELECT id FROM flujo_cuentas WHERE id IN ($1, $2) AND usuario_id = $3',
+      [cuenta_origen_id, cuenta_destino_id, req.user.id]
+    );
+    if (cuentas.rows.length < 2) {
+      return res.status(400).json({ success: false, error: 'Cuentas no encontradas' });
+    }
+
+    // Create transfer record
+    const result = await pool.query(
+      `INSERT INTO flujo_transferencias (usuario_id, cuenta_origen_id, cuenta_destino_id, monto, fecha, descripcion, referencia)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [req.user.id, cuenta_origen_id, cuenta_destino_id, montoAbs, fecha || new Date().toISOString().slice(0, 10), descripcion || null, referencia || null]
+    );
+
+    // Update account balances
+    await pool.query('UPDATE flujo_cuentas SET saldo_actual = saldo_actual - $1 WHERE id = $2', [montoAbs, cuenta_origen_id]);
+    await pool.query('UPDATE flujo_cuentas SET saldo_actual = saldo_actual + $1 WHERE id = $2', [montoAbs, cuenta_destino_id]);
+
+    return res.status(201).json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Create transferencia error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// DELETE /api/flujo/transferencias/:id — reverse transfer
+router.delete('/transferencias/:id', async (req, res) => {
+  try {
+    const tx = await pool.query('SELECT * FROM flujo_transferencias WHERE id = $1 AND usuario_id = $2', [req.params.id, req.user.id]);
+    if (tx.rows.length === 0) return res.status(404).json({ success: false, error: 'Transferencia no encontrada' });
+
+    const t = tx.rows[0];
+    // Reverse balances
+    await pool.query('UPDATE flujo_cuentas SET saldo_actual = saldo_actual + $1 WHERE id = $2', [parseFloat(t.monto), t.cuenta_origen_id]);
+    await pool.query('UPDATE flujo_cuentas SET saldo_actual = saldo_actual - $1 WHERE id = $2', [parseFloat(t.monto), t.cuenta_destino_id]);
+
+    await pool.query('DELETE FROM flujo_transferencias WHERE id = $1', [req.params.id]);
+    return res.json({ success: true, data: { message: 'Transferencia eliminada' } });
+  } catch (err) {
+    console.error('Delete transferencia error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });
   }
 });
@@ -425,7 +537,7 @@ router.get('/arqueo', async (req, res) => {
 // POST /api/flujo/arqueo — create/update arqueo
 router.post('/arqueo', async (req, res) => {
   try {
-    const { periodo_id, detalles, observaciones, cerrar } = req.body;
+    const { periodo_id, detalles, observaciones, cerrar, desglose, fondo_inicial, responsable, tipo } = req.body;
     if (!periodo_id || !detalles) return res.status(400).json({ success: false, error: 'periodo_id y detalles requeridos' });
 
     // Calculate totals
@@ -448,9 +560,9 @@ router.post('/arqueo', async (req, res) => {
 
     // Create new arqueo
     const arqueoRes = await pool.query(
-      `INSERT INTO flujo_arqueos (usuario_id, periodo_id, fecha, saldo_sistema, saldo_real, diferencia, observaciones, cerrado)
-       VALUES ($1, $2, CURRENT_DATE, $3, $4, $5, $6, $7) RETURNING *`,
-      [req.user.id, periodo_id, saldoSistema, saldoReal, diferencia, observaciones || null, cerrar || false]
+      `INSERT INTO flujo_arqueos (usuario_id, periodo_id, fecha, saldo_sistema, saldo_real, diferencia, observaciones, cerrado, desglose, fondo_inicial, responsable, tipo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [req.user.id, periodo_id, req.body.fecha || new Date().toISOString().slice(0, 10), saldoSistema, saldoReal, diferencia, observaciones || null, cerrar || false, desglose ? JSON.stringify(desglose) : null, parseFloat(fondo_inicial) || 0, responsable || null, tipo || 'diario']
     );
     const arqueoId = arqueoRes.rows[0].id;
 
@@ -462,6 +574,11 @@ router.post('/arqueo', async (req, res) => {
         'INSERT INTO flujo_arqueo_detalles (arqueo_id, cuenta_id, saldo_sistema, saldo_real, diferencia) VALUES ($1, $2, $3, $4, $5)',
         [arqueoId, d.cuenta_id, sS, sR, sR - sS]
       );
+    }
+
+    // Update ultimo_arqueo on all accounts in this arqueo
+    for (const d of detalles) {
+      await pool.query('UPDATE flujo_cuentas SET ultimo_arqueo = CURRENT_DATE WHERE id = $1', [d.cuenta_id]);
     }
 
     // If closing: update account balances to real values and set next period's saldo_inicial

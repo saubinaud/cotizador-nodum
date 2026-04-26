@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
-import { formatCurrency } from '../utils/format';
+import { formatCurrency, formatDate } from '../utils/format';
 import CustomSelect from '../components/CustomSelect';
 import {
   Plus, Wallet, BarChart3, ClipboardCheck, ChevronLeft, ChevronRight,
-  Trash2, Pencil, X, Save, AlertTriangle,
+  Trash2, Pencil, X, Save, AlertTriangle, ArrowUpRight,
 } from 'lucide-react';
 
 // ── Helper components ────────────────────────────────────────
@@ -118,6 +118,15 @@ export default function PLCashflowPage() {
   const [editingCuentaId, setEditingCuentaId] = useState(null);
   const [savingCuenta, setSavingCuenta] = useState(false);
 
+  // Denominaciones (bill/coin counter for arqueo)
+  const [denominaciones, setDenominaciones] = useState([]);
+  const [desglose, setDesglose] = useState({}); // { denomId: quantity }
+
+  // Transferencias
+  const [showTransferForm, setShowTransferForm] = useState(false);
+  const [transferForm, setTransferForm] = useState({});
+  const [savingTransfer, setSavingTransfer] = useState(false);
+
   // Movimiento form
   const [showMovForm, setShowMovForm] = useState(false);
   const [movForm, setMovForm] = useState({ seccion: '', flujo_categoria_id: '', cuenta_id: '', monto_absoluto: '', fecha: new Date().toISOString().slice(0, 10), descripcion: '' });
@@ -131,6 +140,7 @@ export default function PLCashflowPage() {
     loadCuentas();
     loadPeriodos();
     loadCategorias();
+    loadDenominaciones();
   }, []); // eslint-disable-line
 
   useEffect(() => { loadGrid(); }, [anio]); // eslint-disable-line
@@ -163,6 +173,13 @@ export default function PLCashflowPage() {
       const res = await api.get('/pl/periodos');
       const list = res.data || res || [];
       setPeriodos(Array.isArray(list) ? list.map(p => ({ value: p.id, label: p.nombre })) : []);
+    } catch { /* silent */ }
+  }
+
+  async function loadDenominaciones() {
+    try {
+      const res = await api.get('/flujo/denominaciones');
+      setDenominaciones(res.data || res || []);
     } catch { /* silent */ }
   }
 
@@ -231,6 +248,7 @@ export default function PLCashflowPage() {
           saldo_sistema: Number(f.saldo_sistema) || 0,
           saldo_real: Number(f.saldo_real) || 0,
         })),
+        desglose,
         observaciones: arqueoObs,
         cerrar,
       });
@@ -239,6 +257,27 @@ export default function PLCashflowPage() {
       if (cerrar) { loadGrid(); loadCuentas(); }
     } catch { toast.error('Error guardando arqueo'); }
     finally { setSavingArqueo(false); }
+  }
+
+  // ── Transferencias ───────────────────────────────────────
+
+  async function handleTransfer() {
+    if (!transferForm.cuenta_origen_id || !transferForm.cuenta_destino_id || !transferForm.monto) {
+      toast.error('Completa todos los campos');
+      return;
+    }
+    setSavingTransfer(true);
+    try {
+      await api.post('/flujo/transferencias', transferForm);
+      toast.success('Transferencia realizada');
+      setShowTransferForm(false);
+      setTransferForm({});
+      loadCuentas();
+    } catch (err) {
+      toast.error(err.message || 'Error en transferencia');
+    } finally {
+      setSavingTransfer(false);
+    }
   }
 
   // ── Cuentas CRUD ─────────────────────────────────────────
@@ -256,6 +295,7 @@ export default function PLCashflowPage() {
           nombre: cuentaForm.nombre,
           tipo: cuentaForm.tipo,
           saldo_actual: Number(cuentaForm.saldo_actual) || 0,
+          fondo_caja: cuentaForm.tipo === 'efectivo' ? (Number(cuentaForm.fondo_caja) || 0) : null,
         });
         toast.success('Cuenta creada');
       }
@@ -277,7 +317,7 @@ export default function PLCashflowPage() {
   }
 
   function editCuenta(c) {
-    setCuentaForm({ nombre: c.nombre, tipo: c.tipo, saldo_actual: c.saldo_actual || '' });
+    setCuentaForm({ nombre: c.nombre, tipo: c.tipo, saldo_actual: c.saldo_actual || '', fondo_caja: c.fondo_caja || '' });
     setEditingCuentaId(c.id);
     setShowCuentaForm(true);
   }
@@ -548,6 +588,78 @@ export default function PLCashflowPage() {
                 </table>
               </div>
 
+              {/* Desglose de efectivo (bill/coin count) */}
+              <div className={`p-5 border-t border-stone-200`}>
+                <h3 className="text-sm font-semibold text-stone-900 mb-3">Desglose de efectivo</h3>
+
+                {denominaciones.length > 0 && (
+                  <div className="space-y-1">
+                    {/* Billetes section */}
+                    <p className="text-[10px] text-stone-400 uppercase tracking-wider font-semibold mt-2 mb-1">Billetes</p>
+                    {denominaciones.filter(d => d.tipo === 'billete').map(denom => {
+                      const qty = desglose[denom.id] || 0;
+                      const subtotal = qty * parseFloat(denom.valor);
+                      return (
+                        <div key={denom.id} className="flex items-center gap-3 py-1.5">
+                          <span className="text-sm text-stone-700 w-20">{denom.nombre}</span>
+                          <span className="text-stone-400 text-sm">&times;</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={qty || ''}
+                            onChange={(e) => setDesglose(prev => ({ ...prev, [denom.id]: parseInt(e.target.value) || 0 }))}
+                            className={cx.input + ' w-20 text-center text-sm'}
+                            placeholder="0"
+                          />
+                          <span className="text-stone-400 text-sm">=</span>
+                          <span className={`text-sm font-medium w-24 text-right ${subtotal > 0 ? 'text-stone-800' : 'text-stone-300'}`}>
+                            {formatCurrency(subtotal)}
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                    {/* Monedas section */}
+                    <p className="text-[10px] text-stone-400 uppercase tracking-wider font-semibold mt-3 mb-1">Monedas</p>
+                    {denominaciones.filter(d => d.tipo === 'moneda').map(denom => {
+                      const qty = desglose[denom.id] || 0;
+                      const subtotal = qty * parseFloat(denom.valor);
+                      return (
+                        <div key={denom.id} className="flex items-center gap-3 py-1.5">
+                          <span className="text-sm text-stone-700 w-20">{denom.nombre}</span>
+                          <span className="text-stone-400 text-sm">&times;</span>
+                          <input
+                            type="number"
+                            min="0"
+                            step="1"
+                            value={qty || ''}
+                            onChange={(e) => setDesglose(prev => ({ ...prev, [denom.id]: parseInt(e.target.value) || 0 }))}
+                            className={cx.input + ' w-20 text-center text-sm'}
+                            placeholder="0"
+                          />
+                          <span className="text-stone-400 text-sm">=</span>
+                          <span className={`text-sm font-medium w-24 text-right ${subtotal > 0 ? 'text-stone-800' : 'text-stone-300'}`}>
+                            {formatCurrency(subtotal)}
+                          </span>
+                        </div>
+                      );
+                    })}
+
+                    {/* Total from bills/coins */}
+                    <div className="flex items-center justify-between pt-3 mt-2 border-t border-stone-200">
+                      <span className="text-sm font-semibold text-stone-900">Total contado</span>
+                      <span className="text-lg font-bold text-stone-900">
+                        {formatCurrency(Object.entries(desglose).reduce((sum, [denomId, qty]) => {
+                          const denom = denominaciones.find(d => d.id === parseInt(denomId));
+                          return sum + (qty * (denom ? parseFloat(denom.valor) : 0));
+                        }, 0))}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
               {/* Observaciones + buttons */}
               <div className="p-4 border-t border-stone-200 space-y-4">
                 <div>
@@ -642,6 +754,13 @@ export default function PLCashflowPage() {
                   {savingCuenta ? 'Guardando...' : editingCuentaId ? 'Actualizar' : 'Crear'}
                 </button>
               </form>
+              {cuentaForm.tipo === 'efectivo' && (
+                <div className="mt-3">
+                  <label className={cx.label}>Fondo de caja (monto base diario)</label>
+                  <input type="number" step="0.01" min="0" value={cuentaForm.fondo_caja || ''} onChange={e => setCuentaForm(prev => ({ ...prev, fondo_caja: e.target.value }))} className={cx.input + ' max-w-xs'} placeholder="Ej: 150" />
+                  <p className="text-xs text-stone-400 mt-1">Monto fijo que debe estar en caja al inicio de cada dia</p>
+                </div>
+              )}
             </div>
           )}
 
@@ -659,6 +778,7 @@ export default function PLCashflowPage() {
                     <th className={cx.th}>Nombre</th>
                     <th className={cx.th}>Tipo</th>
                     <th className={cx.th + ' text-right'}>Saldo Actual</th>
+                    <th className={cx.th}>Info</th>
                     <th className={cx.th + ' text-right'}>Acciones</th>
                   </tr>
                 </thead>
@@ -669,6 +789,19 @@ export default function PLCashflowPage() {
                       <td className={cx.td}><span className={tipoBadge(c.tipo)}>{c.tipo}</span></td>
                       <td className={cx.td + ' text-right font-semibold ' + ((c.saldo_actual || 0) >= 0 ? 'text-stone-900' : 'text-rose-600')}>
                         {formatCurrency(c.saldo_actual || 0)}
+                      </td>
+                      <td className={cx.td}>
+                        {c.tipo === 'efectivo' && c.fondo_caja > 0 && (
+                          <span className="text-xs text-stone-500">Fondo: {formatCurrency(c.fondo_caja)}</span>
+                        )}
+                        {c.ultimo_arqueo && (
+                          <span className="text-xs text-stone-400 block">
+                            Ultimo arqueo: {formatDate(c.ultimo_arqueo)}
+                          </span>
+                        )}
+                        {c.tipo === 'efectivo' && (!c.ultimo_arqueo || new Date(c.ultimo_arqueo) < new Date(Date.now() - 86400000)) && (
+                          <span className="text-[10px] text-amber-600 font-medium">Arqueo pendiente</span>
+                        )}
                       </td>
                       <td className={cx.td + ' text-right'}>
                         <div className="flex items-center justify-end gap-1">
@@ -682,6 +815,62 @@ export default function PLCashflowPage() {
               </table>
             </div>
           )}
+
+          {/* Transferencias */}
+          <div className={cx.card + ' p-5 mt-4'}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-sm font-semibold text-stone-900">Transferencias entre cuentas</h3>
+              <button onClick={() => setShowTransferForm(true)} className={cx.btnSecondary + ' flex items-center gap-2 text-xs'}>
+                <ArrowUpRight size={14} /> Nueva transferencia
+              </button>
+            </div>
+
+            {/* Transfer form */}
+            {showTransferForm && (
+              <div className="p-4 bg-stone-50 rounded-lg mb-4 space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={cx.label}>Desde</label>
+                    <CustomSelect
+                      options={cuentas.map(c => ({ value: c.id, label: c.nombre }))}
+                      value={transferForm.cuenta_origen_id || ''}
+                      onChange={(v) => setTransferForm(prev => ({ ...prev, cuenta_origen_id: v }))}
+                      placeholder="Cuenta origen..."
+                    />
+                  </div>
+                  <div>
+                    <label className={cx.label}>Hacia</label>
+                    <CustomSelect
+                      options={cuentas.map(c => ({ value: c.id, label: c.nombre }))}
+                      value={transferForm.cuenta_destino_id || ''}
+                      onChange={(v) => setTransferForm(prev => ({ ...prev, cuenta_destino_id: v }))}
+                      placeholder="Cuenta destino..."
+                    />
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={cx.label}>Monto</label>
+                    <input type="number" step="0.01" min="0" value={transferForm.monto || ''} onChange={e => setTransferForm(prev => ({ ...prev, monto: e.target.value }))} className={cx.input} placeholder="0.00" />
+                  </div>
+                  <div>
+                    <label className={cx.label}>Fecha</label>
+                    <input type="date" value={transferForm.fecha || new Date().toISOString().slice(0, 10)} onChange={e => setTransferForm(prev => ({ ...prev, fecha: e.target.value }))} className={cx.input} />
+                  </div>
+                </div>
+                <div>
+                  <label className={cx.label}>Descripcion (opcional)</label>
+                  <input type="text" value={transferForm.descripcion || ''} onChange={e => setTransferForm(prev => ({ ...prev, descripcion: e.target.value }))} className={cx.input} placeholder="Ej: Deposito en banco" />
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={handleTransfer} disabled={savingTransfer} className={cx.btnPrimary + ' text-sm'}>
+                    {savingTransfer ? 'Transfiriendo...' : 'Transferir'}
+                  </button>
+                  <button onClick={() => setShowTransferForm(false)} className={cx.btnGhost + ' text-sm'}>Cancelar</button>
+                </div>
+              </div>
+            )}
+          </div>
         </>
       )}
 

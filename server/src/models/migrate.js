@@ -433,6 +433,123 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_flujo_arqueos_periodo ON flujo_arqueos(periodo_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_transacciones_flujo ON transacciones(flujo_seccion, flujo_categoria_id)`);
 
+    // ==================== FLUJO DE CAJA V3 ====================
+
+    // Denominaciones de billetes/monedas por país
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS denominaciones (
+        id SERIAL PRIMARY KEY,
+        pais_code VARCHAR(5) NOT NULL,
+        valor NUMERIC(10,2) NOT NULL,
+        tipo VARCHAR(10) NOT NULL DEFAULT 'billete',
+        nombre VARCHAR(50) NOT NULL,
+        orden INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+
+    // Seed denominations for Peru (PEN) if empty
+    const denomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'PE'");
+    if (parseInt(denomCount.rows[0].count) === 0) {
+      const peruDenoms = [
+        // Billetes
+        { valor: 200, tipo: 'billete', nombre: 'S/ 200', orden: 1 },
+        { valor: 100, tipo: 'billete', nombre: 'S/ 100', orden: 2 },
+        { valor: 50, tipo: 'billete', nombre: 'S/ 50', orden: 3 },
+        { valor: 20, tipo: 'billete', nombre: 'S/ 20', orden: 4 },
+        { valor: 10, tipo: 'billete', nombre: 'S/ 10', orden: 5 },
+        // Monedas
+        { valor: 5, tipo: 'moneda', nombre: 'S/ 5', orden: 10 },
+        { valor: 2, tipo: 'moneda', nombre: 'S/ 2', orden: 11 },
+        { valor: 1, tipo: 'moneda', nombre: 'S/ 1', orden: 12 },
+        { valor: 0.50, tipo: 'moneda', nombre: 'S/ 0.50', orden: 13 },
+        { valor: 0.20, tipo: 'moneda', nombre: 'S/ 0.20', orden: 14 },
+        { valor: 0.10, tipo: 'moneda', nombre: 'S/ 0.10', orden: 15 },
+      ];
+      for (const d of peruDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('PE', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Mexico (MXN)
+    const mxDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'MX'");
+    if (parseInt(mxDenomCount.rows[0].count) === 0) {
+      const mxDenoms = [
+        { valor: 1000, tipo: 'billete', nombre: '$1,000', orden: 1 },
+        { valor: 500, tipo: 'billete', nombre: '$500', orden: 2 },
+        { valor: 200, tipo: 'billete', nombre: '$200', orden: 3 },
+        { valor: 100, tipo: 'billete', nombre: '$100', orden: 4 },
+        { valor: 50, tipo: 'billete', nombre: '$50', orden: 5 },
+        { valor: 20, tipo: 'billete', nombre: '$20', orden: 6 },
+        { valor: 10, tipo: 'moneda', nombre: '$10', orden: 10 },
+        { valor: 5, tipo: 'moneda', nombre: '$5', orden: 11 },
+        { valor: 2, tipo: 'moneda', nombre: '$2', orden: 12 },
+        { valor: 1, tipo: 'moneda', nombre: '$1', orden: 13 },
+        { valor: 0.50, tipo: 'moneda', nombre: '$0.50', orden: 14 },
+      ];
+      for (const d of mxDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('MX', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Colombia (COP)
+    const coDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'CO'");
+    if (parseInt(coDenomCount.rows[0].count) === 0) {
+      const coDenoms = [
+        { valor: 100000, tipo: 'billete', nombre: '$100.000', orden: 1 },
+        { valor: 50000, tipo: 'billete', nombre: '$50.000', orden: 2 },
+        { valor: 20000, tipo: 'billete', nombre: '$20.000', orden: 3 },
+        { valor: 10000, tipo: 'billete', nombre: '$10.000', orden: 4 },
+        { valor: 5000, tipo: 'billete', nombre: '$5.000', orden: 5 },
+        { valor: 2000, tipo: 'billete', nombre: '$2.000', orden: 6 },
+        { valor: 1000, tipo: 'moneda', nombre: '$1.000', orden: 10 },
+        { valor: 500, tipo: 'moneda', nombre: '$500', orden: 11 },
+        { valor: 200, tipo: 'moneda', nombre: '$200', orden: 12 },
+        { valor: 100, tipo: 'moneda', nombre: '$100', orden: 13 },
+        { valor: 50, tipo: 'moneda', nombre: '$50', orden: 14 },
+      ];
+      for (const d of coDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('CO', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Update flujo_cuentas with new fields
+    await client.query(`ALTER TABLE flujo_cuentas ADD COLUMN IF NOT EXISTS fondo_caja NUMERIC(12,2) DEFAULT 0`);
+    await client.query(`ALTER TABLE flujo_cuentas ADD COLUMN IF NOT EXISTS alerta_saldo_minimo NUMERIC(12,2)`);
+    await client.query(`ALTER TABLE flujo_cuentas ADD COLUMN IF NOT EXISTS ultimo_arqueo DATE`);
+
+    // Update flujo_arqueos for daily support + desglose
+    await client.query(`ALTER TABLE flujo_arqueos ADD COLUMN IF NOT EXISTS desglose JSONB`);
+    await client.query(`ALTER TABLE flujo_arqueos ADD COLUMN IF NOT EXISTS fondo_inicial NUMERIC(12,2) DEFAULT 0`);
+    await client.query(`ALTER TABLE flujo_arqueos ADD COLUMN IF NOT EXISTS responsable VARCHAR(100)`);
+    await client.query(`ALTER TABLE flujo_arqueos ADD COLUMN IF NOT EXISTS tipo VARCHAR(10) DEFAULT 'diario'`);
+
+    // Transferencias entre cuentas
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS flujo_transferencias (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        cuenta_origen_id INTEGER NOT NULL REFERENCES flujo_cuentas(id),
+        cuenta_destino_id INTEGER NOT NULL REFERENCES flujo_cuentas(id),
+        monto NUMERIC(12,2) NOT NULL,
+        fecha DATE NOT NULL DEFAULT CURRENT_DATE,
+        descripcion VARCHAR(255),
+        referencia VARCHAR(100),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_denominaciones_pais ON denominaciones(pais_code, orden)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_flujo_transferencias_usuario ON flujo_transferencias(usuario_id)`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);
