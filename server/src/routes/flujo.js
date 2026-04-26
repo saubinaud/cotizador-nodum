@@ -492,16 +492,38 @@ router.get('/grid', async (req, res) => {
 
 // ==================== ARQUEO DE CAJA ====================
 
-// GET /api/flujo/arqueo?periodo_id=X
+// GET /api/flujo/arqueo/historial — recent arqueos
+router.get('/arqueo/historial', async (req, res) => {
+  try {
+    const result = await pool.query(
+      'SELECT * FROM flujo_arqueos WHERE usuario_id = $1 ORDER BY fecha DESC, created_at DESC LIMIT 20',
+      [req.user.id]
+    );
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Arqueo historial error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// GET /api/flujo/arqueo?fecha=2026-04-25 (or periodo_id=X for backward compat)
 router.get('/arqueo', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { fecha, periodo_id } = req.query;
+    if (!fecha && !periodo_id) return res.status(400).json({ success: false, error: 'fecha o periodo_id requerido' });
 
-    const arqueo = await pool.query(
-      'SELECT * FROM flujo_arqueos WHERE periodo_id = $1 AND usuario_id = $2 ORDER BY created_at DESC LIMIT 1',
-      [periodo_id, req.user.id]
-    );
+    let arqueo;
+    if (fecha) {
+      arqueo = await pool.query(
+        'SELECT * FROM flujo_arqueos WHERE fecha = $1 AND usuario_id = $2 ORDER BY created_at DESC LIMIT 1',
+        [fecha, req.user.id]
+      );
+    } else {
+      arqueo = await pool.query(
+        'SELECT * FROM flujo_arqueos WHERE periodo_id = $1 AND usuario_id = $2 ORDER BY created_at DESC LIMIT 1',
+        [periodo_id, req.user.id]
+      );
+    }
 
     const cuentas = await pool.query(
       'SELECT * FROM flujo_cuentas WHERE usuario_id = $1 AND activa = true ORDER BY orden, nombre',
@@ -537,8 +559,19 @@ router.get('/arqueo', async (req, res) => {
 // POST /api/flujo/arqueo — create/update arqueo
 router.post('/arqueo', async (req, res) => {
   try {
-    const { periodo_id, detalles, observaciones, cerrar, desglose, fondo_inicial, responsable, tipo } = req.body;
-    if (!periodo_id || !detalles) return res.status(400).json({ success: false, error: 'periodo_id y detalles requeridos' });
+    const { periodo_id, fecha, detalles, observaciones, cerrar, desglose, fondo_inicial, responsable, tipo } = req.body;
+    const arqueoFecha = fecha || new Date().toISOString().slice(0, 10);
+    if (!detalles) return res.status(400).json({ success: false, error: 'detalles requeridos' });
+
+    // Auto-find periodo from fecha if not provided
+    let pid = periodo_id;
+    if (!pid) {
+      const per = await pool.query(
+        'SELECT id FROM periodos WHERE usuario_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+        [req.user.id, arqueoFecha]
+      );
+      pid = per.rows[0]?.id || null;
+    }
 
     // Calculate totals
     let saldoSistema = 0, saldoReal = 0;
@@ -548,10 +581,10 @@ router.post('/arqueo', async (req, res) => {
     }
     const diferencia = saldoReal - saldoSistema;
 
-    // Delete existing arqueo for this period (replace)
+    // Delete existing arqueo for this date (replace)
     const existingArqueo = await pool.query(
-      'SELECT id FROM flujo_arqueos WHERE periodo_id = $1 AND usuario_id = $2',
-      [periodo_id, req.user.id]
+      'SELECT id FROM flujo_arqueos WHERE fecha = $1 AND usuario_id = $2',
+      [arqueoFecha, req.user.id]
     );
     if (existingArqueo.rows.length > 0) {
       await pool.query('DELETE FROM flujo_arqueo_detalles WHERE arqueo_id = $1', [existingArqueo.rows[0].id]);
@@ -562,7 +595,7 @@ router.post('/arqueo', async (req, res) => {
     const arqueoRes = await pool.query(
       `INSERT INTO flujo_arqueos (usuario_id, periodo_id, fecha, saldo_sistema, saldo_real, diferencia, observaciones, cerrado, desglose, fondo_inicial, responsable, tipo)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-      [req.user.id, periodo_id, req.body.fecha || new Date().toISOString().slice(0, 10), saldoSistema, saldoReal, diferencia, observaciones || null, cerrar || false, desglose ? JSON.stringify(desglose) : null, parseFloat(fondo_inicial) || 0, responsable || null, tipo || 'diario']
+      [req.user.id, pid, arqueoFecha, saldoSistema, saldoReal, diferencia, observaciones || null, cerrar || false, desglose ? JSON.stringify(desglose) : null, parseFloat(fondo_inicial) || 0, responsable || null, tipo || 'diario']
     );
     const arqueoId = arqueoRes.rows[0].id;
 

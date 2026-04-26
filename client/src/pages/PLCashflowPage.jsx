@@ -105,8 +105,9 @@ export default function PLCashflowPage() {
 
   // Arqueo
   const [periodos, setPeriodos] = useState([]);
-  const [arqueoPeriodoId, setArqueoPeriodoId] = useState('');
+  const [arqueoFecha, setArqueoFecha] = useState(new Date().toISOString().slice(0, 10));
   const [arqueoData, setArqueoData] = useState(null);
+  const [arqueoHistorial, setArqueoHistorial] = useState([]);
   const [arqueoForm, setArqueoForm] = useState([]);
   const [arqueoObs, setArqueoObs] = useState('');
   const [savingArqueo, setSavingArqueo] = useState(false);
@@ -183,12 +184,17 @@ export default function PLCashflowPage() {
     } catch { /* silent */ }
   }
 
-  async function loadArqueo(periodoId) {
-    if (!periodoId) return;
+  async function loadArqueo(fecha) {
+    if (!fecha) return;
     try {
-      const res = await api.get(`/flujo/arqueo?periodo_id=${periodoId}`);
+      const res = await api.get(`/flujo/arqueo?fecha=${fecha}`);
       const d = res.data || res;
       setArqueoData(d);
+      // Load recent arqueos history
+      try {
+        const histRes = await api.get('/flujo/arqueo/historial');
+        setArqueoHistorial((histRes.data || histRes || []).slice(0, 10));
+      } catch {}
       const cuentasList = d.cuentas || cuentas || [];
       setArqueoForm(cuentasList.map(c => {
         const det = (d.detalles || []).find(dd => dd.cuenta_id === c.id);
@@ -237,12 +243,12 @@ export default function PLCashflowPage() {
   // ── Arqueo submit ────────────────────────────────────────
 
   async function submitArqueo(cerrar = false) {
-    if (!arqueoPeriodoId) return;
-    if (cerrar && !window.confirm('Cerrar el mes? Esto actualizara los saldos de las cuentas y propagara al siguiente periodo.')) return;
+    if (!arqueoFecha) return;
+    if (cerrar && !window.confirm('Cerrar el dia? Esto actualizara los saldos reales de las cuentas.')) return;
     setSavingArqueo(true);
     try {
       await api.post('/flujo/arqueo', {
-        periodo_id: arqueoPeriodoId,
+        fecha: arqueoFecha,
         detalles: arqueoForm.map(f => ({
           cuenta_id: f.cuenta_id,
           saldo_sistema: Number(f.saldo_sistema) || 0,
@@ -251,9 +257,10 @@ export default function PLCashflowPage() {
         desglose,
         observaciones: arqueoObs,
         cerrar,
+        tipo: 'diario',
       });
-      toast.success(cerrar ? 'Mes cerrado correctamente' : 'Arqueo guardado');
-      loadArqueo(arqueoPeriodoId);
+      toast.success(cerrar ? 'Arqueo cerrado' : 'Arqueo guardado');
+      loadArqueo(arqueoFecha);
       if (cerrar) { loadGrid(); loadCuentas(); }
     } catch { toast.error('Error guardando arqueo'); }
     finally { setSavingArqueo(false); }
@@ -356,7 +363,7 @@ export default function PLCashflowPage() {
           { key: 'arqueo', label: 'Arqueo', icon: ClipboardCheck },
           { key: 'cuentas', label: 'Cuentas', icon: Wallet },
         ].map(t => (
-          <button key={t.key} onClick={() => { setTab(t.key); if (t.key === 'arqueo' && arqueoPeriodoId) loadArqueo(arqueoPeriodoId); }}
+          <button key={t.key} onClick={() => { setTab(t.key); if (t.key === 'arqueo') loadArqueo(arqueoFecha); }}
             className={`px-4 py-2 text-sm font-semibold rounded-md transition-all flex items-center gap-1.5 ${
               tab === t.key ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
             }`}>
@@ -495,24 +502,25 @@ export default function PLCashflowPage() {
           <div className="flex items-center justify-between mb-6">
             <div>
               <h1 className="text-2xl font-bold text-stone-900">Arqueo de Caja</h1>
-              <p className="text-sm text-stone-500 mt-0.5">Conciliacion de saldos por periodo</p>
+              <p className="text-sm text-stone-500 mt-0.5">Conciliacion diaria de saldos</p>
             </div>
-            <div className="w-52">
-              <CustomSelect
-                options={periodos}
-                value={arqueoPeriodoId}
-                onChange={(v) => { setArqueoPeriodoId(v); loadArqueo(v); }}
-                placeholder="Periodo..."
+            <div className="flex items-center gap-3">
+              <input
+                type="date"
+                value={arqueoFecha}
+                onChange={(e) => { setArqueoFecha(e.target.value); loadArqueo(e.target.value); }}
+                className={cx.input + ' w-44'}
               />
+              <button
+                onClick={() => { const hoy = new Date().toISOString().slice(0, 10); setArqueoFecha(hoy); loadArqueo(hoy); }}
+                className={cx.btnGhost + ' text-xs'}
+              >
+                Hoy
+              </button>
             </div>
           </div>
 
-          {!arqueoPeriodoId ? (
-            <div className={cx.card + ' p-12 text-center'}>
-              <ClipboardCheck size={32} className="mx-auto text-stone-300 mb-3" />
-              <p className="text-sm text-stone-500">Selecciona un periodo para comenzar el arqueo</p>
-            </div>
-          ) : arqueoForm.length === 0 ? (
+          {arqueoForm.length === 0 ? (
             <div className={cx.card + ' p-12 text-center'}>
               <p className="text-sm text-stone-500">No hay cuentas registradas. Crea cuentas en la pestana "Cuentas".</p>
             </div>
@@ -684,9 +692,37 @@ export default function PLCashflowPage() {
                     disabled={savingArqueo}
                     className={cx.btnPrimary + ' flex items-center gap-2'}
                   >
-                    <ClipboardCheck size={14} /> Cerrar Mes
+                    <ClipboardCheck size={14} /> Cerrar Arqueo
                   </button>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {/* Historial de arqueos */}
+          {arqueoHistorial.length > 0 && (
+            <div className={cx.card + ' mt-4 overflow-hidden'}>
+              <div className="p-4 border-b border-stone-100">
+                <h3 className="text-sm font-semibold text-stone-900">Arqueos recientes</h3>
+              </div>
+              <div className="divide-y divide-stone-100">
+                {arqueoHistorial.map(a => (
+                  <div key={a.id} className="flex items-center justify-between px-4 py-3 hover:bg-stone-50/50">
+                    <div>
+                      <p className="text-sm text-stone-800">{formatDate(a.fecha)}</p>
+                      <p className="text-xs text-stone-400">{a.tipo === 'diario' ? 'Diario' : 'Mensual'}{a.cerrado ? ' — Cerrado' : ''}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-stone-600">Sistema: {formatCurrency(a.saldo_sistema)}</p>
+                      <p className="text-sm font-medium text-stone-800">Real: {formatCurrency(a.saldo_real)}</p>
+                      {parseFloat(a.diferencia) !== 0 && (
+                        <p className={`text-xs font-semibold ${parseFloat(a.diferencia) > 0 ? 'text-sky-600' : 'text-rose-600'}`}>
+                          Dif: {parseFloat(a.diferencia) > 0 ? '+' : ''}{formatCurrency(a.diferencia)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
