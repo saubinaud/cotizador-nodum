@@ -10,6 +10,22 @@ router.use(auth);
 
 // POST /api/productos
 router.post('/', async (req, res) => {
+  // Trial limit check
+  const planCheck = await pool.query('SELECT plan, trial_ends_at, max_productos FROM usuarios WHERE id = $1', [req.user.id]);
+  const userPlan = planCheck.rows[0];
+  if (userPlan?.plan === 'trial') {
+    const countRes = await pool.query('SELECT COUNT(*) FROM productos WHERE usuario_id = $1', [req.user.id]);
+    const currentCount = parseInt(countRes.rows[0].count);
+    const maxAllowed = parseInt(userPlan.max_productos) || 2;
+    if (currentCount >= maxAllowed) {
+      return res.status(403).json({
+        success: false,
+        error: `Tu plan de prueba permite máximo ${maxAllowed} productos. Actualiza a Pro para crear más.`,
+        code: 'TRIAL_LIMIT'
+      });
+    }
+  }
+
   const client = await pool.connect();
   try {
     const { nombre, margen, margen_porcion, preparaciones, materiales, imagen_url, tipo_presentacion, unidades_por_producto } = req.body;
@@ -180,7 +196,21 @@ router.get('/', async (req, res) => {
        ORDER BY nombre ASC`,
       [req.user.id]
     );
-    return res.json({ success: true, data: result.rows });
+    let productos = result.rows;
+
+    // Trial limit: only first 2 products (by created_at ASC)
+    if (req.user.plan === 'trial') {
+      const userRes = await pool.query('SELECT plan, trial_ends_at, max_productos FROM usuarios WHERE id = $1', [req.user.id]);
+      const u = userRes.rows[0];
+      if (u && u.plan === 'trial') {
+        const max = parseInt(u.max_productos) || 2;
+        productos = result.rows.slice(0, max).map(p => ({ ...p, locked: false }));
+        const locked = result.rows.slice(max).map(p => ({ ...p, locked: true }));
+        productos = [...productos, ...locked];
+      }
+    }
+
+    return res.json({ success: true, data: productos });
   } catch (err) {
     console.error('List products error:', err);
     return res.status(500).json({ success: false, error: 'Error interno del servidor' });

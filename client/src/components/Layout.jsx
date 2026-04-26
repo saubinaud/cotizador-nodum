@@ -25,6 +25,8 @@ import {
   Receipt,
   ShoppingBag,
   TrendingDown,
+  Clock,
+  Lock,
 } from 'lucide-react';
 
 const sidebarGroups = [
@@ -74,7 +76,23 @@ const adminLinks = [
   { to: '/admin/actividad', label: 'Actividad', icon: Activity },
 ];
 
-function SidebarLink({ to, label, icon: Icon, onClick, collapsed, end }) {
+function SidebarLink({ to, label, icon: Icon, onClick, collapsed, end, disabled }) {
+  if (disabled) {
+    return (
+      <div
+        title={collapsed ? `${label} (bloqueado)` : 'Módulo no disponible en tu plan'}
+        className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0 py-3' : 'px-4 py-3'} rounded-xl text-sm font-semibold text-stone-300 cursor-not-allowed`}
+      >
+        <Icon size={18} />
+        {!collapsed && (
+          <>
+            <span className="flex-1">{label}</span>
+            <Lock size={12} className="text-stone-300" />
+          </>
+        )}
+      </div>
+    );
+  }
   return (
     <NavLink
       to={to}
@@ -115,7 +133,35 @@ export default function Layout() {
     localStorage.setItem('kudi_nav_groups', JSON.stringify(next));
   };
   const isAdmin = user?.rol === 'admin';
-  const permisos = Array.isArray(user?.permisos) ? user.permisos : ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion', 'pl', 'perdidas'];
+  const rawPermisos = Array.isArray(user?.permisos) ? user.permisos : ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion', 'pl', 'perdidas'];
+  // Parse 3-state permisos: "modulo" = full, "~modulo" = vitrina (visible but locked), absent = hidden
+  const permState = (perm) => {
+    if (!perm) return 'full';
+    if (isAdmin) return 'full';
+    if (rawPermisos.includes(perm)) return 'full';
+    if (rawPermisos.includes(`~${perm}`)) return 'vitrina';
+    return 'hidden';
+  };
+
+  const trialBanner = (() => {
+    if (!user || user.rol === 'admin' || user.plan === 'pro') return null;
+    if (!user.trial_ends_at) return null;
+
+    const now = new Date();
+    const ends = new Date(user.trial_ends_at);
+    const diffMs = ends - now;
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+
+    if (diffDays > 7) {
+      return { type: 'info', text: `Prueba gratis — ${diffDays} dias restantes`, color: 'bg-blue-50 text-blue-700 border-blue-200' };
+    } else if (diffDays > 0) {
+      return { type: 'warning', text: `Tu prueba gratis termina en ${diffDays} dia${diffDays > 1 ? 's' : ''}`, color: 'bg-amber-50 text-amber-700 border-amber-200' };
+    } else if (diffDays === 0) {
+      return { type: 'danger', text: 'Tu prueba gratis termina hoy', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+    } else {
+      return { type: 'expired', text: 'Tu prueba gratis ha terminado', color: 'bg-rose-50 text-rose-700 border-rose-200' };
+    }
+  })();
 
   const handleLogout = () => {
     logout();
@@ -143,7 +189,9 @@ export default function Layout() {
 
       <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-4'} py-4 space-y-1 overflow-y-auto`}>
         {sidebarGroups.map((group) => {
-          const visibleLinks = isAdmin ? group.links : group.links.filter(l => !l.perm || permisos.includes(l.perm));
+          const visibleLinks = group.links
+            .map(l => ({ ...l, _state: permState(l.perm) }))
+            .filter(l => isAdmin || l._state !== 'hidden');
           if (visibleLinks.length === 0) return null;
           const isGroupCollapsed = collapsedGroups[group.key];
 
@@ -157,7 +205,7 @@ export default function Layout() {
                 {!isCollapsed && (isGroupCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />)}
               </button>
               {!isGroupCollapsed && visibleLinks.map(l => (
-                <SidebarLink key={l.to} {...l} collapsed={isCollapsed} onClick={closeSidebar} />
+                <SidebarLink key={l.to} {...l} disabled={l._state === 'vitrina'} collapsed={isCollapsed} onClick={closeSidebar} />
               ))}
             </div>
           );
@@ -268,6 +316,16 @@ export default function Layout() {
           </div>
           <div className="w-9" />
         </header>
+
+        {trialBanner && (
+          <div className={`${trialBanner.color} border-b px-4 py-2.5 text-center text-sm font-medium flex items-center justify-center gap-2`}>
+            <Clock size={14} />
+            <span>{trialBanner.text}</span>
+            {trialBanner.type === 'expired' && (
+              <span className="font-bold ml-1">— Contacta al administrador para activar tu cuenta</span>
+            )}
+          </div>
+        )}
 
         <main className="p-5 pb-16 lg:p-8 lg:pb-20">
           <Outlet />

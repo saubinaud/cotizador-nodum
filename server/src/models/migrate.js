@@ -352,6 +352,11 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_di_periodo ON desmedros_insumo(periodo_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_dm_periodo ON desmedros_material(periodo_id)`);
 
+    // Plan & trial system
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS plan VARCHAR(10) NOT NULL DEFAULT 'trial'`);
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ`);
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS max_productos INTEGER NOT NULL DEFAULT 2`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

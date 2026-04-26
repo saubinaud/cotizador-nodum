@@ -19,6 +19,7 @@ import {
   Download,
   Columns2,
   Square,
+  Lock,
 } from 'lucide-react';
 
 function normU(u) { if (!u) return ''; if (u === 'l') return 'L'; return u; }
@@ -273,13 +274,20 @@ export default function DashboardPage() {
           >
             {exporting ? <div className="w-4 h-4 border-2 border-stone-300 border-t-stone-600 rounded-full animate-spin" /> : <Download size={16} />}
           </button>
-          <button
-            onClick={() => navigate('/cotizador')}
-            className={cx.btnPrimary + ' flex items-center gap-2'}
-          >
-            <Plus size={16} />
-            Nuevo
-          </button>
+          {(() => {
+            const isTrialAtLimit = user?.plan === 'trial' && user?.rol !== 'admin' && products.filter(p => !p.locked).length >= (user?.max_productos || 2);
+            return (
+              <button
+                onClick={() => !isTrialAtLimit && navigate('/cotizador')}
+                disabled={isTrialAtLimit}
+                className={cx.btnPrimary + ' flex items-center gap-2' + (isTrialAtLimit ? ' opacity-50 cursor-not-allowed' : '')}
+                title={isTrialAtLimit ? `Tu plan de prueba permite maximo ${user?.max_productos || 2} productos` : ''}
+              >
+                {isTrialAtLimit ? <Lock size={16} /> : <Plus size={16} />}
+                Nuevo
+              </button>
+            );
+          })()}
         </div>
       </div>
 
@@ -304,7 +312,13 @@ export default function DashboardPage() {
         const renderGalleryGrid = (prods) => (
           <div className={`grid ${mobileColumns === 2 ? 'grid-cols-2' : 'grid-cols-1'} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4`}>
             {prods.map((p) => (
-              <div key={p.id} className={`${cx.cardHover} overflow-hidden group relative`} onClick={() => handleDetail(p)}>
+              <div key={p.id} className={`${cx.cardHover} overflow-hidden group relative`} onClick={() => !p.locked && handleDetail(p)}>
+                {p.locked && (
+                  <div className="absolute inset-0 bg-white/80 backdrop-blur-[1px] rounded-xl flex flex-col items-center justify-center z-10">
+                    <Lock size={24} className="text-stone-300 mb-2" />
+                    <p className="text-xs text-stone-400 font-medium">Plan Pro requerido</p>
+                  </div>
+                )}
                 {p.tipo_presentacion === 'entero' && p.unidades_por_producto > 1 && (
                   <span className="absolute top-2 left-2 bg-[var(--accent)] text-white text-[10px] font-bold px-2 py-0.5 rounded-lg z-10">
                     {p.unidades_por_producto} porciones

@@ -84,6 +84,9 @@ router.post('/login', async (req, res) => {
           precio_decimales: user.precio_decimales,
           tarifa_mo_global: user.tarifa_mo_global,
           margen_minimo_global: user.margen_minimo_global,
+          plan: user.plan,
+          trial_ends_at: user.trial_ends_at,
+          max_productos: user.max_productos,
         },
       },
     });
@@ -99,7 +102,7 @@ router.get('/me', auth, async (req, res) => {
     const result = await pool.query(
       `SELECT u.id, u.email, u.nombre, u.rol, u.nombre_comercial AS empresa, u.igv_rate, u.ruc, u.razon_social, u.permisos,
               u.pais_code AS pais, p.moneda, p.simbolo, u.logo_url, u.tipo_negocio, u.precio_decimales,
-              u.tarifa_mo_global, u.margen_minimo_global
+              u.tarifa_mo_global, u.margen_minimo_global, u.plan, u.trial_ends_at, u.max_productos
        FROM usuarios u LEFT JOIN paises p ON p.code = u.pais_code WHERE u.id = $1`,
       [req.user.id]
     );

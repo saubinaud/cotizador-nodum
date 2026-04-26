@@ -517,6 +517,20 @@ export default function CotizadorPage() {
       toast.error('Ingresa un nombre para el producto');
       return;
     }
+
+    // Trial guard: block creation if at product limit
+    if (!id && user?.plan === 'trial' && user?.rol !== 'admin') {
+      try {
+        const prods = await api.get('/productos');
+        const count = (prods.data || prods || []).filter(p => !p.locked).length;
+        const max = user.max_productos || 2;
+        if (count >= max) {
+          toast.error(`Tu plan de prueba permite maximo ${max} productos. Actualiza a Pro para crear mas.`);
+          return;
+        }
+      } catch {}
+    }
+
     setSaving(true);
     try {
       const payload = {

@@ -5,6 +5,7 @@ import { cx } from '../styles/tokens';
 import { formatDate } from '../utils/format';
 import { Plus, UserPlus, Ban, CheckCircle, Copy, X, Settings, Trash2 } from 'lucide-react';
 import ConfirmDialog from '../components/ConfirmDialog';
+import CustomSelect from '../components/CustomSelect';
 
 const ALL_MODULES = [
   { key: 'dashboard', label: 'Dashboard' },
@@ -15,6 +16,7 @@ const ALL_MODULES = [
   { key: 'empaques', label: 'Empaques Predeterminados' },
   { key: 'proyeccion', label: 'Proyección de Ventas' },
   { key: 'pl', label: 'P&L (Finanzas)' },
+  { key: 'perdidas', label: 'Perdidas (Mermas)' },
 ];
 
 const DEFAULT_PERMISOS = ALL_MODULES.map((m) => m.key);
@@ -27,7 +29,7 @@ export default function AdminUsuariosPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({ email: '', nombre: '', rol: 'cliente', empresa: '', permisos: [...DEFAULT_PERMISOS] });
+  const [createForm, setCreateForm] = useState({ email: '', nombre: '', rol: 'cliente', empresa: '', permisos: [...DEFAULT_PERMISOS], plan: 'trial', trial_days: '14' });
   const [onboardingLink, setOnboardingLink] = useState('');
   const [editPermisos, setEditPermisos] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -87,10 +89,35 @@ export default function AdminUsuariosPage() {
     toast.success('Link copiado al portapapeles');
   };
 
+  // 3-state permission cycle: full → vitrina → hidden → full
+  const cyclePermiso = (permisos, key) => {
+    const hasKey = permisos.includes(key);
+    const hasVitrina = permisos.includes(`~${key}`);
+    if (hasKey) {
+      // full → vitrina
+      return [...permisos.filter(p => p !== key), `~${key}`];
+    } else if (hasVitrina) {
+      // vitrina → hidden
+      return permisos.filter(p => p !== `~${key}`);
+    } else {
+      // hidden → full
+      return [...permisos, key];
+    }
+  };
+
+  const getPermisoState = (permisos, key) => {
+    if (permisos.includes(key)) return 'full';
+    if (permisos.includes(`~${key}`)) return 'vitrina';
+    return 'hidden';
+  };
+
+  const PERM_LABELS = { full: 'Completo', vitrina: 'Vitrina', hidden: 'Oculto' };
+  const PERM_COLORS = { full: 'bg-emerald-100 text-emerald-700', vitrina: 'bg-amber-100 text-amber-700', hidden: 'bg-stone-100 text-stone-400' };
+
   const toggleCreatePermiso = (key) => {
     setCreateForm((prev) => ({
       ...prev,
-      permisos: prev.permisos.includes(key) ? prev.permisos.filter((p) => p !== key) : [...prev.permisos, key],
+      permisos: cyclePermiso(prev.permisos, key),
     }));
   };
 
@@ -101,7 +128,7 @@ export default function AdminUsuariosPage() {
   const toggleEditPermiso = (key) => {
     setEditPermisos((prev) => ({
       ...prev,
-      permisos: prev.permisos.includes(key) ? prev.permisos.filter((p) => p !== key) : [...prev.permisos, key],
+      permisos: cyclePermiso(prev.permisos, key),
     }));
   };
 
@@ -127,6 +154,20 @@ export default function AdminUsuariosPage() {
       toast.error(err.message || 'Error eliminando usuario');
     } finally {
       setDeleteTarget(null);
+    }
+  };
+
+  const handleTogglePlan = async (u) => {
+    const newPlan = u.plan === 'pro' ? 'trial' : 'pro';
+    try {
+      await api.patch(`/admin/usuarios/${u.id}/plan`, {
+        plan: newPlan,
+        trial_ends_at: newPlan === 'trial' ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() : null,
+      });
+      toast.success(`Plan cambiado a ${newPlan === 'pro' ? 'Pro' : 'Trial'}`);
+      loadUsers();
+    } catch {
+      toast.error('Error cambiando plan');
     }
   };
 
@@ -163,7 +204,7 @@ export default function AdminUsuariosPage() {
                   <Copy size={14} /> Copiar
                 </button>
               </div>
-              <button onClick={() => { setShowCreate(false); setOnboardingLink(''); setCreateForm({ email: '', nombre: '', rol: 'cliente', empresa: '' }); }} className={cx.btnGhost}>
+              <button onClick={() => { setShowCreate(false); setOnboardingLink(''); setCreateForm({ email: '', nombre: '', rol: 'cliente', empresa: '', permisos: [...DEFAULT_PERMISOS], plan: 'trial', trial_days: '14' }); }} className={cx.btnGhost}>
                 Cerrar
               </button>
             </div>
@@ -212,21 +253,46 @@ export default function AdminUsuariosPage() {
                     <option value="admin">Administrador</option>
                   </select>
                 </div>
+                <div>
+                  <label className={cx.label}>Plan</label>
+                  <CustomSelect
+                    value={createForm.plan}
+                    onChange={(v) => setCreateForm({ ...createForm, plan: v })}
+                    options={[
+                      { value: 'trial', label: 'Prueba gratis' },
+                      { value: 'pro', label: 'Pro (pagado)' },
+                    ]}
+                  />
+                </div>
+                {createForm.plan === 'trial' && (
+                  <div>
+                    <label className={cx.label}>Dias de prueba</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="365"
+                      value={createForm.trial_days}
+                      onChange={(e) => setCreateForm({ ...createForm, trial_days: e.target.value })}
+                      className={cx.input + ' max-w-[8rem]'}
+                      placeholder="14"
+                    />
+                  </div>
+                )}
               </div>
               <div>
-                <label className={cx.label}>Modulos con acceso</label>
+                <label className={cx.label}>Módulos (click para cambiar: Completo → Vitrina → Oculto)</label>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
-                  {ALL_MODULES.map((m) => (
-                    <label key={m.key} className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer hover:text-stone-800">
-                      <input
-                        type="checkbox"
-                        checked={createForm.permisos.includes(m.key)}
-                        onChange={() => toggleCreatePermiso(m.key)}
-                        className="accent-[var(--accent)] w-4 h-4"
-                      />
-                      {m.label}
-                    </label>
-                  ))}
+                  {ALL_MODULES.map((m) => {
+                    const state = getPermisoState(createForm.permisos, m.key);
+                    return (
+                      <button key={m.key} type="button" onClick={() => toggleCreatePermiso(m.key)}
+                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${PERM_COLORS[state]} border-transparent hover:border-stone-300`}
+                      >
+                        <span>{m.label}</span>
+                        <span className="text-[10px] font-bold uppercase">{PERM_LABELS[state]}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className="flex gap-2">
@@ -255,6 +321,9 @@ export default function AdminUsuariosPage() {
                 {u.rol === 'admin' && <span className={cx.badge('bg-violet-50 text-violet-600')}>admin</span>}
                 <span className={cx.badge(u.estado === 'activo' ? 'bg-[var(--accent-light)] text-[var(--success)]' : 'bg-rose-50 text-rose-600')}>
                   {u.estado}
+                </span>
+                <span className={cx.badge(u.plan === 'pro' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600')}>
+                  {u.plan === 'pro' ? 'Pro' : 'Trial'}
                 </span>
               </div>
             </div>
@@ -292,6 +361,13 @@ export default function AdminUsuariosPage() {
               >
                 {u.estado === 'activo' ? <><Ban size={13} /> Suspender</> : <><CheckCircle size={13} /> Reactivar</>}
               </button>
+              <button
+                onClick={() => handleTogglePlan(u)}
+                className={cx.btnGhost + ' text-xs'}
+                title={u.plan === 'pro' ? 'Cambiar a Trial' : 'Activar Pro'}
+              >
+                {u.plan === 'pro' ? 'Trial' : 'Pro'}
+              </button>
               <button onClick={() => setDeleteTarget(u)} className={cx.btnDanger + ' flex items-center justify-center gap-1'}>
                 <Trash2 size={13} />
               </button>
@@ -311,6 +387,7 @@ export default function AdminUsuariosPage() {
               <th className={cx.th}>Rol</th>
               <th className={cx.th}>Registro</th>
               <th className={cx.th}>Estado</th>
+              <th className={cx.th}>Plan</th>
               <th className={cx.th + ' text-right'}>Acciones</th>
             </tr>
           </thead>
@@ -341,6 +418,18 @@ export default function AdminUsuariosPage() {
                     )}
                   </div>
                 </td>
+                <td className={cx.td}>
+                  <span className={cx.badge(u.plan === 'pro' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600')}>
+                    {u.plan === 'pro' ? 'Pro' : 'Trial'}
+                  </span>
+                  {u.plan === 'trial' && u.trial_ends_at && (
+                    <span className="text-[10px] text-stone-400 block mt-0.5">
+                      {new Date(u.trial_ends_at) > new Date()
+                        ? `${Math.ceil((new Date(u.trial_ends_at) - new Date()) / 86400000)}d`
+                        : 'Vencido'}
+                    </span>
+                  )}
+                </td>
                 <td className={cx.td + ' text-right'}>
                   <div className="flex justify-end gap-1">
                     <button onClick={() => startEditPermisos(u)} className={cx.btnIcon} title="Permisos">
@@ -351,6 +440,13 @@ export default function AdminUsuariosPage() {
                       className={u.estado === 'activo' ? cx.btnDanger : cx.btnGhost + ' text-[var(--success)]'}
                     >
                       {u.estado === 'activo' ? 'Suspender' : 'Reactivar'}
+                    </button>
+                    <button
+                      onClick={() => handleTogglePlan(u)}
+                      className={cx.btnGhost + ' text-xs'}
+                      title={u.plan === 'pro' ? 'Cambiar a Trial' : 'Activar Pro'}
+                    >
+                      {u.plan === 'pro' ? 'Trial' : 'Pro'}
                     </button>
                     <button onClick={() => setDeleteTarget(u)} className={cx.btnIcon + ' hover:text-rose-600'} title="Eliminar">
                       <Trash2 size={15} />
@@ -368,19 +464,20 @@ export default function AdminUsuariosPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setEditPermisos(null)} />
           <div className={`${cx.card} relative p-6 w-full max-w-sm mx-4`}>
-            <h3 className="text-stone-800 font-semibold mb-4">Modulos con acceso</h3>
-            <div className="space-y-3">
-              {ALL_MODULES.map((m) => (
-                <label key={m.key} className="flex items-center gap-3 text-sm text-stone-600 cursor-pointer hover:text-stone-800">
-                  <input
-                    type="checkbox"
-                    checked={editPermisos.permisos.includes(m.key)}
-                    onChange={() => toggleEditPermiso(m.key)}
-                    className="accent-[var(--accent)] w-4 h-4"
-                  />
-                  {m.label}
-                </label>
-              ))}
+            <h3 className="text-stone-800 font-semibold mb-2">Módulos</h3>
+            <p className="text-xs text-stone-400 mb-4">Click para cambiar estado</p>
+            <div className="space-y-2">
+              {ALL_MODULES.map((m) => {
+                const state = getPermisoState(editPermisos.permisos, m.key);
+                return (
+                  <button key={m.key} type="button" onClick={() => toggleEditPermiso(m.key)}
+                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${PERM_COLORS[state]} hover:opacity-80`}
+                  >
+                    <span>{m.label}</span>
+                    <span className="text-[10px] font-bold uppercase">{PERM_LABELS[state]}</span>
+                  </button>
+                );
+              })}
             </div>
             <div className="flex gap-2 mt-5">
               <button onClick={savePermisos} className={cx.btnPrimary + ' flex-1'}>Guardar</button>
