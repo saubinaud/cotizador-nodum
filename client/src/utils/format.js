@@ -1,7 +1,9 @@
-export function formatCurrency(n) {
+export function formatCurrency(n, decimals) {
   const simbolo = (typeof localStorage !== 'undefined' && localStorage.getItem('nodum_moneda_simbolo')) || 'S/';
   if (n == null || isNaN(n)) return `${simbolo} 0.00`;
-  return `${simbolo} ${Number(n).toFixed(2)}`;
+  const val = Number(n);
+  const d = decimals != null ? decimals : (Math.abs(val) < 1 && val !== 0 ? 3 : 2);
+  return `${simbolo} ${val.toFixed(d)}`;
 }
 
 export function formatPercent(n) {
