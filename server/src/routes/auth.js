@@ -82,6 +82,8 @@ router.post('/login', async (req, res) => {
           logo_url: user.logo_url,
           tipo_negocio: user.tipo_negocio,
           precio_decimales: user.precio_decimales,
+          tarifa_mo_global: user.tarifa_mo_global,
+          margen_minimo_global: user.margen_minimo_global,
         },
       },
     });
@@ -96,7 +98,8 @@ router.get('/me', auth, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT u.id, u.email, u.nombre, u.rol, u.nombre_comercial AS empresa, u.igv_rate, u.ruc, u.razon_social, u.permisos,
-              u.pais_code AS pais, p.moneda, p.simbolo, u.logo_url, u.tipo_negocio, u.precio_decimales
+              u.pais_code AS pais, p.moneda, p.simbolo, u.logo_url, u.tipo_negocio, u.precio_decimales,
+              u.tarifa_mo_global, u.margen_minimo_global
        FROM usuarios u LEFT JOIN paises p ON p.code = u.pais_code WHERE u.id = $1`,
       [req.user.id]
     );
@@ -198,6 +201,32 @@ router.put('/perfil', auth, async (req, res) => {
     return res.json({ success: true, data: { user: enriched } });
   } catch (err) {
     console.error('Update profile error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
+// PUT /api/auth/ajustes — global settings (tarifa MO, margen mínimo)
+router.put('/ajustes', auth, async (req, res) => {
+  try {
+    const { tarifa_mo_global, margen_minimo_global } = req.body;
+
+    const result = await pool.query(
+      `UPDATE usuarios SET
+        tarifa_mo_global = COALESCE($1::numeric, tarifa_mo_global),
+        margen_minimo_global = COALESCE($2::numeric, margen_minimo_global),
+        updated_at = NOW()
+       WHERE id = $3
+       RETURNING id, tarifa_mo_global, margen_minimo_global`,
+      [tarifa_mo_global != null ? tarifa_mo_global : null, margen_minimo_global != null ? margen_minimo_global : null, req.user.id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
+    }
+
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Ajustes error:', err);
     return res.status(500).json({ success: false, error: 'Error interno del servidor' });
   }
 });

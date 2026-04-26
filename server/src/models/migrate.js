@@ -206,11 +206,151 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_transacciones_fecha ON transacciones(fecha DESC)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_transacciones_tipo ON transacciones(tipo)`);
 
-    // Update default permisos to include 'pl'
+    // Update default permisos to include 'pl' and 'perdidas'
     await client.query(`
       ALTER TABLE usuarios
-        ALTER COLUMN permisos SET DEFAULT '["dashboard","cotizador","insumos","materiales","preparaciones","empaques","proyeccion","pl"]'::jsonb
+        ALTER COLUMN permisos SET DEFAULT '["dashboard","cotizador","insumos","materiales","preparaciones","empaques","proyeccion","pl","perdidas"]'::jsonb
     `);
+
+    // ==================== MERMAS & DESMEDROS ====================
+
+    // insumos: merma % promedio
+    await client.query(`ALTER TABLE insumos ADD COLUMN IF NOT EXISTS merma_pct NUMERIC(5,2) DEFAULT 0`);
+
+    // preparaciones_predeterminadas: merma % promedio
+    await client.query(`ALTER TABLE preparaciones_predeterminadas ADD COLUMN IF NOT EXISTS merma_pct NUMERIC(5,2) DEFAULT 0`);
+
+    // productos: ficha técnica fields
+    await client.query(`
+      ALTER TABLE productos
+        ADD COLUMN IF NOT EXISTS codigo VARCHAR(20),
+        ADD COLUMN IF NOT EXISTS tiempo_activo_min INTEGER,
+        ADD COLUMN IF NOT EXISTS tiempo_horno_min INTEGER,
+        ADD COLUMN IF NOT EXISTS tarifa_mo_override NUMERIC(8,2),
+        ADD COLUMN IF NOT EXISTS margen_minimo_override NUMERIC(5,2),
+        ADD COLUMN IF NOT EXISTS cif_gas_unitario NUMERIC(8,2),
+        ADD COLUMN IF NOT EXISTS cif_overhead_unitario NUMERIC(8,2),
+        ADD COLUMN IF NOT EXISTS instrucciones_ensamble TEXT
+    `);
+
+    // producto_preparaciones: instrucciones por prep
+    await client.query(`ALTER TABLE producto_preparaciones ADD COLUMN IF NOT EXISTS instrucciones TEXT`);
+
+    // usuarios: ajustes globales
+    await client.query(`
+      ALTER TABLE usuarios
+        ADD COLUMN IF NOT EXISTS tarifa_mo_global NUMERIC(8,2),
+        ADD COLUMN IF NOT EXISTS margen_minimo_global NUMERIC(5,2) DEFAULT 33
+    `);
+
+    // mediciones_merma_insumo
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS mediciones_merma_insumo (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        insumo_id INTEGER NOT NULL REFERENCES insumos(id) ON DELETE CASCADE,
+        merma_pct NUMERIC(5,2) NOT NULL,
+        causa VARCHAR(100),
+        fecha DATE NOT NULL,
+        notas TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // mediciones_merma_preparacion
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS mediciones_merma_preparacion (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        preparacion_pred_id INTEGER NOT NULL REFERENCES preparaciones_predeterminadas(id) ON DELETE CASCADE,
+        tanda_producida NUMERIC(12,4) NOT NULL,
+        cantidad_util NUMERIC(12,4) NOT NULL,
+        cantidad_descartada NUMERIC(12,4) NOT NULL,
+        merma_pct NUMERIC(5,2) NOT NULL,
+        causa VARCHAR(100),
+        fecha DATE NOT NULL,
+        notas TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // desmedros_producto
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS desmedros_producto (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        periodo_id INTEGER REFERENCES periodos(id) ON DELETE SET NULL,
+        producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+        unidades INTEGER NOT NULL,
+        costo_neto_snapshot NUMERIC(12,4) NOT NULL,
+        perdida_total NUMERIC(12,4) NOT NULL,
+        causa VARCHAR(50) NOT NULL,
+        fecha DATE NOT NULL,
+        notas TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // desmedros_preparacion
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS desmedros_preparacion (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        periodo_id INTEGER REFERENCES periodos(id) ON DELETE SET NULL,
+        preparacion_pred_id INTEGER NOT NULL REFERENCES preparaciones_predeterminadas(id) ON DELETE CASCADE,
+        costo_total_tanda NUMERIC(12,4) NOT NULL,
+        perdida_total NUMERIC(12,4) NOT NULL,
+        causa VARCHAR(50) NOT NULL,
+        fecha DATE NOT NULL,
+        notas TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // desmedros_insumo
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS desmedros_insumo (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        periodo_id INTEGER REFERENCES periodos(id) ON DELETE SET NULL,
+        insumo_id INTEGER NOT NULL REFERENCES insumos(id) ON DELETE CASCADE,
+        cantidad NUMERIC(12,4) NOT NULL,
+        unidad VARCHAR(10),
+        costo_unitario_snapshot NUMERIC(12,4) NOT NULL,
+        perdida_total NUMERIC(12,4) NOT NULL,
+        causa VARCHAR(50) NOT NULL,
+        fecha DATE NOT NULL,
+        notas TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // desmedros_material
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS desmedros_material (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        periodo_id INTEGER REFERENCES periodos(id) ON DELETE SET NULL,
+        material_id INTEGER NOT NULL REFERENCES materiales(id) ON DELETE CASCADE,
+        cantidad NUMERIC(12,4) NOT NULL,
+        costo_unitario_snapshot NUMERIC(12,4) NOT NULL,
+        perdida_total NUMERIC(12,4) NOT NULL,
+        causa VARCHAR(50) NOT NULL,
+        fecha DATE NOT NULL,
+        notas TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Indexes for merma & desmedro tables
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_mmi_insumo ON mediciones_merma_insumo(insumo_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_mmi_usuario ON mediciones_merma_insumo(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_mmp_prep ON mediciones_merma_preparacion(preparacion_pred_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_mmp_usuario ON mediciones_merma_preparacion(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_dp_periodo ON desmedros_producto(periodo_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_dpr_periodo ON desmedros_preparacion(periodo_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_di_periodo ON desmedros_insumo(periodo_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_dm_periodo ON desmedros_material(periodo_id)`);
 
     console.log('[migrate] OK');
   } catch (err) {

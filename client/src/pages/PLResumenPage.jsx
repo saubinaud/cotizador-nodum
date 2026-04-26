@@ -280,6 +280,35 @@ export default function PLResumenPage() {
               </div>
             </div>
 
+            {/* DESMEDROS */}
+            {data.desmedros?.total > 0 && (
+              <>
+                <div className="px-6 py-4 bg-stone-50 border-t border-b border-stone-100">
+                  <p className="text-xs font-bold text-stone-500 uppercase tracking-wider">Desmedros</p>
+                </div>
+                <div className="px-6 py-3 space-y-2">
+                  {data.desmedros.productos > 0 && (
+                    <PLRow label="Producto terminado" amount={data.desmedros.productos} indent />
+                  )}
+                  {data.desmedros.preparaciones > 0 && (
+                    <PLRow label="Preparaciones" amount={data.desmedros.preparaciones} indent />
+                  )}
+                  {data.desmedros.insumos > 0 && (
+                    <PLRow label="Insumos" amount={data.desmedros.insumos} indent />
+                  )}
+                  {data.desmedros.materiales > 0 && (
+                    <PLRow label="Materiales" amount={data.desmedros.materiales} indent />
+                  )}
+                </div>
+                <div className="px-6 py-3 border-t border-stone-200 bg-stone-50/50">
+                  <div className="flex justify-between text-sm font-bold">
+                    <span className="text-stone-700">Total desmedros</span>
+                    <span className="text-rose-600 tabular-nums">{fmt(data.desmedros.total)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+
             {/* UTILIDAD OPERATIVA */}
             <div className="px-6 py-4 border-t-2 border-stone-300">
               <div className="flex justify-between items-center">

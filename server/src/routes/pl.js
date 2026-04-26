@@ -294,6 +294,28 @@ router.get('/resumen', async (req, res) => {
       [periodo_id]
     );
 
+    // Desmedros (operational waste losses)
+    const desmedrosRes = await pool.query(
+      `SELECT
+        COALESCE(SUM(CASE WHEN t.tipo = 'producto' THEN t.total ELSE 0 END), 0) AS productos,
+        COALESCE(SUM(CASE WHEN t.tipo = 'preparacion' THEN t.total ELSE 0 END), 0) AS preparaciones,
+        COALESCE(SUM(CASE WHEN t.tipo = 'insumo' THEN t.total ELSE 0 END), 0) AS insumos,
+        COALESCE(SUM(CASE WHEN t.tipo = 'material' THEN t.total ELSE 0 END), 0) AS materiales,
+        COALESCE(SUM(t.total), 0) AS total
+       FROM (
+        SELECT 'producto' AS tipo, perdida_total AS total FROM desmedros_producto WHERE periodo_id = $1 AND usuario_id = $2
+        UNION ALL
+        SELECT 'preparacion', perdida_total FROM desmedros_preparacion WHERE periodo_id = $1 AND usuario_id = $2
+        UNION ALL
+        SELECT 'insumo', perdida_total FROM desmedros_insumo WHERE periodo_id = $1 AND usuario_id = $2
+        UNION ALL
+        SELECT 'material', perdida_total FROM desmedros_material WHERE periodo_id = $1 AND usuario_id = $2
+       ) t`,
+      [periodo_id, req.user.id]
+    );
+    const desmedros = desmedrosRes.rows[0];
+    const desmedros_total = parseFloat(desmedros.total);
+
     const v = ventasRes.rows[0];
     const c = cogsRes.rows[0];
     const g = gastosRes.rows[0];
@@ -308,7 +330,7 @@ router.get('/resumen', async (req, res) => {
     const gastos_fijos = parseFloat(g.gastos_fijos);
     const gastos_variables = parseFloat(g.gastos_variables);
     const gastos_total = gastos_fijos + gastos_variables;
-    const utilidad_operativa = utilidad_bruta - gastos_total;
+    const utilidad_operativa = utilidad_bruta - gastos_total - desmedros_total;
 
     // IGV calculation
     const user = await pool.query('SELECT igv_rate, tipo_negocio FROM usuarios WHERE id = $1', [req.user.id]);
@@ -330,6 +352,13 @@ router.get('/resumen', async (req, res) => {
         cogs: { insumos: cogs_insumos, empaque: cogs_empaque, total: cogs_total },
         utilidad_bruta,
         gastos: { fijos: gastos_fijos, variables: gastos_variables, total: gastos_total },
+        desmedros: {
+          productos: parseFloat(desmedros.productos),
+          preparaciones: parseFloat(desmedros.preparaciones),
+          insumos: parseFloat(desmedros.insumos),
+          materiales: parseFloat(desmedros.materiales),
+          total: desmedros_total,
+        },
         utilidad_operativa,
         impuestos,
         utilidad_neta,

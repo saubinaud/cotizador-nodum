@@ -31,7 +31,10 @@ export function useCalculadorCostos(preparaciones = [], materiales = [], margen 
         const uso = normU(ins.uso_unidad);
         const factor = (uso && original && uso !== original) ? convertirUnidad(1, uso, original) : 1;
         const cu = factor > 0 ? (Number(ins.costo_unitario) || 0) * factor : (Number(ins.costo_unitario) || 0);
-        return s + cu * (Number(ins.cantidad) || 0);
+        const cantNeta = Number(ins.cantidad) || 0;
+        const mermaPct = Number(ins.merma_pct) || 0;
+        const cantBruta = mermaPct > 0 ? cantNeta / (1 - mermaPct / 100) : cantNeta;
+        return s + cu * cantBruta;
       }, 0);
 
       const rendimiento = Number(prep.capacidad) || 0;
@@ -39,7 +42,9 @@ export function useCalculadorCostos(preparaciones = [], materiales = [], margen 
       const cantEnUnidadPrep = convertirUnidad(cantParaProducto, normU(prep.porcion_unidad || prep.unidad || ''), normU(prep.unidad || ''));
 
       if (rendimiento > 0 && cantEnUnidadPrep > 0) {
-        return sum + (prepCost / rendimiento) * cantEnUnidadPrep;
+        const costoBase = (prepCost / rendimiento) * cantEnUnidadPrep;
+        const mermaPrepPct = Number(prep.merma_pct) || 0;
+        return sum + (mermaPrepPct > 0 ? costoBase * (1 + mermaPrepPct / 100) : costoBase);
       }
       return sum + prepCost; // no porciones = full prep cost is the product cost
     }, 0);

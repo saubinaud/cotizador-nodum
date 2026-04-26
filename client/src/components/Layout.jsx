@@ -24,6 +24,7 @@ import {
   ShoppingCart,
   Receipt,
   ShoppingBag,
+  TrendingDown,
 } from 'lucide-react';
 
 const sidebarGroups = [
@@ -51,6 +52,14 @@ const sidebarGroups = [
       { to: '/pl/ventas', label: 'Ventas', icon: ShoppingCart, perm: 'pl' },
       { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'pl' },
       { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'pl' },
+    ],
+  },
+  {
+    key: 'perdidas',
+    label: 'Pérdidas',
+    icon: TrendingDown,
+    links: [
+      { to: '/perdidas', label: 'Registro', icon: TrendingDown, perm: 'perdidas' },
     ],
   },
 ];
@@ -106,7 +115,7 @@ export default function Layout() {
     localStorage.setItem('kudi_nav_groups', JSON.stringify(next));
   };
   const isAdmin = user?.rol === 'admin';
-  const permisos = Array.isArray(user?.permisos) ? user.permisos : ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion', 'pl'];
+  const permisos = Array.isArray(user?.permisos) ? user.permisos : ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion', 'pl', 'perdidas'];
 
   const handleLogout = () => {
     logout();

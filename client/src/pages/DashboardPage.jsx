@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
@@ -328,6 +328,9 @@ export default function DashboardPage() {
                 </div>
                 {/* Action buttons */}
                 <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                  <Link to={`/ficha-tecnica/${p.id}`} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-[var(--accent)]" title="Ficha tecnica">
+                    <Package size={13} />
+                  </Link>
                   <button onClick={() => handleDuplicate(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-stone-800" title="Duplicar">
                     <Copy size={13} />
                   </button>
@@ -362,6 +365,9 @@ export default function DashboardPage() {
                   <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}>
                     <Pencil size={13} /> Editar
                   </button>
+                  <Link to={`/ficha-tecnica/${p.id}`} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1 text-[var(--accent)]'}>
+                    Ficha
+                  </Link>
                   <button onClick={() => handleDuplicate(p)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}>
                     <Copy size={13} /> Duplicar
                   </button>
@@ -409,6 +415,9 @@ export default function DashboardPage() {
                         <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnIcon} title="Editar">
                           <Pencil size={15} />
                         </button>
+                        <Link to={`/ficha-tecnica/${p.id}`} className={cx.btnIcon + ' text-[var(--accent)]'} title="Ficha tecnica">
+                          <Package size={15} />
+                        </Link>
                         <button onClick={() => handleDuplicate(p)} className={cx.btnIcon} title="Duplicar">
                           <Copy size={15} />
                         </button>

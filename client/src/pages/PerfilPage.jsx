@@ -3,7 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
-import { User, Lock, Save, Pencil, X, Upload, Loader2 } from 'lucide-react';
+import { User, Lock, Save, Pencil, X, Upload, Loader2, Settings } from 'lucide-react';
 import CustomSelect from '../components/CustomSelect';
 import { PAISES, getPaisByCode } from '../config/paises';
 import { API_BASE } from '../config/api';
@@ -24,6 +24,10 @@ export default function PerfilPage() {
   });
   const [saving, setSaving] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
+
+  const [editingAjustes, setEditingAjustes] = useState(false);
+  const [ajustesForm, setAjustesForm] = useState({});
+  const [savingAjustes, setSavingAjustes] = useState(false);
 
   const startEditing = () => {
     setProfileForm({
@@ -124,6 +128,33 @@ export default function PerfilPage() {
       toast.error(err.message);
     } finally {
       setSaving(false);
+    }
+  };
+
+  const startEditingAjustes = () => {
+    setAjustesForm({
+      tarifa_mo_global: user?.tarifa_mo_global || '',
+      margen_minimo_global: user?.margen_minimo_global || 33,
+    });
+    setEditingAjustes(true);
+  };
+
+  const handleSaveAjustes = async () => {
+    setSavingAjustes(true);
+    try {
+      const data = await api.put('/auth/ajustes', {
+        tarifa_mo_global: ajustesForm.tarifa_mo_global !== '' ? Number(ajustesForm.tarifa_mo_global) : null,
+        margen_minimo_global: Number(ajustesForm.margen_minimo_global) || 33,
+      });
+      const updated = { ...user, ...data.data };
+      setUser(updated);
+      localStorage.setItem('nodum_user', JSON.stringify(updated));
+      toast.success('Ajustes actualizados');
+      setEditingAjustes(false);
+    } catch (err) {
+      toast.error(err.message || 'Error guardando ajustes');
+    } finally {
+      setSavingAjustes(false);
     }
   };
 
@@ -417,6 +448,81 @@ export default function PerfilPage() {
             )}
           </button>
         </form>
+      </div>
+
+      {/* Ajustes globales */}
+      <div className={`${cx.card} p-6`}>
+        <div className="flex items-center justify-between mb-4">
+          <div className="flex items-center gap-2">
+            <Settings size={16} className="text-stone-400" />
+            <h3 className="text-lg font-semibold text-stone-900">Ajustes globales</h3>
+          </div>
+          {!editingAjustes && (
+            <button onClick={startEditingAjustes} className={cx.btnGhost + ' flex items-center gap-1'}>
+              <Pencil size={14} /> Editar
+            </button>
+          )}
+        </div>
+
+        {editingAjustes ? (
+          <div className="space-y-4">
+            <div>
+              <label className={cx.label}>Tarifa mano de obra / hora ({user?.simbolo || 'S/'})</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                placeholder="Ej: 15.00"
+                value={ajustesForm.tarifa_mo_global}
+                onChange={(e) => setAjustesForm({ ...ajustesForm, tarifa_mo_global: e.target.value })}
+                className={cx.input + ' max-w-xs'}
+              />
+              <p className="text-xs text-stone-400 mt-1">Se usa en la ficha técnica para calcular costo de mano de obra</p>
+            </div>
+            <div>
+              <label className={cx.label}>Margen mínimo objetivo (%)</label>
+              <input
+                type="number"
+                step="0.1"
+                min="0"
+                max="99"
+                value={ajustesForm.margen_minimo_global}
+                onChange={(e) => setAjustesForm({ ...ajustesForm, margen_minimo_global: e.target.value })}
+                className={cx.input + ' max-w-xs'}
+              />
+              <p className="text-xs text-stone-400 mt-1">Alerta si un producto está por debajo de este margen</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                onClick={handleSaveAjustes}
+                disabled={savingAjustes}
+                className={cx.btnPrimary + ' flex items-center gap-2'}
+              >
+                {savingAjustes ? (
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                ) : (
+                  <><Save size={14} /> Guardar</>
+                )}
+              </button>
+              <button onClick={() => setEditingAjustes(false)} className={cx.btnSecondary + ' flex items-center gap-1'}>
+                <X size={14} /> Cancelar
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className={cx.label}>Tarifa MO / hora</label>
+              <p className="text-stone-800 text-sm">
+                {user?.tarifa_mo_global ? `${user?.simbolo || 'S/'} ${Number(user.tarifa_mo_global).toFixed(2)}` : 'No configurada'}
+              </p>
+            </div>
+            <div>
+              <label className={cx.label}>Margen mínimo</label>
+              <p className="text-stone-800 text-sm">{user?.margen_minimo_global || 33}%</p>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

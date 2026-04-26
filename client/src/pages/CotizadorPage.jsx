@@ -268,10 +268,12 @@ export default function CotizadorPage() {
               cantidad_por_unidad: parseFloat(prep.cantidad_por_unidad) || '',
               porcion_unidad: prep.porcion_unidad || prep.unidad_capacidad || prep.unidad || '',
               collapsed: false,
+              merma_pct: prep.merma_pct || 0,
               insumos: (prep.insumos || []).map((ins) => {
                 const cu = Number(ins.cantidad_presentacion) > 0
                   ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion)
                   : Number(ins.precio_presentacion) || 0;
+                const catIns = catalogInsumos.find((c) => c.id === ins.insumo_id);
                 return {
                   _id: newTempId(),
                   id: ins.id,
@@ -281,6 +283,7 @@ export default function CotizadorPage() {
                   uso_unidad: ins.uso_unidad || ins.unidad_medida || '',
                   cantidad: parseFloat(ins.cantidad_usada || ins.cantidad) || '',
                   costo_unitario: cu,
+                  merma_pct: ins.merma_pct ?? catIns?.merma_pct ?? 0,
                 };
               }),
             }))
@@ -323,6 +326,7 @@ export default function CotizadorPage() {
       capacidad: parseFloat(pred.capacidad) || '',
       unidad: pred.unidad_capacidad || '',
       collapsed: false,
+      merma_pct: pred.merma_pct || 0,
       insumos: (pred.insumos || []).map((ins) => {
         const cu = Number(ins.cantidad_presentacion) > 0
           ? Number(ins.precio_presentacion) / Number(ins.cantidad_presentacion)
@@ -335,6 +339,7 @@ export default function CotizadorPage() {
           uso_unidad: ins.uso_unidad || ins.unidad_medida || '',
           cantidad: parseFloat(ins.cantidad) || '',
           costo_unitario: cu,
+          merma_pct: ins.merma_pct || 0,
         };
       }),
     };
@@ -425,6 +430,7 @@ export default function CotizadorPage() {
       costo_unitario: costoUnit,
       unidad_medida: catalogItem.unidad_medida,
       uso_unidad: catalogItem.unidad_medida,
+      merma_pct: catalogItem.merma_pct || 0,
     });
   };
 

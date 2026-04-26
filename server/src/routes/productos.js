@@ -514,6 +514,238 @@ router.put('/:id', async (req, res) => {
   }
 });
 
+// GET /api/productos/:id/ficha-tecnica — complete technical sheet data
+router.get('/:id/ficha-tecnica', async (req, res) => {
+  try {
+    // 1. Get product with all fields
+    const prodRes = await pool.query(
+      'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (prodRes.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+    }
+    const producto = prodRes.rows[0];
+
+    // 2. Get user settings for defaults
+    const userRes = await pool.query(
+      'SELECT tarifa_mo_global, margen_minimo_global FROM usuarios WHERE id = $1',
+      [req.user.id]
+    );
+    const userSettings = userRes.rows[0];
+
+    // 3. Get preparations with insumos (including merma_pct)
+    const prepsRes = await pool.query(
+      'SELECT * FROM producto_preparaciones WHERE producto_id = $1 ORDER BY orden ASC',
+      [producto.id]
+    );
+
+    const preparaciones = [];
+    let totalInsumosConMerma = 0;
+    let totalMermaPrep = 0;
+
+    for (const prep of prepsRes.rows) {
+      const insRes = await pool.query(
+        `SELECT ppi.id, ppi.insumo_id, ppi.cantidad, ppi.uso_unidad, ppi.cantidad_base, ppi.costo_linea,
+                i.nombre, i.unidad_medida, i.precio_presentacion, i.cantidad_presentacion, i.costo_base, i.merma_pct
+         FROM producto_prep_insumos ppi
+         JOIN insumos i ON i.id = ppi.insumo_id
+         WHERE ppi.producto_preparacion_id = $1`,
+        [prep.id]
+      );
+
+      // Get prep predeterminada merma_pct if linked
+      let prepMermaPct = 0;
+      if (prep.nombre) {
+        const predRes = await pool.query(
+          'SELECT merma_pct FROM preparaciones_predeterminadas WHERE usuario_id = $1 AND nombre = $2 LIMIT 1',
+          [req.user.id, prep.nombre]
+        );
+        if (predRes.rows.length > 0) {
+          prepMermaPct = parseFloat(predRes.rows[0].merma_pct) || 0;
+        }
+      }
+
+      // Calculate costs per insumo with merma
+      const insumosEnriquecidos = insRes.rows.map(ins => {
+        const cantNeta = parseFloat(ins.cantidad) || 0;
+        const mermaPct = parseFloat(ins.merma_pct) || 0;
+        const cantBruta = mermaPct > 0 ? cantNeta / (1 - mermaPct / 100) : cantNeta;
+        const costoBase = parseFloat(ins.costo_base) || 0;
+        const costoUnitario = parseFloat(ins.costo_linea) / (parseFloat(ins.cantidad_base) || 1);
+        const subtotalSinMerma = parseFloat(ins.costo_linea) || 0;
+        const subtotalConMerma = cantBruta * costoBase;
+
+        return {
+          ...ins,
+          cant_neta: cantNeta,
+          merma_pct: mermaPct,
+          cant_bruta: Math.round(cantBruta * 10000) / 10000,
+          costo_unitario: costoUnitario,
+          subtotal_sin_merma: subtotalSinMerma,
+          subtotal_con_merma: Math.round(subtotalConMerma * 10000) / 10000,
+        };
+      });
+
+      const costoTandaConMerma = insumosEnriquecidos.reduce((s, i) => s + i.subtotal_con_merma, 0);
+      const rendimiento = parseFloat(prep.capacidad) || 0;
+      const cantPorUnidad = parseFloat(prep.cantidad_por_unidad) || 0;
+      const costoPorcion = rendimiento > 0 && cantPorUnidad > 0
+        ? (costoTandaConMerma / rendimiento) * cantPorUnidad
+        : costoTandaConMerma;
+
+      const costoPorcionConMermaPrep = prepMermaPct > 0
+        ? costoPorcion * (1 + prepMermaPct / 100)
+        : costoPorcion;
+
+      const costoMermaPrep = costoPorcionConMermaPrep - costoPorcion;
+
+      totalInsumosConMerma += costoPorcionConMermaPrep;
+      totalMermaPrep += costoMermaPrep;
+
+      preparaciones.push({
+        ...prep,
+        merma_pct: prepMermaPct,
+        insumos: insumosEnriquecidos,
+        costo_tanda: costoTandaConMerma,
+        costo_porcion: Math.round(costoPorcion * 10000) / 10000,
+        costo_porcion_con_merma: Math.round(costoPorcionConMermaPrep * 10000) / 10000,
+        costo_merma_prep: Math.round(costoMermaPrep * 10000) / 10000,
+      });
+    }
+
+    // 4. Get materiales (empaque)
+    const matsRes = await pool.query(
+      `SELECT pm.id, pm.material_id, pm.cantidad, pm.empaque_tipo,
+              m.nombre, m.unidad_medida, m.precio_presentacion, m.cantidad_presentacion
+       FROM producto_materiales pm
+       JOIN materiales m ON m.id = pm.material_id
+       WHERE pm.producto_id = $1`,
+      [producto.id]
+    );
+    const costoEmpaque = matsRes.rows.reduce((s, mat) => {
+      const cu = parseFloat(mat.precio_presentacion) / parseFloat(mat.cantidad_presentacion);
+      return s + parseFloat(mat.cantidad) * cu;
+    }, 0);
+
+    // 5. Calculate costs
+    const unidades = producto.tipo_presentacion === 'entero' ? (parseInt(producto.unidades_por_producto) || 1) : 1;
+    const foodCost = totalInsumosConMerma + costoEmpaque;
+
+    const tarifaMo = parseFloat(producto.tarifa_mo_override) || parseFloat(userSettings.tarifa_mo_global) || 0;
+    const tiempoActivo = parseInt(producto.tiempo_activo_min) || 0;
+    const costoMoTanda = (tiempoActivo / 60) * tarifaMo;
+    const costoMoUnitario = unidades > 0 ? costoMoTanda / unidades : 0;
+
+    const cifGas = parseFloat(producto.cif_gas_unitario) || 0;
+    const cifOverhead = parseFloat(producto.cif_overhead_unitario) || 0;
+    const cifUnitario = cifGas + cifOverhead;
+
+    const costoNeto = foodCost + costoMoUnitario + cifUnitario;
+
+    const margenMinimo = parseFloat(producto.margen_minimo_override) || parseFloat(userSettings.margen_minimo_global) || 33;
+    const precioMinimo = margenMinimo < 100 ? costoNeto / (1 - margenMinimo / 100) : costoNeto;
+
+    const precioVenta = parseFloat(producto.precio_venta) || 0;
+    const margenReal = precioVenta > 0 ? ((precioVenta - costoNeto) / precioVenta) * 100 : 0;
+
+    // Cost breakdown percentages
+    const totalCosto = costoNeto || 1;
+    const pctFood = (foodCost / totalCosto) * 100;
+    const pctMo = (costoMoUnitario / totalCosto) * 100;
+    const pctCif = (cifUnitario / totalCosto) * 100;
+
+    return res.json({
+      success: true,
+      data: {
+        producto,
+        preparaciones,
+        materiales: matsRes.rows,
+        user_settings: userSettings,
+        calculos: {
+          food_cost: Math.round(foodCost * 100) / 100,
+          total_merma_prep: Math.round(totalMermaPrep * 100) / 100,
+          costo_empaque: Math.round(costoEmpaque * 100) / 100,
+          tarifa_mo: tarifaMo,
+          tiempo_activo: tiempoActivo,
+          costo_mo_tanda: Math.round(costoMoTanda * 100) / 100,
+          costo_mo_unitario: Math.round(costoMoUnitario * 100) / 100,
+          cif_gas: cifGas,
+          cif_overhead: cifOverhead,
+          cif_unitario: cifUnitario,
+          costo_neto: Math.round(costoNeto * 100) / 100,
+          margen_minimo: margenMinimo,
+          precio_minimo: Math.round(precioMinimo * 100) / 100,
+          precio_venta: precioVenta,
+          margen_real: Math.round(margenReal * 10) / 10,
+          pct_food: Math.round(pctFood * 10) / 10,
+          pct_mo: Math.round(pctMo * 10) / 10,
+          pct_cif: Math.round(pctCif * 10) / 10,
+        },
+      },
+    });
+  } catch (err) {
+    console.error('Ficha tecnica error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
+// PUT /api/productos/:id/ficha-tecnica — update editable fields
+router.put('/:id/ficha-tecnica', async (req, res) => {
+  try {
+    const { tiempo_activo_min, tiempo_horno_min, tarifa_mo_override, margen_minimo_override,
+            cif_gas_unitario, cif_overhead_unitario, instrucciones_ensamble, instrucciones_prep } = req.body;
+
+    const existing = await pool.query(
+      'SELECT id FROM productos WHERE id = $1 AND usuario_id = $2',
+      [req.params.id, req.user.id]
+    );
+    if (existing.rows.length === 0) {
+      return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+    }
+
+    await pool.query(
+      `UPDATE productos SET
+        tiempo_activo_min = COALESCE($1, tiempo_activo_min),
+        tiempo_horno_min = COALESCE($2, tiempo_horno_min),
+        tarifa_mo_override = $3,
+        margen_minimo_override = $4,
+        cif_gas_unitario = $5,
+        cif_overhead_unitario = $6,
+        instrucciones_ensamble = $7,
+        updated_at = NOW()
+       WHERE id = $8`,
+      [
+        tiempo_activo_min != null ? parseInt(tiempo_activo_min) : null,
+        tiempo_horno_min != null ? parseInt(tiempo_horno_min) : null,
+        tarifa_mo_override != null ? parseFloat(tarifa_mo_override) : null,
+        margen_minimo_override != null ? parseFloat(margen_minimo_override) : null,
+        cif_gas_unitario != null ? parseFloat(cif_gas_unitario) : null,
+        cif_overhead_unitario != null ? parseFloat(cif_overhead_unitario) : null,
+        instrucciones_ensamble || null,
+        req.params.id
+      ]
+    );
+
+    // Update prep instructions if provided
+    if (instrucciones_prep && Array.isArray(instrucciones_prep)) {
+      for (const ip of instrucciones_prep) {
+        if (ip.prep_id && ip.instrucciones !== undefined) {
+          await pool.query(
+            'UPDATE producto_preparaciones SET instrucciones = $1 WHERE id = $2 AND producto_id = $3',
+            [ip.instrucciones || null, ip.prep_id, req.params.id]
+          );
+        }
+      }
+    }
+
+    return res.json({ success: true, data: { message: 'Ficha actualizada' } });
+  } catch (err) {
+    console.error('Update ficha error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno del servidor' });
+  }
+});
+
 // DELETE /api/productos/:id
 router.delete('/:id', async (req, res) => {
   const client = await pool.connect();
