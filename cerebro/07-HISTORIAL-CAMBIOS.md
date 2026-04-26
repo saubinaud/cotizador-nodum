@@ -105,8 +105,55 @@
 - Tokens compactos: text-[13px], py-2, minimal
 - Colores Seiko Presage: mas profundos y elegantes
 
+## Sesion 5 — P&L, Transacciones, WAC, Rebrand
+
+### Rebrand NODUM → Kudi
+- Nombre cambiado en toda la UI, exports, titulos
+- Dominio: kudi.nodumstudio.com
+- Logo: K geometrica en emerald con punto de acento
+- Tema default: Menta (#059669) en vez de Coral
+
+### Sistema P&L completo
+- 6 tablas: periodos, categorias_gasto, ventas, gastos, compras+compra_items, pl_snapshots
+- Sidebar con secciones colapsables: Cotizador + P&L
+- Seed de 9 categorias de gasto predeterminadas al primer periodo
+- Ventas: CRUD con 4 tipos de descuento (fijo/unitario/porcentual/ninguno)
+- Gastos: agrupados por categoria, copiar recurrentes del mes anterior
+- Compras: con items vinculados a insumos/materiales, variacion vs catalogo
+- Dashboard P&L: estado de resultados contable (KPIs, food cost %, punto equilibrio)
+
+### Transacciones unificadas
+- Tabla `transacciones` centraliza ventas/gastos/compras
+- Timeline estilo app de banco (agrupado por fecha, color por tipo)
+- Quick-add modal con 3 tabs (Venta/Compra/Gasto)
+- Boton + flotante en mobile
+- Balance summary: ingresos/compras/gastos/balance
+- Dual-write: legacy tables + transacciones para backward compat
+
+### WAC (Weighted Average Cost)
+- Tabla `insumo_precios` registra cada compra por insumo
+- Al registrar compra: auto-calcula WAC y actualiza `insumos.costo_base`
+- Sin compras → usa precio del catalogo (manual)
+- Con compras → usa promedio ponderado
+- Indicador "WAC" en pagina de insumos
+- Modal historial de precios: WAC, ultimo, min/max, tabla de compras
+
+### Precio bidireccional + config
+- Click en precio final → editar → margen se recalcula
+- Margen decimal (50.5%, no solo enteros)
+- Config en perfil: decimales/enteros/variable
+- Modal de eleccion de precio al guardar (3 opciones)
+
+### UX premium
+- Cotizador: acordeon Airbnb, sidebar booking-card sticky
+- Tokens: text-sm, py-2.5, Apple minimal
+- Inputs sin spinners, CustomSelect everywhere
+- z-index: dropdowns z-60 > InfoTips z-40
+- Mobile: padding responsive, flex-wrap, max-w inputs
+- overflow-x: clip (no hidden, permite sticky)
+- Bottom padding pb-16/pb-20
+
 ## Deploy
-- Frontend: GitHub Pages con dominio custom cotizador.nodumstudio.com
+- Frontend: GitHub Pages con dominio custom kudi.nodumstudio.com
 - Backend: Docker en Contabo VPS con Traefik
-- Base path cambiado de /cotizador-nodum/ a / para dominio custom
 - Cloudinary env vars en container Docker
