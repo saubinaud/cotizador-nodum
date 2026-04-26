@@ -122,6 +122,7 @@ export default function PLCashflowPage() {
   // Denominaciones (bill/coin counter for arqueo)
   const [denominaciones, setDenominaciones] = useState([]);
   const [desglose, setDesglose] = useState({}); // { denomId: quantity }
+  const [showDesglose, setShowDesglose] = useState(null); // cuenta_id of the cash account being counted
 
   // Transferencias
   const [showTransferForm, setShowTransferForm] = useState(false);
@@ -547,18 +548,29 @@ export default function PLCashflowPage() {
                           <td className={cx.td}><span className={tipoBadge(row.tipo)}>{row.tipo}</span></td>
                           <td className={cx.td + ' text-right font-mono text-stone-600'}>{formatCurrency(row.saldo_sistema)}</td>
                           <td className={cx.td + ' text-right'}>
-                            <input
-                              type="number"
-                              step="0.01"
-                              value={row.saldo_real}
-                              onChange={(e) => {
-                                const next = [...arqueoForm];
-                                next[idx] = { ...next[idx], saldo_real: e.target.value };
-                                setArqueoForm(next);
-                              }}
-                              className={cx.input + ' max-w-[140px] ml-auto text-right'}
-                              placeholder="0.00"
-                            />
+                            <div className="flex items-center gap-1 justify-end">
+                              {row.tipo === 'efectivo' && denominaciones.length > 0 && (
+                                <button
+                                  onClick={() => { setShowDesglose(row.cuenta_id); setDesglose({}); }}
+                                  className={cx.btnGhost + ' text-[10px] px-2 py-1'}
+                                  title="Contar billetes y monedas"
+                                >
+                                  Contar
+                                </button>
+                              )}
+                              <input
+                                type="number"
+                                step="0.01"
+                                value={row.saldo_real}
+                                onChange={(e) => {
+                                  const next = [...arqueoForm];
+                                  next[idx] = { ...next[idx], saldo_real: e.target.value };
+                                  setArqueoForm(next);
+                                }}
+                                className={cx.input + ' max-w-[130px] text-right text-sm'}
+                                placeholder="0.00"
+                              />
+                            </div>
                           </td>
                           <td className={cx.td + ' text-right font-semibold'}>
                             {hasReal ? (
@@ -596,77 +608,7 @@ export default function PLCashflowPage() {
                 </table>
               </div>
 
-              {/* Desglose de efectivo (bill/coin count) */}
-              <div className={`p-5 border-t border-stone-200`}>
-                <h3 className="text-sm font-semibold text-stone-900 mb-3">Desglose de efectivo</h3>
-
-                {denominaciones.length > 0 && (
-                  <div className="space-y-1">
-                    {/* Billetes section */}
-                    <p className="text-[10px] text-stone-400 uppercase tracking-wider font-semibold mt-2 mb-1">Billetes</p>
-                    {denominaciones.filter(d => d.tipo === 'billete').map(denom => {
-                      const qty = desglose[denom.id] || 0;
-                      const subtotal = qty * parseFloat(denom.valor);
-                      return (
-                        <div key={denom.id} className="flex items-center gap-3 py-1.5">
-                          <span className="text-sm text-stone-700 w-20">{denom.nombre}</span>
-                          <span className="text-stone-400 text-sm">&times;</span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={qty || ''}
-                            onChange={(e) => setDesglose(prev => ({ ...prev, [denom.id]: parseInt(e.target.value) || 0 }))}
-                            className={cx.input + ' w-20 text-center text-sm'}
-                            placeholder="0"
-                          />
-                          <span className="text-stone-400 text-sm">=</span>
-                          <span className={`text-sm font-medium w-24 text-right ${subtotal > 0 ? 'text-stone-800' : 'text-stone-300'}`}>
-                            {formatCurrency(subtotal)}
-                          </span>
-                        </div>
-                      );
-                    })}
-
-                    {/* Monedas section */}
-                    <p className="text-[10px] text-stone-400 uppercase tracking-wider font-semibold mt-3 mb-1">Monedas</p>
-                    {denominaciones.filter(d => d.tipo === 'moneda').map(denom => {
-                      const qty = desglose[denom.id] || 0;
-                      const subtotal = qty * parseFloat(denom.valor);
-                      return (
-                        <div key={denom.id} className="flex items-center gap-3 py-1.5">
-                          <span className="text-sm text-stone-700 w-20">{denom.nombre}</span>
-                          <span className="text-stone-400 text-sm">&times;</span>
-                          <input
-                            type="number"
-                            min="0"
-                            step="1"
-                            value={qty || ''}
-                            onChange={(e) => setDesglose(prev => ({ ...prev, [denom.id]: parseInt(e.target.value) || 0 }))}
-                            className={cx.input + ' w-20 text-center text-sm'}
-                            placeholder="0"
-                          />
-                          <span className="text-stone-400 text-sm">=</span>
-                          <span className={`text-sm font-medium w-24 text-right ${subtotal > 0 ? 'text-stone-800' : 'text-stone-300'}`}>
-                            {formatCurrency(subtotal)}
-                          </span>
-                        </div>
-                      );
-                    })}
-
-                    {/* Total from bills/coins */}
-                    <div className="flex items-center justify-between pt-3 mt-2 border-t border-stone-200">
-                      <span className="text-sm font-semibold text-stone-900">Total contado</span>
-                      <span className="text-lg font-bold text-stone-900">
-                        {formatCurrency(Object.entries(desglose).reduce((sum, [denomId, qty]) => {
-                          const denom = denominaciones.find(d => d.id === parseInt(denomId));
-                          return sum + (qty * (denom ? parseFloat(denom.valor) : 0));
-                        }, 0))}
-                      </span>
-                    </div>
-                  </div>
-                )}
-              </div>
+              {/* Desglose modal is rendered at the bottom of the page */}
 
               {/* Observaciones + buttons */}
               <div className="p-4 border-t border-stone-200 space-y-4">
@@ -988,6 +930,75 @@ export default function PLCashflowPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* ═══════════════════ DESGLOSE MODAL ═══════════════════ */}
+      {showDesglose && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowDesglose(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm max-h-[85vh] overflow-y-auto">
+            <div className="p-4 border-b border-stone-100 flex items-center justify-between">
+              <h3 className="text-sm font-semibold text-stone-900">Conteo de efectivo</h3>
+              <button onClick={() => setShowDesglose(null)} className={cx.btnGhost + ' p-1'}><X size={16} /></button>
+            </div>
+            <div className="p-4 space-y-0.5">
+              <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold mb-1">Billetes</p>
+              {denominaciones.filter(d => d.tipo === 'billete').map(denom => {
+                const qty = desglose[denom.id] || 0;
+                const sub = qty * parseFloat(denom.valor);
+                return (
+                  <div key={denom.id} className="flex items-center gap-2 py-1">
+                    <span className="text-xs text-stone-600 w-16">{denom.nombre}</span>
+                    <span className="text-stone-300 text-xs">×</span>
+                    <input type="number" min="0" step="1" value={qty || ''} onChange={(e) => setDesglose(prev => ({ ...prev, [denom.id]: parseInt(e.target.value) || 0 }))}
+                      className="w-14 px-2 py-1 bg-white border border-stone-200 rounded text-xs text-center focus:outline-none focus:border-stone-400" placeholder="0" />
+                    <span className="text-stone-300 text-xs">=</span>
+                    <span className={`text-xs w-20 text-right ${sub > 0 ? 'text-stone-700 font-medium' : 'text-stone-300'}`}>{sub > 0 ? formatCurrency(sub) : '-'}</span>
+                  </div>
+                );
+              })}
+              <p className="text-[9px] text-stone-400 uppercase tracking-wider font-semibold mt-3 mb-1">Monedas</p>
+              {denominaciones.filter(d => d.tipo === 'moneda').map(denom => {
+                const qty = desglose[denom.id] || 0;
+                const sub = qty * parseFloat(denom.valor);
+                return (
+                  <div key={denom.id} className="flex items-center gap-2 py-1">
+                    <span className="text-xs text-stone-600 w-16">{denom.nombre}</span>
+                    <span className="text-stone-300 text-xs">×</span>
+                    <input type="number" min="0" step="1" value={qty || ''} onChange={(e) => setDesglose(prev => ({ ...prev, [denom.id]: parseInt(e.target.value) || 0 }))}
+                      className="w-14 px-2 py-1 bg-white border border-stone-200 rounded text-xs text-center focus:outline-none focus:border-stone-400" placeholder="0" />
+                    <span className="text-stone-300 text-xs">=</span>
+                    <span className={`text-xs w-20 text-right ${sub > 0 ? 'text-stone-700 font-medium' : 'text-stone-300'}`}>{sub > 0 ? formatCurrency(sub) : '-'}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="p-4 border-t border-stone-100">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold text-stone-900">Total contado</span>
+                <span className="text-lg font-bold text-stone-900">
+                  {formatCurrency(Object.entries(desglose).reduce((sum, [denomId, qty]) => {
+                    const denom = denominaciones.find(d => d.id === parseInt(denomId));
+                    return sum + (qty * (denom ? parseFloat(denom.valor) : 0));
+                  }, 0))}
+                </span>
+              </div>
+              <button
+                onClick={() => {
+                  const total = Object.entries(desglose).reduce((sum, [denomId, qty]) => {
+                    const denom = denominaciones.find(d => d.id === parseInt(denomId));
+                    return sum + (qty * (denom ? parseFloat(denom.valor) : 0));
+                  }, 0);
+                  // Auto-fill saldo_real for this cash account
+                  setArqueoForm(prev => prev.map(f => f.cuenta_id === showDesglose ? { ...f, saldo_real: total.toFixed(2) } : f));
+                  setShowDesglose(null);
+                }}
+                className={cx.btnPrimary + ' w-full text-sm'}
+              >
+                Aplicar al saldo real
+              </button>
+            </div>
           </div>
         </div>
       )}
