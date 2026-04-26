@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { useAuth } from '../context/AuthContext';
@@ -52,19 +52,23 @@ export default function PerdidasPage() {
   useEffect(() => {
     async function loadCatalogs() {
       try {
-        const [cats, prods, pers] = await Promise.all([
+        const [catsRes, prodsRes, persRes] = await Promise.all([
           api.get('/productos/catalogs'),
           api.get('/productos'),
           api.get('/pl/periodos'),
         ]);
+        const cats = catsRes.data || catsRes;
+        const prods = prodsRes.data || prodsRes;
+        const pers = persRes.data || persRes;
         setCatalogos({
-          insumos: (cats.insumos || []).map(i => ({ value: i.id, label: i.nombre, costo: i.costo_unitario })),
-          preparaciones: (cats.preparaciones_pred || []).map(p => ({ value: p.id, label: p.nombre, costo: p.costo_total })),
-          productos: (prods || []).map(p => ({ value: p.id, label: p.nombre, costo: p.costo_total })),
-          materiales: (cats.materiales || []).map(m => ({ value: m.id, label: m.nombre, costo: m.costo_unitario })),
+          insumos: (cats.insumos || []).map(i => ({ value: i.id, label: i.nombre, costo: parseFloat(i.costo_base) || (parseFloat(i.precio_presentacion) / parseFloat(i.cantidad_presentacion)) || 0 })),
+          preparaciones: (cats.preparaciones_pred || []).map(p => ({ value: p.id, label: p.nombre })),
+          productos: (prods || []).map(p => ({ value: p.id, label: p.nombre, costo: parseFloat(p.costo_neto) || 0 })),
+          materiales: (cats.materiales || []).map(m => ({ value: m.id, label: m.nombre, costo: parseFloat(m.precio_presentacion) / parseFloat(m.cantidad_presentacion) || 0 })),
         });
-        setPeriodos((pers || []).map(p => ({ value: p.id, label: p.nombre })));
-        if (pers?.length > 0) setPeriodoId(pers[0].id);
+        const periodosList = Array.isArray(pers) ? pers : [];
+        setPeriodos(periodosList.map(p => ({ value: p.id, label: p.nombre })));
+        if (periodosList.length > 0) setPeriodoId(periodosList[0].id);
       } catch (e) {
         toast.error('Error cargando catálogos');
       }
@@ -72,29 +76,24 @@ export default function PerdidasPage() {
     loadCatalogs();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // --- Build API path ---
-  const getApiPath = useCallback(() => {
-    const base = `/perdidas/${mainTab}/${subTab}`;
-    if (mainTab === 'desmedros' && periodoId) return `${base}?periodo_id=${periodoId}`;
-    return base;
-  }, [mainTab, subTab, periodoId]);
-
   // --- Load items ---
-  const loadItems = useCallback(async () => {
+  async function loadItems() {
     if (mainTab === 'desmedros' && !periodoId) {
       setItems([]);
       return;
     }
     setLoading(true);
     try {
-      const data = await api.get(getApiPath());
-      setItems(data || []);
+      const base = `/perdidas/${mainTab}/${subTab}`;
+      const path = mainTab === 'desmedros' && periodoId ? `${base}?periodo_id=${periodoId}` : base;
+      const res = await api.get(path);
+      const arr = res.data || res || [];
+      setItems(Array.isArray(arr) ? arr : []);
 
       if (mainTab === 'mermas') {
-        const arr = data || [];
-        const pcts = arr.map(i => Number(i.merma_pct || 0)).filter(v => !isNaN(v));
+        const pcts = (Array.isArray(arr) ? arr : []).map(i => Number(i.merma_pct || 0)).filter(v => !isNaN(v));
         setMermaStats({
-          count: arr.length,
+          count: (Array.isArray(arr) ? arr : []).length,
           avgPct: pcts.length > 0 ? (pcts.reduce((a, b) => a + b, 0) / pcts.length) : 0,
         });
       }
@@ -103,15 +102,17 @@ export default function PerdidasPage() {
     } finally {
       setLoading(false);
     }
-  }, [api, getApiPath, mainTab, periodoId]);
+  }
 
-  useEffect(() => { loadItems(); }, [loadItems]);
+  useEffect(() => { loadItems(); }, [mainTab, subTab, periodoId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Load desmedro resumen ---
   useEffect(() => {
     if (mainTab !== 'desmedros' || !periodoId) { setResumen(null); return; }
-    api.get(`/perdidas/desmedros/resumen?periodo_id=${periodoId}`).then(setResumen).catch(() => setResumen(null));
-  }, [mainTab, periodoId, api]);
+    api.get(`/perdidas/desmedros/resumen?periodo_id=${periodoId}`)
+      .then(res => setResumen(res.data || res))
+      .catch(() => setResumen(null));
+  }, [mainTab, periodoId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Open form ---
   const openForm = () => {
