@@ -363,6 +363,76 @@ async function runMigrations() {
     // Cashflow: covering index for efficient queries
     await client.query(`CREATE INDEX IF NOT EXISTS idx_transacciones_cashflow ON transacciones (periodo_id, fecha) INCLUDE (monto)`);
 
+    // ==================== FLUJO DE CAJA V2 ====================
+
+    // Cuentas/billeteras (caja chica, BCP, Yape, Plin, etc.)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS flujo_cuentas (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        nombre VARCHAR(100) NOT NULL,
+        tipo VARCHAR(20) NOT NULL DEFAULT 'efectivo',
+        saldo_actual NUMERIC(12,2) NOT NULL DEFAULT 0,
+        activa BOOLEAN NOT NULL DEFAULT true,
+        orden INTEGER NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Categorías del flujo de caja (árbol jerárquico)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS flujo_categorias (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        nombre VARCHAR(100) NOT NULL,
+        seccion VARCHAR(20) NOT NULL DEFAULT 'operativo',
+        tipo VARCHAR(10) NOT NULL DEFAULT 'egreso',
+        orden INTEGER NOT NULL DEFAULT 0,
+        es_default BOOLEAN NOT NULL DEFAULT false,
+        activa BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Arqueos de caja (cierre mensual)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS flujo_arqueos (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        periodo_id INTEGER NOT NULL REFERENCES periodos(id) ON DELETE CASCADE,
+        fecha DATE NOT NULL,
+        saldo_sistema NUMERIC(12,2) NOT NULL DEFAULT 0,
+        saldo_real NUMERIC(12,2) NOT NULL DEFAULT 0,
+        diferencia NUMERIC(12,2) NOT NULL DEFAULT 0,
+        observaciones TEXT,
+        cerrado BOOLEAN NOT NULL DEFAULT false,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Detalle de arqueo por cuenta
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS flujo_arqueo_detalles (
+        id SERIAL PRIMARY KEY,
+        arqueo_id INTEGER NOT NULL REFERENCES flujo_arqueos(id) ON DELETE CASCADE,
+        cuenta_id INTEGER NOT NULL REFERENCES flujo_cuentas(id) ON DELETE CASCADE,
+        saldo_sistema NUMERIC(12,2) NOT NULL DEFAULT 0,
+        saldo_real NUMERIC(12,2) NOT NULL DEFAULT 0,
+        diferencia NUMERIC(12,2) NOT NULL DEFAULT 0
+      )
+    `);
+
+    // Add flujo fields to transacciones
+    await client.query(`ALTER TABLE transacciones ADD COLUMN IF NOT EXISTS cuenta_id INTEGER REFERENCES flujo_cuentas(id) ON DELETE SET NULL`);
+    await client.query(`ALTER TABLE transacciones ADD COLUMN IF NOT EXISTS flujo_categoria_id INTEGER REFERENCES flujo_categorias(id) ON DELETE SET NULL`);
+    await client.query(`ALTER TABLE transacciones ADD COLUMN IF NOT EXISTS flujo_seccion VARCHAR(20) DEFAULT 'operativo'`);
+
+    // Indexes
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_flujo_cuentas_usuario ON flujo_cuentas(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_flujo_categorias_usuario ON flujo_categorias(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_flujo_arqueos_periodo ON flujo_arqueos(periodo_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_transacciones_flujo ON transacciones(flujo_seccion, flujo_categoria_id)`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

@@ -1,448 +1,770 @@
 import { useState, useEffect } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
-import { useAuth } from '../context/AuthContext';
 import { cx } from '../styles/tokens';
-import { formatCurrency, formatDate } from '../utils/format';
+import { formatCurrency } from '../utils/format';
 import CustomSelect from '../components/CustomSelect';
 import {
-  Wallet, ArrowUpRight, ArrowDownRight,
-  Calculator, AlertTriangle, CheckCircle, DollarSign,
-  ShoppingCart, Receipt, ShoppingBag,
+  Plus, Wallet, BarChart3, ClipboardCheck, ChevronLeft, ChevronRight,
+  Trash2, Pencil, X, Save, AlertTriangle,
 } from 'lucide-react';
+
+// ── Helper components ────────────────────────────────────────
+
+function SectionHeader({ label }) {
+  return (
+    <tr className="border-t border-stone-200">
+      <td colSpan={99} className="px-4 py-2 text-[11px] font-bold text-stone-500 uppercase tracking-wider bg-stone-50/50">
+        {label}
+      </td>
+    </tr>
+  );
+}
+
+function SubHeader({ label }) {
+  return (
+    <tr>
+      <td colSpan={99} className="px-4 py-1.5 text-[10px] font-semibold text-stone-400 uppercase tracking-wider pl-8">
+        {label}
+      </td>
+    </tr>
+  );
+}
+
+function CategoryRow({ cat, meses }) {
+  return (
+    <tr className={cx.tr}>
+      <td className="sticky left-0 bg-white z-10 px-4 py-2.5 text-stone-700 pl-8">{cat.nombre}</td>
+      {meses.map(m => {
+        const val = m.por_categoria[cat.id]?.total_abs || 0;
+        return (
+          <td key={m.periodo.id} className={`px-4 py-2.5 text-right ${val > 0 ? (cat.tipo === 'ingreso' ? 'text-emerald-600' : 'text-stone-700') : 'text-stone-300'}`}>
+            {val > 0 ? (cat.tipo === 'egreso' ? '-' : '') + formatCurrency(val) : '-'}
+          </td>
+        );
+      })}
+      <td className="px-4 py-2.5 text-right text-stone-700 bg-stone-50">
+        {formatCurrency(meses.reduce((s, m) => s + (m.por_categoria[cat.id]?.total_abs || 0), 0))}
+      </td>
+    </tr>
+  );
+}
+
+function LegacyRow({ label, tipo, meses }) {
+  const hasData = meses.some(m => (m.legacy?.[tipo]?.total_abs || 0) > 0);
+  if (!hasData) return null;
+  return (
+    <tr className={cx.tr}>
+      <td className="sticky left-0 bg-white z-10 px-4 py-2.5 text-stone-400 italic pl-8">{label}</td>
+      {meses.map(m => {
+        const val = m.legacy?.[tipo]?.total_abs || 0;
+        return (
+          <td key={m.periodo.id} className="px-4 py-2.5 text-right text-stone-400 italic">
+            {val > 0 ? (tipo !== 'venta' ? '-' : '') + formatCurrency(val) : '-'}
+          </td>
+        );
+      })}
+      <td className="px-4 py-2.5 text-right text-stone-400 italic bg-stone-50">
+        {formatCurrency(meses.reduce((s, m) => s + (m.legacy?.[tipo]?.total_abs || 0), 0))}
+      </td>
+    </tr>
+  );
+}
+
+function TotalRow({ label, values, color, negative }) {
+  const total = values.reduce((s, v) => s + v, 0);
+  const colorClass = color === 'emerald' ? 'text-emerald-600' : color === 'bold' ? '' : 'text-stone-700';
+  return (
+    <tr className="border-t border-stone-200">
+      <td className="sticky left-0 bg-white z-10 px-4 py-2.5 font-semibold text-stone-800 pl-6">{label}</td>
+      {values.map((v, i) => (
+        <td key={i} className={`px-4 py-2.5 text-right font-semibold ${v < 0 ? 'text-rose-600' : colorClass || 'text-stone-900'}`}>
+          {negative && v > 0 ? '-' : ''}{formatCurrency(Math.abs(v))}
+        </td>
+      ))}
+      <td className={`px-4 py-2.5 text-right font-semibold bg-stone-50 ${total < 0 ? 'text-rose-600' : colorClass || 'text-stone-900'}`}>
+        {formatCurrency(Math.abs(total))}
+      </td>
+    </tr>
+  );
+}
+
+// ── Main page ────────────────────────────────────────────────
 
 export default function PLCashflowPage() {
   const api = useApi();
   const toast = useToast();
-  const { user } = useAuth();
-  const simbolo = user?.simbolo || 'S/';
 
-  const [periodos, setPeriodos] = useState([]);
-  const [periodoId, setPeriodoId] = useState('');
-  const [data, setData] = useState(null);
-  const [metricas, setMetricas] = useState(null);
+  // Tab
+  const [tab, setTab] = useState('flujo');
+
+  // Flujo de Caja
+  const [anio, setAnio] = useState(new Date().getFullYear());
+  const [gridData, setGridData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  // Time view: 7, 15, 30
-  const [diasView, setDiasView] = useState(7);
-  // Chart mode: 'barras' or 'balance'
-  const [chartMode, setChartMode] = useState('barras');
+  // Arqueo
+  const [periodos, setPeriodos] = useState([]);
+  const [arqueoPeriodoId, setArqueoPeriodoId] = useState('');
+  const [arqueoData, setArqueoData] = useState(null);
+  const [arqueoForm, setArqueoForm] = useState([]);
+  const [arqueoObs, setArqueoObs] = useState('');
+  const [savingArqueo, setSavingArqueo] = useState(false);
 
-  // Simulador
-  const [showSim, setShowSim] = useState(false);
-  const [simMonto, setSimMonto] = useState('');
-  const [simResult, setSimResult] = useState(null);
-  const [simLoading, setSimLoading] = useState(false);
+  // Cuentas
+  const [cuentas, setCuentas] = useState([]);
+  const [showCuentaForm, setShowCuentaForm] = useState(false);
+  const [cuentaForm, setCuentaForm] = useState({ nombre: '', tipo: 'efectivo', saldo_actual: '' });
+  const [editingCuentaId, setEditingCuentaId] = useState(null);
+  const [savingCuenta, setSavingCuenta] = useState(false);
 
-  // Saldo inicial editing
-  const [editingSaldo, setEditingSaldo] = useState(false);
-  const [saldoInput, setSaldoInput] = useState('');
+  // Movimiento form
+  const [showMovForm, setShowMovForm] = useState(false);
+  const [movForm, setMovForm] = useState({ seccion: '', flujo_categoria_id: '', cuenta_id: '', monto_absoluto: '', fecha: new Date().toISOString().slice(0, 10), descripcion: '' });
+  const [categorias, setCategorias] = useState([]);
+  const [savingMov, setSavingMov] = useState(false);
+
+  // ── Data loading ─────────────────────────────────────────
 
   useEffect(() => {
-    async function loadPeriodos() {
-      try {
-        const res = await api.get('/pl/periodos');
-        const list = res.data || res || [];
-        const arr = Array.isArray(list) ? list : [];
-        setPeriodos(arr.map(p => ({ value: p.id, label: p.nombre })));
-        if (arr.length > 0) setPeriodoId(arr[0].id);
-      } catch {
-        toast.error('Error cargando periodos');
-      }
-    }
+    loadGrid();
+    loadCuentas();
     loadPeriodos();
+    loadCategorias();
   }, []); // eslint-disable-line
 
-  useEffect(() => {
-    if (!periodoId) return;
-    loadData();
-  }, [periodoId]); // eslint-disable-line
+  useEffect(() => { loadGrid(); }, [anio]); // eslint-disable-line
 
-  async function loadData() {
+  async function loadGrid() {
     setLoading(true);
     try {
-      const [cfRes, metRes] = await Promise.all([
-        api.get(`/pl/cashflow?periodo_id=${periodoId}`),
-        api.get(`/pl/cashflow/metricas?periodo_id=${periodoId}`),
-      ]);
-      setData(cfRes.data || cfRes);
-      setMetricas(metRes.data || metRes);
-    } catch {
-      toast.error('Error cargando flujo de caja');
-    } finally {
-      setLoading(false);
-    }
+      const res = await api.get(`/flujo/grid?anio=${anio}`);
+      setGridData(res.data || res);
+    } catch { toast.error('Error cargando flujo'); }
+    finally { setLoading(false); }
   }
 
-  async function saveSaldoInicial() {
+  async function loadCuentas() {
     try {
-      await api.put(`/pl/periodos/${periodoId}/saldo-inicial`, { saldo_inicial: Number(saldoInput) || 0 });
-      toast.success('Saldo inicial actualizado');
-      setEditingSaldo(false);
-      loadData();
-    } catch {
-      toast.error('Error guardando saldo');
-    }
+      const res = await api.get('/flujo/cuentas');
+      setCuentas(res.data || res || []);
+    } catch { /* silent */ }
   }
 
-  async function runSimulacion() {
-    if (!simMonto) return;
-    setSimLoading(true);
+  async function loadCategorias() {
     try {
-      const res = await api.get(`/pl/cashflow/simulacion?periodo_id=${periodoId}&monto=${simMonto}`);
-      setSimResult(res.data || res);
-    } catch {
-      toast.error('Error en simulacion');
-    } finally {
-      setSimLoading(false);
-    }
+      const res = await api.get('/flujo/categorias');
+      setCategorias(res.data || res || []);
+    } catch { /* silent */ }
   }
 
-  function renderChart() {
-    if (!data?.diario) return null;
-
-    const hoy = new Date();
-    const allDays = data.diario;
-    const endIdx = allDays.findIndex(d => new Date(d.fecha) > hoy);
-    const relevantEnd = endIdx === -1 ? allDays.length : endIdx;
-    const startIdx = Math.max(0, relevantEnd - diasView);
-    const days = allDays.slice(startIdx, Math.min(startIdx + diasView, allDays.length));
-
-    if (days.length === 0) return <div className="py-8 text-center text-sm text-stone-400">Sin datos para este rango</div>;
-
-    if (chartMode === 'barras') {
-      const maxVal = Math.max(...days.map(d => Math.max(d.entradas, d.salidas)), 1);
-
-      return (
-        <div className="flex items-end gap-1" style={{ height: '200px' }}>
-          {days.map((d, i) => {
-            const fecha = new Date(d.fecha);
-            const isToday = fecha.toDateString() === hoy.toDateString();
-            const dayLabel = fecha.toLocaleDateString('es-PE', { weekday: 'short' }).slice(0, 3);
-            const dateLabel = fecha.getDate();
-            const hEntrada = (d.entradas / maxVal) * 100;
-            const hSalida = (d.salidas / maxVal) * 100;
-
-            return (
-              <div key={i} className={`flex-1 flex flex-col items-center gap-0.5 ${isToday ? 'bg-stone-50 rounded-lg' : ''}`} title={`${formatDate(d.fecha)}\nEntradas: ${formatCurrency(d.entradas)}\nSalidas: ${formatCurrency(d.salidas)}\nSaldo: ${formatCurrency(d.balance)}`}>
-                <div className="flex-1 w-full flex items-end justify-center gap-0.5 px-0.5">
-                  <div className="flex-1 rounded-t" style={{ height: `${hEntrada}%`, backgroundColor: '#10b981', minHeight: d.entradas > 0 ? '2px' : '0' }} />
-                  <div className="flex-1 rounded-t" style={{ height: `${hSalida}%`, backgroundColor: '#a8a29e', minHeight: d.salidas > 0 ? '2px' : '0' }} />
-                </div>
-                <span className={`text-[9px] ${isToday ? 'font-bold text-stone-800' : 'text-stone-400'}`}>{dateLabel}</span>
-                <span className={`text-[8px] ${isToday ? 'font-bold text-stone-600' : 'text-stone-300'}`}>{dayLabel}</span>
-              </div>
-            );
-          })}
-        </div>
-      );
-    }
-
-    // Balance line chart (CSS)
-    const balances = days.map(d => d.balance);
-    const minBal = Math.min(...balances);
-    const maxBal = Math.max(...balances);
-    const range = maxBal - minBal || 1;
-
-    return (
-      <div>
-        <div className="flex items-end gap-px" style={{ height: '200px' }}>
-          {days.map((d, i) => {
-            const fecha = new Date(d.fecha);
-            const isToday = fecha.toDateString() === hoy.toDateString();
-            const pct = ((d.balance - minBal) / range) * 100;
-
-            return (
-              <div key={i} className="flex-1 flex flex-col items-center" title={`${formatDate(d.fecha)}: ${formatCurrency(d.balance)}`}>
-                <div className="flex-1 w-full flex items-end justify-center">
-                  <div className={`w-full max-w-[6px] rounded-t ${d.balance >= 0 ? 'bg-stone-700' : 'bg-rose-400'}`}
-                    style={{ height: `${Math.max(pct, 2)}%` }} />
-                </div>
-                {isToday && <div className="w-1.5 h-1.5 rounded-full bg-[var(--accent)] mt-0.5" />}
-              </div>
-            );
-          })}
-        </div>
-        <div className="flex justify-between mt-1">
-          <span className="text-[9px] text-stone-400">{formatDate(days[0]?.fecha)}</span>
-          <span className="text-[9px] text-stone-400">{formatDate(days[days.length - 1]?.fecha)}</span>
-        </div>
-      </div>
-    );
+  async function loadPeriodos() {
+    try {
+      const res = await api.get('/pl/periodos');
+      const list = res.data || res || [];
+      setPeriodos(Array.isArray(list) ? list.map(p => ({ value: p.id, label: p.nombre })) : []);
+    } catch { /* silent */ }
   }
+
+  async function loadArqueo(periodoId) {
+    if (!periodoId) return;
+    try {
+      const res = await api.get(`/flujo/arqueo?periodo_id=${periodoId}`);
+      const d = res.data || res;
+      setArqueoData(d);
+      const cuentasList = d.cuentas || cuentas || [];
+      setArqueoForm(cuentasList.map(c => {
+        const det = (d.detalles || []).find(dd => dd.cuenta_id === c.id);
+        return {
+          cuenta_id: c.id,
+          nombre: c.nombre,
+          tipo: c.tipo,
+          saldo_sistema: det?.saldo_sistema ?? c.saldo_actual ?? 0,
+          saldo_real: det?.saldo_real ?? '',
+        };
+      }));
+      setArqueoObs(d.arqueo?.observaciones || '');
+    } catch { toast.error('Error cargando arqueo'); }
+  }
+
+  // ── Movimiento submit ────────────────────────────────────
+
+  function openMovForm() {
+    setMovForm({ seccion: '', flujo_categoria_id: '', cuenta_id: '', monto_absoluto: '', fecha: new Date().toISOString().slice(0, 10), descripcion: '' });
+    setShowMovForm(true);
+  }
+
+  async function submitMovimiento(e) {
+    e.preventDefault();
+    if (!movForm.flujo_categoria_id || !movForm.monto_absoluto) {
+      toast.error('Completa categoria y monto');
+      return;
+    }
+    setSavingMov(true);
+    try {
+      await api.post('/flujo/movimientos', {
+        flujo_categoria_id: movForm.flujo_categoria_id,
+        cuenta_id: movForm.cuenta_id || null,
+        fecha: movForm.fecha,
+        monto_absoluto: Number(movForm.monto_absoluto),
+        descripcion: movForm.descripcion,
+      });
+      toast.success('Movimiento registrado');
+      setShowMovForm(false);
+      loadGrid();
+      loadCuentas();
+    } catch { toast.error('Error guardando movimiento'); }
+    finally { setSavingMov(false); }
+  }
+
+  // ── Arqueo submit ────────────────────────────────────────
+
+  async function submitArqueo(cerrar = false) {
+    if (!arqueoPeriodoId) return;
+    if (cerrar && !window.confirm('Cerrar el mes? Esto actualizara los saldos de las cuentas y propagara al siguiente periodo.')) return;
+    setSavingArqueo(true);
+    try {
+      await api.post('/flujo/arqueo', {
+        periodo_id: arqueoPeriodoId,
+        detalles: arqueoForm.map(f => ({
+          cuenta_id: f.cuenta_id,
+          saldo_sistema: Number(f.saldo_sistema) || 0,
+          saldo_real: Number(f.saldo_real) || 0,
+        })),
+        observaciones: arqueoObs,
+        cerrar,
+      });
+      toast.success(cerrar ? 'Mes cerrado correctamente' : 'Arqueo guardado');
+      loadArqueo(arqueoPeriodoId);
+      if (cerrar) { loadGrid(); loadCuentas(); }
+    } catch { toast.error('Error guardando arqueo'); }
+    finally { setSavingArqueo(false); }
+  }
+
+  // ── Cuentas CRUD ─────────────────────────────────────────
+
+  async function submitCuenta(e) {
+    e.preventDefault();
+    if (!cuentaForm.nombre) { toast.error('Nombre requerido'); return; }
+    setSavingCuenta(true);
+    try {
+      if (editingCuentaId) {
+        await api.put(`/flujo/cuentas/${editingCuentaId}`, cuentaForm);
+        toast.success('Cuenta actualizada');
+      } else {
+        await api.post('/flujo/cuentas', {
+          nombre: cuentaForm.nombre,
+          tipo: cuentaForm.tipo,
+          saldo_actual: Number(cuentaForm.saldo_actual) || 0,
+        });
+        toast.success('Cuenta creada');
+      }
+      setShowCuentaForm(false);
+      setEditingCuentaId(null);
+      setCuentaForm({ nombre: '', tipo: 'efectivo', saldo_actual: '' });
+      loadCuentas();
+    } catch { toast.error('Error guardando cuenta'); }
+    finally { setSavingCuenta(false); }
+  }
+
+  async function deleteCuenta(id) {
+    if (!window.confirm('Eliminar esta cuenta?')) return;
+    try {
+      await api.delete(`/flujo/cuentas/${id}`);
+      toast.success('Cuenta eliminada');
+      loadCuentas();
+    } catch { toast.error('Error eliminando cuenta'); }
+  }
+
+  function editCuenta(c) {
+    setCuentaForm({ nombre: c.nombre, tipo: c.tipo, saldo_actual: c.saldo_actual || '' });
+    setEditingCuentaId(c.id);
+    setShowCuentaForm(true);
+  }
+
+  // ── Derived data ─────────────────────────────────────────
+
+  const meses = gridData?.meses || [];
+  const gridCategorias = gridData?.categorias || [];
+
+  const seccionOpts = [
+    { value: 'operativo', label: 'Operativo' },
+    { value: 'inversion', label: 'Inversion' },
+    { value: 'financiamiento', label: 'Financiamiento' },
+  ];
+
+  const filteredCatOpts = categorias
+    .filter(c => !movForm.seccion || c.seccion === movForm.seccion)
+    .map(c => ({ value: c.id, label: `${c.nombre} (${c.tipo})` }));
+
+  const cuentaOpts = cuentas.map(c => ({ value: c.id, label: c.nombre }));
+
+  const tipoBadge = (tipo) => {
+    if (tipo === 'efectivo') return cx.badge('bg-emerald-50 text-emerald-700');
+    if (tipo === 'banco') return cx.badge('bg-sky-50 text-sky-700');
+    return cx.badge('bg-violet-50 text-violet-700');
+  };
+
+  // ── Render ───────────────────────────────────────────────
 
   return (
     <div className="max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-stone-900">Mi Plata</h1>
-          <p className="text-sm text-stone-500 mt-0.5">Flujo de caja de tu negocio</p>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-52">
-            <CustomSelect options={periodos} value={periodoId} onChange={setPeriodoId} placeholder="Periodo..." />
-          </div>
-          <button onClick={() => setShowSim(!showSim)} className={cx.btnSecondary + ' flex items-center gap-2'}>
-            <Calculator size={14} /> Me alcanza?
+      {/* Tab navigation */}
+      <div className="flex gap-1 p-1 bg-stone-100 rounded-lg w-fit mb-6">
+        {[
+          { key: 'flujo', label: 'Flujo de Caja', icon: BarChart3 },
+          { key: 'arqueo', label: 'Arqueo', icon: ClipboardCheck },
+          { key: 'cuentas', label: 'Cuentas', icon: Wallet },
+        ].map(t => (
+          <button key={t.key} onClick={() => { setTab(t.key); if (t.key === 'arqueo' && arqueoPeriodoId) loadArqueo(arqueoPeriodoId); }}
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+              tab === t.key ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
+            }`}>
+            <t.icon size={14} />{t.label}
           </button>
-        </div>
+        ))}
       </div>
 
-      {loading ? (
-        <div className="space-y-4">
-          {[1, 2, 3].map(i => <div key={i} className={cx.skeleton + ' h-24'} />)}
-        </div>
-      ) : data && (
+      {/* ═══════════════════ TAB 1: FLUJO DE CAJA ═══════════════════ */}
+      {tab === 'flujo' && (
         <>
-          {/* Hero card: saldo actual */}
-          <div className={`${cx.card} p-6 mb-4`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-stone-500 font-semibold uppercase tracking-wide mb-1">Saldo disponible</p>
-                <p className={`text-3xl font-bold ${data.saldo_actual >= 0 ? 'text-stone-900' : 'text-rose-600'}`}>
-                  {simbolo} {Number(data.saldo_actual).toLocaleString('es-PE', { minimumFractionDigits: 2 })}
-                </p>
-                {metricas?.comparacion && (
-                  <div className="flex items-center gap-1 mt-1">
-                    {metricas.comparacion.variacion_pct >= 0
-                      ? <ArrowUpRight size={14} className="text-emerald-500" />
-                      : <ArrowDownRight size={14} className="text-rose-500" />
-                    }
-                    <span className={`text-xs font-semibold ${metricas.comparacion.variacion_pct >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                      {metricas.comparacion.variacion_pct > 0 ? '+' : ''}{metricas.comparacion.variacion_pct}% vs periodo anterior
-                    </span>
-                  </div>
-                )}
+          {/* Header */}
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-stone-900">Flujo de Caja</h1>
+              <p className="text-sm text-stone-500 mt-0.5">Estado de flujo de efectivo</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-1">
+                <button onClick={() => setAnio(a => a - 1)} className={cx.btnGhost}><ChevronLeft size={16} /></button>
+                <span className="text-sm font-bold text-stone-800 w-12 text-center">{anio}</span>
+                <button onClick={() => setAnio(a => a + 1)} className={cx.btnGhost}><ChevronRight size={16} /></button>
               </div>
-              <div className="flex items-center gap-2">
-                {metricas && (
-                  <span className={`w-3 h-3 rounded-full ${
-                    metricas.health === 'sano' ? 'bg-emerald-500' : metricas.health === 'atencion' ? 'bg-amber-500' : 'bg-rose-500'
-                  }`} title={metricas.health} />
-                )}
-                <Wallet size={28} className="text-stone-300" />
-              </div>
+              <button onClick={() => openMovForm()} className={cx.btnPrimary + ' flex items-center gap-2'}>
+                <Plus size={16} /> Movimiento
+              </button>
             </div>
           </div>
 
-          {/* 3 metric cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
-            <div className={`${cx.card} p-4`}>
-              <div className="flex items-center gap-2 mb-1">
-                <ArrowUpRight size={14} className="text-emerald-500" />
-                <span className="text-xs text-stone-500 font-medium">Entradas</span>
-              </div>
-              <p className="text-lg font-bold text-emerald-600">{formatCurrency(data.total_entradas)}</p>
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2, 3].map(i => <div key={i} className={cx.skeleton + ' h-24'} />)}
             </div>
-            <div className={`${cx.card} p-4`}>
-              <div className="flex items-center gap-2 mb-1">
-                <ArrowDownRight size={14} className="text-stone-400" />
-                <span className="text-xs text-stone-500 font-medium">Salidas</span>
-              </div>
-              <p className="text-lg font-bold text-stone-600">{formatCurrency(data.total_salidas)}</p>
+          ) : meses.length === 0 ? (
+            <div className={cx.card + ' p-12 text-center'}>
+              <BarChart3 size={32} className="mx-auto text-stone-300 mb-3" />
+              <p className="text-sm text-stone-500">No hay datos para {anio}</p>
             </div>
-            <div className={`${cx.card} p-4`}>
-              <div className="flex items-center gap-2 mb-1">
-                <DollarSign size={14} className="text-stone-400" />
-                <span className="text-xs text-stone-500 font-medium">Saldo inicial</span>
-              </div>
-              {editingSaldo ? (
-                <div className="flex items-center gap-2">
-                  <input type="number" step="0.01" value={saldoInput} onChange={e => setSaldoInput(e.target.value)} className={cx.input + ' max-w-[8rem] text-sm'} autoFocus />
-                  <button onClick={saveSaldoInicial} className={cx.btnPrimary + ' text-xs px-3 py-1.5'}>OK</button>
-                  <button onClick={() => setEditingSaldo(false)} className={cx.btnGhost + ' text-xs'}>X</button>
-                </div>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <p className="text-lg font-bold text-stone-600">{formatCurrency(data.saldo_inicial)}</p>
-                  <button onClick={() => { setSaldoInput(data.saldo_inicial || 0); setEditingSaldo(true); }} className={cx.btnGhost + ' text-xs'}>Editar</button>
-                </div>
-              )}
-            </div>
-          </div>
+          ) : (
+            <div className={cx.card + ' overflow-hidden'}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-stone-200">
+                      <th className="sticky left-0 bg-white z-10 px-4 py-3 text-left text-stone-400 text-[11px] font-semibold uppercase tracking-wider min-w-[200px]">Concepto</th>
+                      {meses.map(m => (
+                        <th key={m.periodo.id} className="px-4 py-3 text-right text-stone-400 text-[11px] font-semibold uppercase tracking-wider min-w-[120px]">
+                          {m.periodo.nombre}
+                        </th>
+                      ))}
+                      <th className="px-4 py-3 text-right text-stone-400 text-[11px] font-semibold uppercase tracking-wider min-w-[120px] bg-stone-50">Total</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {/* SALDO INICIAL */}
+                    <tr className="bg-stone-50 border-b border-stone-200">
+                      <td className="sticky left-0 bg-stone-50 z-10 px-4 py-3 font-bold text-stone-900">SALDO INICIAL</td>
+                      {meses.map(m => (
+                        <td key={m.periodo.id} className="px-4 py-3 text-right font-bold text-stone-900">
+                          {formatCurrency(m.saldo_inicial)}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-right font-bold text-stone-900 bg-stone-100">
+                        {meses.length > 0 ? formatCurrency(meses[0].saldo_inicial) : '-'}
+                      </td>
+                    </tr>
 
-          {/* Chart area */}
-          <div className={`${cx.card} p-5 mb-4`}>
-            <div className="flex items-center justify-between mb-4">
-              {/* Chart mode toggle */}
-              <div className="flex gap-1 p-1 bg-stone-100 rounded-lg">
-                <button onClick={() => setChartMode('barras')}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md ${chartMode === 'barras' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}>
-                  Entradas / Salidas
-                </button>
-                <button onClick={() => setChartMode('balance')}
-                  className={`px-3 py-1.5 text-xs font-semibold rounded-md ${chartMode === 'balance' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500'}`}>
-                  Saldo
-                </button>
-              </div>
-              {/* Time range pills */}
-              <div className="flex gap-1">
-                {[7, 15, 30].map(d => (
-                  <button key={d} onClick={() => setDiasView(d)}
-                    className={`px-3 py-1.5 text-xs font-semibold rounded-md ${diasView === d ? 'bg-stone-800 text-white' : 'text-stone-500 hover:bg-stone-100'}`}>
-                    {d}d
-                  </button>
-                ))}
-              </div>
-            </div>
+                    {/* I. ACTIVIDADES OPERATIVAS */}
+                    <SectionHeader label="I. ACTIVIDADES OPERATIVAS" />
+                    <SubHeader label="Ingresos" />
+                    {gridCategorias.filter(c => c.seccion === 'operativo' && c.tipo === 'ingreso').map(cat => (
+                      <CategoryRow key={cat.id} cat={cat} meses={meses} />
+                    ))}
+                    <LegacyRow label="Ventas (sin clasificar)" tipo="venta" meses={meses} />
+                    <TotalRow label="TOTAL INGRESOS" values={meses.map(m => m.totales?.ingresos_operativos || 0)} color="emerald" />
 
-            {/* CSS bar chart */}
-            {renderChart()}
+                    <SubHeader label="Egresos" />
+                    {gridCategorias.filter(c => c.seccion === 'operativo' && c.tipo === 'egreso').map(cat => (
+                      <CategoryRow key={cat.id} cat={cat} meses={meses} />
+                    ))}
+                    <LegacyRow label="Gastos (sin clasificar)" tipo="gasto" meses={meses} />
+                    <LegacyRow label="Compras (sin clasificar)" tipo="compra" meses={meses} />
+                    <TotalRow label="TOTAL EGRESOS" values={meses.map(m => m.totales?.egresos_operativos || 0)} color="stone" negative />
+                    <TotalRow label="FLUJO NETO OPERATIVO" values={meses.map(m => m.totales?.flujo_operativo || 0)} color="bold" />
 
-            {/* Legend */}
-            <div className="flex items-center gap-4 mt-3 text-[10px] text-stone-400">
-              {chartMode === 'barras' ? (
-                <>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-emerald-500" /> Entradas</span>
-                  <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-stone-400" /> Salidas</span>
-                </>
-              ) : (
-                <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-stone-700" /> Saldo</span>
-              )}
-            </div>
-          </div>
+                    {/* II. ACTIVIDADES DE INVERSION */}
+                    <SectionHeader label="II. ACTIVIDADES DE INVERSION" />
+                    {gridCategorias.filter(c => c.seccion === 'inversion').map(cat => (
+                      <CategoryRow key={cat.id} cat={cat} meses={meses} />
+                    ))}
+                    <TotalRow label="FLUJO NETO INVERSION" values={meses.map(m => m.totales?.flujo_inversion || 0)} color="bold" />
 
-          {/* Quick metrics row */}
-          {metricas && (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-4">
-              <div className={`${cx.card} p-4`}>
-                <span className="text-xs text-stone-500 font-medium">Venta promedio/dia</span>
-                <p className="text-sm font-bold text-stone-800 mt-1">{formatCurrency(metricas.promedio_venta_diaria)}</p>
-              </div>
-              <div className={`${cx.card} p-4`}>
-                <span className="text-xs text-stone-500 font-medium">Gasto promedio/dia</span>
-                <p className="text-sm font-bold text-stone-800 mt-1">{formatCurrency(metricas.promedio_gasto_diario)}</p>
-              </div>
-              <div className={`${cx.card} p-4`}>
-                <span className="text-xs text-stone-500 font-medium">Ratio caja</span>
-                <p className={`text-sm font-bold mt-1 ${metricas.ratio_caja >= 1.2 ? 'text-emerald-600' : metricas.ratio_caja >= 0.8 ? 'text-amber-600' : 'text-rose-600'}`}>
-                  {metricas.ratio_caja}x
-                </p>
-              </div>
-              <div className={`${cx.card} p-4`}>
-                <span className="text-xs text-stone-500 font-medium">Te alcanza para</span>
-                <p className={`text-sm font-bold mt-1 ${
-                  metricas.runway_dias === null ? 'text-emerald-600' : metricas.runway_dias > 15 ? 'text-emerald-600' : metricas.runway_dias > 7 ? 'text-amber-600' : 'text-rose-600'
-                }`}>
-                  {metricas.runway_dias === null ? '\u221E' : `~${metricas.runway_dias} dias`}
-                </p>
+                    {/* III. ACTIVIDADES DE FINANCIAMIENTO */}
+                    <SectionHeader label="III. ACTIVIDADES DE FINANCIAMIENTO" />
+                    {gridCategorias.filter(c => c.seccion === 'financiamiento').map(cat => (
+                      <CategoryRow key={cat.id} cat={cat} meses={meses} />
+                    ))}
+                    <TotalRow label="FLUJO NETO FINANCIAMIENTO" values={meses.map(m => m.totales?.flujo_financiamiento || 0)} color="bold" />
+
+                    {/* FLUJO NETO DEL PERIODO */}
+                    <tr className="border-t-2 border-stone-300 bg-stone-50">
+                      <td className="sticky left-0 bg-stone-50 z-10 px-4 py-3 font-bold text-stone-900">FLUJO NETO DEL PERIODO</td>
+                      {meses.map(m => (
+                        <td key={m.periodo.id} className={`px-4 py-3 text-right font-bold ${(m.totales?.flujo_neto || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
+                          {formatCurrency(m.totales?.flujo_neto || 0)}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-right font-bold text-stone-900 bg-stone-100">
+                        {formatCurrency(meses.reduce((s, m) => s + (m.totales?.flujo_neto || 0), 0))}
+                      </td>
+                    </tr>
+
+                    {/* SALDO FINAL */}
+                    <tr className="bg-stone-100 border-t border-stone-300">
+                      <td className="sticky left-0 bg-stone-100 z-10 px-4 py-3 font-bold text-stone-900">SALDO FINAL</td>
+                      {meses.map(m => (
+                        <td key={m.periodo.id} className={`px-4 py-3 text-right font-bold text-lg ${(m.saldo_final || 0) >= 0 ? 'text-stone-900' : 'text-rose-600'}`}>
+                          {formatCurrency(m.saldo_final)}
+                        </td>
+                      ))}
+                      <td className="px-4 py-3 text-right font-bold text-lg text-stone-900 bg-stone-200">
+                        {meses.length > 0 ? formatCurrency(meses[meses.length - 1].saldo_final) : '-'}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
-
-          {/* Simulador "Me alcanza?" */}
-          {showSim && (
-            <div className={`${cx.card} p-5 mb-4 border-[var(--accent)]`}>
-              <h3 className="text-sm font-semibold text-stone-900 mb-3 flex items-center gap-2">
-                <Calculator size={16} className="text-[var(--accent)]" /> Me alcanza para esta compra?
-              </h3>
-              <div className="flex flex-col sm:flex-row gap-3 items-end">
-                <div className="flex-1">
-                  <label className={cx.label}>Monto de la compra ({simbolo})</label>
-                  <input type="number" step="0.01" min="0" value={simMonto} onChange={e => setSimMonto(e.target.value)}
-                    className={cx.input} placeholder="Ej: 2500" />
-                </div>
-                <button onClick={runSimulacion} disabled={simLoading || !simMonto} className={cx.btnPrimary + ' h-[42px]'}>
-                  {simLoading ? 'Calculando...' : 'Simular'}
-                </button>
-              </div>
-
-              {simResult && (
-                <div className="mt-4 space-y-3">
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="p-3 bg-stone-50 rounded-lg">
-                      <span className="text-xs text-stone-500">Tu saldo hoy</span>
-                      <p className="text-sm font-bold text-stone-800">{formatCurrency(simResult.balance_hoy)}</p>
-                    </div>
-                    <div className={`p-3 rounded-lg ${simResult.balance_despues >= 0 ? 'bg-stone-50' : 'bg-rose-50'}`}>
-                      <span className="text-xs text-stone-500">Despues de la compra</span>
-                      <p className={`text-sm font-bold ${simResult.balance_despues >= 0 ? 'text-stone-800' : 'text-rose-600'}`}>
-                        {formatCurrency(simResult.balance_despues)}
-                      </p>
-                    </div>
-                  </div>
-
-                  {simResult.gastos_fijos_pendientes?.length > 0 && (
-                    <div className="p-3 bg-amber-50 rounded-lg">
-                      <span className="text-xs text-amber-700 font-medium">Gastos fijos pendientes este mes:</span>
-                      <div className="mt-1 space-y-1">
-                        {simResult.gastos_fijos_pendientes.map((g, i) => (
-                          <div key={i} className="flex justify-between text-xs text-amber-600">
-                            <span>{g.nombre}</span>
-                            <span>-{formatCurrency(g.monto_default)}</span>
-                          </div>
-                        ))}
-                        <div className="flex justify-between text-xs font-bold text-amber-700 border-t border-amber-200 pt-1 mt-1">
-                          <span>Total pendiente</span>
-                          <span>-{formatCurrency(simResult.total_fijos_pendientes)}</span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div className={`p-3 rounded-lg flex items-center gap-3 ${
-                    simResult.veredicto === 'ok' ? 'bg-emerald-50' :
-                    simResult.veredicto === 'ajustado' ? 'bg-amber-50' : 'bg-rose-50'
-                  }`}>
-                    {simResult.veredicto === 'ok' ? <CheckCircle size={20} className="text-emerald-600 shrink-0" /> :
-                     simResult.veredicto === 'ajustado' ? <AlertTriangle size={20} className="text-amber-600 shrink-0" /> :
-                     <AlertTriangle size={20} className="text-rose-600 shrink-0" />
-                    }
-                    <div>
-                      <p className={`text-sm font-semibold ${
-                        simResult.veredicto === 'ok' ? 'text-emerald-700' :
-                        simResult.veredicto === 'ajustado' ? 'text-amber-700' : 'text-rose-700'
-                      }`}>
-                        {simResult.veredicto === 'ok' ? 'Si, puedes permitirtelo' :
-                         simResult.veredicto === 'ajustado' ? 'Ajustado -- revisa tus gastos fijos' :
-                         simResult.veredicto === 'riesgo' ? 'Riesgo -- no cubririas gastos fijos pendientes' :
-                         'No alcanza -- tu saldo quedaria negativo'}
-                      </p>
-                      {simResult.dias_para_recuperar && (
-                        <p className="text-xs text-stone-500 mt-0.5">
-                          Recuperarias el monto en ~{simResult.dias_para_recuperar} dias de venta
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Movimientos recientes */}
-          <div className={`${cx.card} overflow-hidden`}>
-            <div className="p-4 border-b border-stone-100">
-              <h3 className="text-sm font-semibold text-stone-900">Movimientos recientes</h3>
-            </div>
-            <div className="divide-y divide-stone-100">
-              {(data.movimientos || []).map(mov => (
-                <div key={mov.id} className="flex items-center justify-between px-4 py-3 hover:bg-stone-50/50">
-                  <div className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                      mov.tipo === 'venta' ? 'bg-emerald-50' : 'bg-stone-100'
-                    }`}>
-                      {mov.tipo === 'venta' ? <ShoppingCart size={14} className="text-emerald-500" /> :
-                       mov.tipo === 'compra' ? <ShoppingBag size={14} className="text-stone-400" /> :
-                       <Receipt size={14} className="text-stone-400" />}
-                    </div>
-                    <div>
-                      <p className="text-sm text-stone-800">{mov.producto_nombre || mov.categoria_nombre || mov.descripcion || mov.tipo}</p>
-                      <p className="text-xs text-stone-400">{formatDate(mov.fecha)}</p>
-                    </div>
-                  </div>
-                  <span className={`text-sm font-semibold ${parseFloat(mov.monto) >= 0 ? 'text-emerald-600' : 'text-stone-600'}`}>
-                    {parseFloat(mov.monto) >= 0 ? '+' : ''}{formatCurrency(Math.abs(parseFloat(mov.monto)))}
-                  </span>
-                </div>
-              ))}
-              {(!data.movimientos || data.movimientos.length === 0) && (
-                <div className="py-8 text-center text-sm text-stone-400">No hay movimientos en este periodo</div>
-              )}
-            </div>
-          </div>
         </>
+      )}
+
+      {/* ═══════════════════ TAB 2: ARQUEO ═══════════════════ */}
+      {tab === 'arqueo' && (
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-stone-900">Arqueo de Caja</h1>
+              <p className="text-sm text-stone-500 mt-0.5">Conciliacion de saldos por periodo</p>
+            </div>
+            <div className="w-52">
+              <CustomSelect
+                options={periodos}
+                value={arqueoPeriodoId}
+                onChange={(v) => { setArqueoPeriodoId(v); loadArqueo(v); }}
+                placeholder="Periodo..."
+              />
+            </div>
+          </div>
+
+          {!arqueoPeriodoId ? (
+            <div className={cx.card + ' p-12 text-center'}>
+              <ClipboardCheck size={32} className="mx-auto text-stone-300 mb-3" />
+              <p className="text-sm text-stone-500">Selecciona un periodo para comenzar el arqueo</p>
+            </div>
+          ) : arqueoForm.length === 0 ? (
+            <div className={cx.card + ' p-12 text-center'}>
+              <p className="text-sm text-stone-500">No hay cuentas registradas. Crea cuentas en la pestana "Cuentas".</p>
+            </div>
+          ) : (
+            <div className={cx.card + ' overflow-hidden'}>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-stone-200">
+                      <th className={cx.th}>Cuenta</th>
+                      <th className={cx.th}>Tipo</th>
+                      <th className={cx.th + ' text-right'}>Saldo Sistema</th>
+                      <th className={cx.th + ' text-right'}>Saldo Real</th>
+                      <th className={cx.th + ' text-right'}>Diferencia</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {arqueoForm.map((row, idx) => {
+                      const diff = (Number(row.saldo_real) || 0) - Number(row.saldo_sistema);
+                      const hasReal = row.saldo_real !== '';
+                      return (
+                        <tr key={row.cuenta_id} className={cx.tr}>
+                          <td className={cx.td + ' font-medium text-stone-800'}>{row.nombre}</td>
+                          <td className={cx.td}><span className={tipoBadge(row.tipo)}>{row.tipo}</span></td>
+                          <td className={cx.td + ' text-right font-mono text-stone-600'}>{formatCurrency(row.saldo_sistema)}</td>
+                          <td className={cx.td + ' text-right'}>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={row.saldo_real}
+                              onChange={(e) => {
+                                const next = [...arqueoForm];
+                                next[idx] = { ...next[idx], saldo_real: e.target.value };
+                                setArqueoForm(next);
+                              }}
+                              className={cx.input + ' max-w-[140px] ml-auto text-right'}
+                              placeholder="0.00"
+                            />
+                          </td>
+                          <td className={cx.td + ' text-right font-semibold'}>
+                            {hasReal ? (
+                              <span className={diff === 0 ? 'text-emerald-600' : diff > 0 ? 'text-sky-600' : 'text-rose-600'}>
+                                {diff > 0 ? '+' : ''}{formatCurrency(diff)}
+                              </span>
+                            ) : (
+                              <span className="text-stone-300">-</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                    {/* Totals */}
+                    <tr className="border-t-2 border-stone-300 bg-stone-50">
+                      <td className={cx.td + ' font-bold text-stone-900'} colSpan={2}>TOTAL</td>
+                      <td className={cx.td + ' text-right font-bold text-stone-900'}>
+                        {formatCurrency(arqueoForm.reduce((s, r) => s + Number(r.saldo_sistema), 0))}
+                      </td>
+                      <td className={cx.td + ' text-right font-bold text-stone-900'}>
+                        {formatCurrency(arqueoForm.reduce((s, r) => s + (Number(r.saldo_real) || 0), 0))}
+                      </td>
+                      <td className={cx.td + ' text-right font-bold'}>
+                        {(() => {
+                          const totalDiff = arqueoForm.reduce((s, r) => s + ((Number(r.saldo_real) || 0) - Number(r.saldo_sistema)), 0);
+                          return (
+                            <span className={totalDiff === 0 ? 'text-emerald-600' : totalDiff > 0 ? 'text-sky-600' : 'text-rose-600'}>
+                              {totalDiff > 0 ? '+' : ''}{formatCurrency(totalDiff)}
+                            </span>
+                          );
+                        })()}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Observaciones + buttons */}
+              <div className="p-4 border-t border-stone-200 space-y-4">
+                <div>
+                  <label className={cx.label}>Observaciones</label>
+                  <textarea
+                    value={arqueoObs}
+                    onChange={e => setArqueoObs(e.target.value)}
+                    className={cx.input + ' min-h-[80px]'}
+                    placeholder="Notas sobre el arqueo..."
+                  />
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => submitArqueo(false)}
+                    disabled={savingArqueo}
+                    className={cx.btnSecondary + ' flex items-center gap-2'}
+                  >
+                    <Save size={14} /> {savingArqueo ? 'Guardando...' : 'Guardar Arqueo'}
+                  </button>
+                  <button
+                    onClick={() => submitArqueo(true)}
+                    disabled={savingArqueo}
+                    className={cx.btnPrimary + ' flex items-center gap-2'}
+                  >
+                    <ClipboardCheck size={14} /> Cerrar Mes
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ═══════════════════ TAB 3: CUENTAS ═══════════════════ */}
+      {tab === 'cuentas' && (
+        <>
+          <div className="flex items-center justify-between mb-6">
+            <div>
+              <h1 className="text-2xl font-bold text-stone-900">Cuentas / Billeteras</h1>
+              <p className="text-sm text-stone-500 mt-0.5">Gestiona tus cuentas de efectivo, banco y digital</p>
+            </div>
+            <button
+              onClick={() => { setCuentaForm({ nombre: '', tipo: 'efectivo', saldo_actual: '' }); setEditingCuentaId(null); setShowCuentaForm(true); }}
+              className={cx.btnPrimary + ' flex items-center gap-2'}
+            >
+              <Plus size={16} /> Cuenta
+            </button>
+          </div>
+
+          {/* Inline form */}
+          {showCuentaForm && (
+            <div className={cx.card + ' p-5 mb-4'}>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-stone-900">{editingCuentaId ? 'Editar cuenta' : 'Nueva cuenta'}</h3>
+                <button onClick={() => { setShowCuentaForm(false); setEditingCuentaId(null); }} className={cx.btnGhost}><X size={16} /></button>
+              </div>
+              <form onSubmit={submitCuenta} className="grid grid-cols-1 sm:grid-cols-4 gap-4 items-end">
+                <div>
+                  <label className={cx.label}>Nombre</label>
+                  <input
+                    type="text"
+                    value={cuentaForm.nombre}
+                    onChange={e => setCuentaForm(f => ({ ...f, nombre: e.target.value }))}
+                    className={cx.input}
+                    placeholder="Ej: Caja chica"
+                  />
+                </div>
+                <div>
+                  <label className={cx.label}>Tipo</label>
+                  <CustomSelect
+                    options={[
+                      { value: 'efectivo', label: 'Efectivo' },
+                      { value: 'banco', label: 'Banco' },
+                      { value: 'digital', label: 'Digital' },
+                    ]}
+                    value={cuentaForm.tipo}
+                    onChange={v => setCuentaForm(f => ({ ...f, tipo: v }))}
+                  />
+                </div>
+                <div>
+                  <label className={cx.label}>Saldo actual</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    value={cuentaForm.saldo_actual}
+                    onChange={e => setCuentaForm(f => ({ ...f, saldo_actual: e.target.value }))}
+                    className={cx.input}
+                    placeholder="0.00"
+                  />
+                </div>
+                <button type="submit" disabled={savingCuenta} className={cx.btnPrimary}>
+                  {savingCuenta ? 'Guardando...' : editingCuentaId ? 'Actualizar' : 'Crear'}
+                </button>
+              </form>
+            </div>
+          )}
+
+          {/* Cuentas table */}
+          {cuentas.length === 0 ? (
+            <div className={cx.card + ' p-12 text-center'}>
+              <Wallet size={32} className="mx-auto text-stone-300 mb-3" />
+              <p className="text-sm text-stone-500">No hay cuentas registradas</p>
+            </div>
+          ) : (
+            <div className={cx.card + ' overflow-hidden'}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-stone-200">
+                    <th className={cx.th}>Nombre</th>
+                    <th className={cx.th}>Tipo</th>
+                    <th className={cx.th + ' text-right'}>Saldo Actual</th>
+                    <th className={cx.th + ' text-right'}>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {cuentas.map(c => (
+                    <tr key={c.id} className={cx.tr}>
+                      <td className={cx.td + ' font-medium text-stone-800'}>{c.nombre}</td>
+                      <td className={cx.td}><span className={tipoBadge(c.tipo)}>{c.tipo}</span></td>
+                      <td className={cx.td + ' text-right font-semibold ' + ((c.saldo_actual || 0) >= 0 ? 'text-stone-900' : 'text-rose-600')}>
+                        {formatCurrency(c.saldo_actual || 0)}
+                      </td>
+                      <td className={cx.td + ' text-right'}>
+                        <div className="flex items-center justify-end gap-1">
+                          <button onClick={() => editCuenta(c)} className={cx.btnGhost} title="Editar"><Pencil size={14} /></button>
+                          <button onClick={() => deleteCuenta(c.id)} className={cx.btnDanger} title="Eliminar"><Trash2 size={14} /></button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* ═══════════════════ MODAL: MOVIMIENTO ═══════════════════ */}
+      {showMovForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowMovForm(false)}>
+          <div className={cx.card + ' w-full max-w-lg mx-4 p-6'} onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="text-lg font-bold text-stone-900">Nuevo Movimiento</h2>
+              <button onClick={() => setShowMovForm(false)} className={cx.btnGhost}><X size={18} /></button>
+            </div>
+            <form onSubmit={submitMovimiento} className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={cx.label}>Seccion</label>
+                  <CustomSelect
+                    options={seccionOpts}
+                    value={movForm.seccion}
+                    onChange={v => setMovForm(f => ({ ...f, seccion: v, flujo_categoria_id: '' }))}
+                    placeholder="Seccion..."
+                  />
+                </div>
+                <div>
+                  <label className={cx.label}>Categoria</label>
+                  <CustomSelect
+                    options={filteredCatOpts}
+                    value={movForm.flujo_categoria_id}
+                    onChange={v => setMovForm(f => ({ ...f, flujo_categoria_id: v }))}
+                    placeholder="Categoria..."
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={cx.label}>Cuenta (opcional)</label>
+                <CustomSelect
+                  options={cuentaOpts}
+                  value={movForm.cuenta_id}
+                  onChange={v => setMovForm(f => ({ ...f, cuenta_id: v }))}
+                  placeholder="Sin cuenta especifica..."
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className={cx.label}>Monto</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={movForm.monto_absoluto}
+                    onChange={e => setMovForm(f => ({ ...f, monto_absoluto: e.target.value }))}
+                    className={cx.input}
+                    placeholder="0.00"
+                  />
+                </div>
+                <div>
+                  <label className={cx.label}>Fecha</label>
+                  <input
+                    type="date"
+                    value={movForm.fecha}
+                    onChange={e => setMovForm(f => ({ ...f, fecha: e.target.value }))}
+                    className={cx.input}
+                  />
+                </div>
+              </div>
+              <div>
+                <label className={cx.label}>Descripcion</label>
+                <input
+                  type="text"
+                  value={movForm.descripcion}
+                  onChange={e => setMovForm(f => ({ ...f, descripcion: e.target.value }))}
+                  className={cx.input}
+                  placeholder="Descripcion del movimiento..."
+                />
+              </div>
+              <div className="flex justify-end gap-3 pt-2">
+                <button type="button" onClick={() => setShowMovForm(false)} className={cx.btnSecondary}>Cancelar</button>
+                <button type="submit" disabled={savingMov} className={cx.btnPrimary + ' flex items-center gap-2'}>
+                  {savingMov ? 'Guardando...' : <><Save size={14} /> Registrar</>}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
