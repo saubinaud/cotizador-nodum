@@ -55,18 +55,22 @@ export default function PLVentasPage() {
     cantidad: 1,
     precio_unitario: '',
     nota: '',
+    cuenta_id: '',
   });
   const [descuentoTipo, setDescuentoTipo] = useState('none');
   const [descuentoValor, setDescuentoValor] = useState('');
+  const [cuentas, setCuentas] = useState([]);
 
   // Load periodos + productos on mount
   useEffect(() => {
     Promise.all([
       api.get('/pl/periodos').catch(() => ({ data: [] })),
       api.get('/productos').catch(() => ({ data: [] })),
-    ]).then(([perRes, prodRes]) => {
+      api.get('/flujo/cuentas').catch(() => ({ data: [] })),
+    ]).then(([perRes, prodRes, cuentasRes]) => {
       const pers = perRes.data || [];
       setPeriodos(pers);
+      setCuentas((cuentasRes.data || []).map(c => ({ value: c.id, label: c.nombre })));
       setProductos(prodRes.data || []);
       if (pers.length > 0) {
         setPeriodoId(pers[0].id);
@@ -211,6 +215,7 @@ export default function PLVentasPage() {
           precio_unitario: form.precio_unitario || undefined,
           descuento: descuentoTotal,
           nota: form.nota,
+          cuenta_id: form.cuenta_id || null,
         });
         toast.success('Venta registrada');
       }
@@ -529,6 +534,19 @@ export default function PLVentasPage() {
                     </p>
                   )}
                 </div>
+
+                {/* Cuenta */}
+                {cuentas.length > 0 && (
+                <div>
+                  <label className={cx.label}>Cuenta de ingreso</label>
+                  <CustomSelect
+                    options={[{ value: '', label: 'Sin especificar' }, ...cuentas]}
+                    value={form.cuenta_id}
+                    onChange={(v) => setForm((f) => ({ ...f, cuenta_id: v }))}
+                    placeholder="¿A qué cuenta entró?"
+                  />
+                </div>
+                )}
 
                 {/* Note */}
                 <div>

@@ -571,7 +571,7 @@ router.get('/ventas', async (req, res) => {
 // POST /api/pl/ventas
 router.post('/ventas', async (req, res) => {
   try {
-    const { periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, nota } = req.body;
+    const { periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, nota, cuenta_id } = req.body;
     if (!periodo_id || !producto_id || !fecha || !cantidad) {
       return res.status(400).json({ success: false, error: 'periodo_id, producto_id, fecha y cantidad son requeridos' });
     }
@@ -593,13 +593,17 @@ router.post('/ventas', async (req, res) => {
       [periodo_id, producto_id, fecha, cantidad, precio, desc, total, nota || null]
     );
 
-    // Dual-write to transacciones for timeline
+    // Dual-write to transacciones for timeline (with cuenta_id for cash flow)
     try {
       await pool.query(
-        `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, producto_id, cantidad, precio_unitario, descuento, monto, monto_absoluto, descripcion)
-         VALUES ($1, $2, 'venta', $3, $4, $5, $6, $7, $8, $8, $9)`,
-        [req.user.id, periodo_id, fecha, producto_id, cantidad, precio, desc, total, nota || null]
+        `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, producto_id, cantidad, precio_unitario, descuento, monto, monto_absoluto, descripcion, cuenta_id)
+         VALUES ($1, $2, 'venta', $3, $4, $5, $6, $7, $8, $8, $9, $10)`,
+        [req.user.id, periodo_id, fecha, producto_id, cantidad, precio, desc, total, nota || null, cuenta_id || null]
       );
+      // Update account balance if specified
+      if (cuenta_id) {
+        await pool.query('UPDATE flujo_cuentas SET saldo_actual = saldo_actual + $1 WHERE id = $2', [total, cuenta_id]);
+      }
     } catch (_) {}
 
     return res.status(201).json({ success: true, data: result.rows[0] });

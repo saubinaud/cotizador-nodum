@@ -913,6 +913,12 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_denominaciones_pais ON denominaciones(pais_code, orden)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_flujo_transferencias_usuario ON flujo_transferencias(usuario_id)`);
 
+    // Fix legacy category names (payment method → concept)
+    await client.query(`UPDATE flujo_categorias SET nombre = 'Ventas' WHERE nombre = 'Ventas en efectivo'`);
+    await client.query(`UPDATE flujo_categorias SET nombre = 'Catering / Pedidos especiales' WHERE nombre = 'Ventas Yape/Plin'`);
+    await client.query(`UPDATE flujo_categorias SET nombre = 'Delivery' WHERE nombre = 'Ventas transferencia'`);
+    await client.query(`UPDATE flujo_categorias SET nombre = 'Otros ingresos operativos' WHERE nombre = 'Ventas con tarjeta'`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);
