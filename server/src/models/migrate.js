@@ -521,6 +521,369 @@ async function runMigrations() {
       }
     }
 
+    // Seed for Argentina (ARS)
+    const arDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'AR'");
+    if (parseInt(arDenomCount.rows[0].count) === 0) {
+      const arDenoms = [
+        { valor: 10000, tipo: 'billete', nombre: '$10.000', orden: 1 },
+        { valor: 5000, tipo: 'billete', nombre: '$5.000', orden: 2 },
+        { valor: 2000, tipo: 'billete', nombre: '$2.000', orden: 3 },
+        { valor: 1000, tipo: 'billete', nombre: '$1.000', orden: 4 },
+        { valor: 500, tipo: 'billete', nombre: '$500', orden: 5 },
+        { valor: 200, tipo: 'billete', nombre: '$200', orden: 6 },
+        { valor: 100, tipo: 'billete', nombre: '$100', orden: 7 },
+        { valor: 50, tipo: 'moneda', nombre: '$50', orden: 10 },
+        { valor: 25, tipo: 'moneda', nombre: '$25', orden: 11 },
+        { valor: 10, tipo: 'moneda', nombre: '$10', orden: 12 },
+        { valor: 5, tipo: 'moneda', nombre: '$5', orden: 13 },
+        { valor: 2, tipo: 'moneda', nombre: '$2', orden: 14 },
+        { valor: 1, tipo: 'moneda', nombre: '$1', orden: 15 },
+      ];
+      for (const d of arDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('AR', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Bolivia (BOB)
+    const boDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'BO'");
+    if (parseInt(boDenomCount.rows[0].count) === 0) {
+      const boDenoms = [
+        { valor: 200, tipo: 'billete', nombre: 'Bs 200', orden: 1 },
+        { valor: 100, tipo: 'billete', nombre: 'Bs 100', orden: 2 },
+        { valor: 50, tipo: 'billete', nombre: 'Bs 50', orden: 3 },
+        { valor: 20, tipo: 'billete', nombre: 'Bs 20', orden: 4 },
+        { valor: 10, tipo: 'billete', nombre: 'Bs 10', orden: 5 },
+        { valor: 5, tipo: 'moneda', nombre: 'Bs 5', orden: 10 },
+        { valor: 2, tipo: 'moneda', nombre: 'Bs 2', orden: 11 },
+        { valor: 1, tipo: 'moneda', nombre: 'Bs 1', orden: 12 },
+        { valor: 0.50, tipo: 'moneda', nombre: 'Bs 0.50', orden: 13 },
+        { valor: 0.20, tipo: 'moneda', nombre: 'Bs 0.20', orden: 14 },
+        { valor: 0.10, tipo: 'moneda', nombre: 'Bs 0.10', orden: 15 },
+      ];
+      for (const d of boDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('BO', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Brasil (BRL)
+    const brDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'BR'");
+    if (parseInt(brDenomCount.rows[0].count) === 0) {
+      const brDenoms = [
+        { valor: 200, tipo: 'billete', nombre: 'R$ 200', orden: 1 },
+        { valor: 100, tipo: 'billete', nombre: 'R$ 100', orden: 2 },
+        { valor: 50, tipo: 'billete', nombre: 'R$ 50', orden: 3 },
+        { valor: 20, tipo: 'billete', nombre: 'R$ 20', orden: 4 },
+        { valor: 10, tipo: 'billete', nombre: 'R$ 10', orden: 5 },
+        { valor: 5, tipo: 'billete', nombre: 'R$ 5', orden: 6 },
+        { valor: 2, tipo: 'billete', nombre: 'R$ 2', orden: 7 },
+        { valor: 1, tipo: 'moneda', nombre: 'R$ 1', orden: 10 },
+        { valor: 0.50, tipo: 'moneda', nombre: 'R$ 0.50', orden: 11 },
+        { valor: 0.25, tipo: 'moneda', nombre: 'R$ 0.25', orden: 12 },
+        { valor: 0.10, tipo: 'moneda', nombre: 'R$ 0.10', orden: 13 },
+        { valor: 0.05, tipo: 'moneda', nombre: 'R$ 0.05', orden: 14 },
+      ];
+      for (const d of brDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('BR', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Chile (CLP)
+    const clDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'CL'");
+    if (parseInt(clDenomCount.rows[0].count) === 0) {
+      const clDenoms = [
+        { valor: 20000, tipo: 'billete', nombre: '$20.000', orden: 1 },
+        { valor: 10000, tipo: 'billete', nombre: '$10.000', orden: 2 },
+        { valor: 5000, tipo: 'billete', nombre: '$5.000', orden: 3 },
+        { valor: 2000, tipo: 'billete', nombre: '$2.000', orden: 4 },
+        { valor: 1000, tipo: 'billete', nombre: '$1.000', orden: 5 },
+        { valor: 500, tipo: 'moneda', nombre: '$500', orden: 10 },
+        { valor: 100, tipo: 'moneda', nombre: '$100', orden: 11 },
+        { valor: 50, tipo: 'moneda', nombre: '$50', orden: 12 },
+        { valor: 10, tipo: 'moneda', nombre: '$10', orden: 13 },
+      ];
+      for (const d of clDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('CL', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Costa Rica (CRC)
+    const crDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'CR'");
+    if (parseInt(crDenomCount.rows[0].count) === 0) {
+      const crDenoms = [
+        { valor: 50000, tipo: 'billete', nombre: '₡50.000', orden: 1 },
+        { valor: 20000, tipo: 'billete', nombre: '₡20.000', orden: 2 },
+        { valor: 10000, tipo: 'billete', nombre: '₡10.000', orden: 3 },
+        { valor: 5000, tipo: 'billete', nombre: '₡5.000', orden: 4 },
+        { valor: 2000, tipo: 'billete', nombre: '₡2.000', orden: 5 },
+        { valor: 1000, tipo: 'billete', nombre: '₡1.000', orden: 6 },
+        { valor: 500, tipo: 'moneda', nombre: '₡500', orden: 10 },
+        { valor: 100, tipo: 'moneda', nombre: '₡100', orden: 11 },
+        { valor: 50, tipo: 'moneda', nombre: '₡50', orden: 12 },
+        { valor: 25, tipo: 'moneda', nombre: '₡25', orden: 13 },
+        { valor: 10, tipo: 'moneda', nombre: '₡10', orden: 14 },
+        { valor: 5, tipo: 'moneda', nombre: '₡5', orden: 15 },
+      ];
+      for (const d of crDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('CR', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Ecuador (USD)
+    const ecDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'EC'");
+    if (parseInt(ecDenomCount.rows[0].count) === 0) {
+      const ecDenoms = [
+        { valor: 100, tipo: 'billete', nombre: '$100', orden: 1 },
+        { valor: 50, tipo: 'billete', nombre: '$50', orden: 2 },
+        { valor: 20, tipo: 'billete', nombre: '$20', orden: 3 },
+        { valor: 10, tipo: 'billete', nombre: '$10', orden: 4 },
+        { valor: 5, tipo: 'billete', nombre: '$5', orden: 5 },
+        { valor: 1, tipo: 'billete', nombre: '$1', orden: 6 },
+        { valor: 0.50, tipo: 'moneda', nombre: '$0.50', orden: 10 },
+        { valor: 0.25, tipo: 'moneda', nombre: '$0.25', orden: 11 },
+        { valor: 0.10, tipo: 'moneda', nombre: '$0.10', orden: 12 },
+        { valor: 0.05, tipo: 'moneda', nombre: '$0.05', orden: 13 },
+        { valor: 0.01, tipo: 'moneda', nombre: '$0.01', orden: 14 },
+      ];
+      for (const d of ecDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('EC', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for El Salvador (USD)
+    const svDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'SV'");
+    if (parseInt(svDenomCount.rows[0].count) === 0) {
+      const svDenoms = [
+        { valor: 100, tipo: 'billete', nombre: '$100', orden: 1 },
+        { valor: 50, tipo: 'billete', nombre: '$50', orden: 2 },
+        { valor: 20, tipo: 'billete', nombre: '$20', orden: 3 },
+        { valor: 10, tipo: 'billete', nombre: '$10', orden: 4 },
+        { valor: 5, tipo: 'billete', nombre: '$5', orden: 5 },
+        { valor: 1, tipo: 'billete', nombre: '$1', orden: 6 },
+        { valor: 0.50, tipo: 'moneda', nombre: '$0.50', orden: 10 },
+        { valor: 0.25, tipo: 'moneda', nombre: '$0.25', orden: 11 },
+        { valor: 0.10, tipo: 'moneda', nombre: '$0.10', orden: 12 },
+        { valor: 0.05, tipo: 'moneda', nombre: '$0.05', orden: 13 },
+        { valor: 0.01, tipo: 'moneda', nombre: '$0.01', orden: 14 },
+      ];
+      for (const d of svDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('SV', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Guatemala (GTQ)
+    const gtDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'GT'");
+    if (parseInt(gtDenomCount.rows[0].count) === 0) {
+      const gtDenoms = [
+        { valor: 200, tipo: 'billete', nombre: 'Q200', orden: 1 },
+        { valor: 100, tipo: 'billete', nombre: 'Q100', orden: 2 },
+        { valor: 50, tipo: 'billete', nombre: 'Q50', orden: 3 },
+        { valor: 20, tipo: 'billete', nombre: 'Q20', orden: 4 },
+        { valor: 10, tipo: 'billete', nombre: 'Q10', orden: 5 },
+        { valor: 5, tipo: 'billete', nombre: 'Q5', orden: 6 },
+        { valor: 1, tipo: 'billete', nombre: 'Q1', orden: 7 },
+        { valor: 1, tipo: 'moneda', nombre: 'Q1', orden: 10 },
+        { valor: 0.50, tipo: 'moneda', nombre: 'Q0.50', orden: 11 },
+        { valor: 0.25, tipo: 'moneda', nombre: 'Q0.25', orden: 12 },
+        { valor: 0.10, tipo: 'moneda', nombre: 'Q0.10', orden: 13 },
+        { valor: 0.05, tipo: 'moneda', nombre: 'Q0.05', orden: 14 },
+        { valor: 0.01, tipo: 'moneda', nombre: 'Q0.01', orden: 15 },
+      ];
+      for (const d of gtDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('GT', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Honduras (HNL)
+    const hnDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'HN'");
+    if (parseInt(hnDenomCount.rows[0].count) === 0) {
+      const hnDenoms = [
+        { valor: 500, tipo: 'billete', nombre: 'L500', orden: 1 },
+        { valor: 200, tipo: 'billete', nombre: 'L200', orden: 2 },
+        { valor: 100, tipo: 'billete', nombre: 'L100', orden: 3 },
+        { valor: 50, tipo: 'billete', nombre: 'L50', orden: 4 },
+        { valor: 20, tipo: 'billete', nombre: 'L20', orden: 5 },
+        { valor: 10, tipo: 'billete', nombre: 'L10', orden: 6 },
+        { valor: 5, tipo: 'billete', nombre: 'L5', orden: 7 },
+        { valor: 2, tipo: 'billete', nombre: 'L2', orden: 8 },
+        { valor: 1, tipo: 'billete', nombre: 'L1', orden: 9 },
+        { valor: 0.50, tipo: 'moneda', nombre: 'L0.50', orden: 10 },
+        { valor: 0.20, tipo: 'moneda', nombre: 'L0.20', orden: 11 },
+        { valor: 0.10, tipo: 'moneda', nombre: 'L0.10', orden: 12 },
+        { valor: 0.05, tipo: 'moneda', nombre: 'L0.05', orden: 13 },
+      ];
+      for (const d of hnDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('HN', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Nicaragua (NIO)
+    const niDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'NI'");
+    if (parseInt(niDenomCount.rows[0].count) === 0) {
+      const niDenoms = [
+        { valor: 1000, tipo: 'billete', nombre: 'C$1.000', orden: 1 },
+        { valor: 500, tipo: 'billete', nombre: 'C$500', orden: 2 },
+        { valor: 200, tipo: 'billete', nombre: 'C$200', orden: 3 },
+        { valor: 100, tipo: 'billete', nombre: 'C$100', orden: 4 },
+        { valor: 50, tipo: 'billete', nombre: 'C$50', orden: 5 },
+        { valor: 20, tipo: 'billete', nombre: 'C$20', orden: 6 },
+        { valor: 10, tipo: 'billete', nombre: 'C$10', orden: 7 },
+        { valor: 5, tipo: 'moneda', nombre: 'C$5', orden: 10 },
+        { valor: 1, tipo: 'moneda', nombre: 'C$1', orden: 11 },
+        { valor: 0.50, tipo: 'moneda', nombre: 'C$0.50', orden: 12 },
+        { valor: 0.25, tipo: 'moneda', nombre: 'C$0.25', orden: 13 },
+        { valor: 0.10, tipo: 'moneda', nombre: 'C$0.10', orden: 14 },
+      ];
+      for (const d of niDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('NI', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Panama (USD)
+    const paDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'PA'");
+    if (parseInt(paDenomCount.rows[0].count) === 0) {
+      const paDenoms = [
+        { valor: 100, tipo: 'billete', nombre: '$100', orden: 1 },
+        { valor: 50, tipo: 'billete', nombre: '$50', orden: 2 },
+        { valor: 20, tipo: 'billete', nombre: '$20', orden: 3 },
+        { valor: 10, tipo: 'billete', nombre: '$10', orden: 4 },
+        { valor: 5, tipo: 'billete', nombre: '$5', orden: 5 },
+        { valor: 1, tipo: 'billete', nombre: '$1', orden: 6 },
+        { valor: 0.50, tipo: 'moneda', nombre: '$0.50', orden: 10 },
+        { valor: 0.25, tipo: 'moneda', nombre: '$0.25', orden: 11 },
+        { valor: 0.10, tipo: 'moneda', nombre: '$0.10', orden: 12 },
+        { valor: 0.05, tipo: 'moneda', nombre: '$0.05', orden: 13 },
+        { valor: 0.01, tipo: 'moneda', nombre: '$0.01', orden: 14 },
+      ];
+      for (const d of paDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('PA', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Paraguay (PYG)
+    const pyDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'PY'");
+    if (parseInt(pyDenomCount.rows[0].count) === 0) {
+      const pyDenoms = [
+        { valor: 100000, tipo: 'billete', nombre: '₲100.000', orden: 1 },
+        { valor: 50000, tipo: 'billete', nombre: '₲50.000', orden: 2 },
+        { valor: 20000, tipo: 'billete', nombre: '₲20.000', orden: 3 },
+        { valor: 10000, tipo: 'billete', nombre: '₲10.000', orden: 4 },
+        { valor: 5000, tipo: 'billete', nombre: '₲5.000', orden: 5 },
+        { valor: 2000, tipo: 'billete', nombre: '₲2.000', orden: 6 },
+        { valor: 1000, tipo: 'moneda', nombre: '₲1.000', orden: 10 },
+        { valor: 500, tipo: 'moneda', nombre: '₲500', orden: 11 },
+        { valor: 100, tipo: 'moneda', nombre: '₲100', orden: 12 },
+        { valor: 50, tipo: 'moneda', nombre: '₲50', orden: 13 },
+      ];
+      for (const d of pyDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('PY', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Rep. Dominicana (DOP)
+    const doDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'DO'");
+    if (parseInt(doDenomCount.rows[0].count) === 0) {
+      const doDenoms = [
+        { valor: 2000, tipo: 'billete', nombre: 'RD$2.000', orden: 1 },
+        { valor: 1000, tipo: 'billete', nombre: 'RD$1.000', orden: 2 },
+        { valor: 500, tipo: 'billete', nombre: 'RD$500', orden: 3 },
+        { valor: 200, tipo: 'billete', nombre: 'RD$200', orden: 4 },
+        { valor: 100, tipo: 'billete', nombre: 'RD$100', orden: 5 },
+        { valor: 50, tipo: 'billete', nombre: 'RD$50', orden: 6 },
+        { valor: 25, tipo: 'moneda', nombre: 'RD$25', orden: 10 },
+        { valor: 10, tipo: 'moneda', nombre: 'RD$10', orden: 11 },
+        { valor: 5, tipo: 'moneda', nombre: 'RD$5', orden: 12 },
+        { valor: 1, tipo: 'moneda', nombre: 'RD$1', orden: 13 },
+      ];
+      for (const d of doDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('DO', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Uruguay (UYU)
+    const uyDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'UY'");
+    if (parseInt(uyDenomCount.rows[0].count) === 0) {
+      const uyDenoms = [
+        { valor: 2000, tipo: 'billete', nombre: '$U 2.000', orden: 1 },
+        { valor: 1000, tipo: 'billete', nombre: '$U 1.000', orden: 2 },
+        { valor: 500, tipo: 'billete', nombre: '$U 500', orden: 3 },
+        { valor: 200, tipo: 'billete', nombre: '$U 200', orden: 4 },
+        { valor: 100, tipo: 'billete', nombre: '$U 100', orden: 5 },
+        { valor: 50, tipo: 'billete', nombre: '$U 50', orden: 6 },
+        { valor: 20, tipo: 'billete', nombre: '$U 20', orden: 7 },
+        { valor: 50, tipo: 'moneda', nombre: '$U 50', orden: 10 },
+        { valor: 10, tipo: 'moneda', nombre: '$U 10', orden: 11 },
+        { valor: 5, tipo: 'moneda', nombre: '$U 5', orden: 12 },
+        { valor: 2, tipo: 'moneda', nombre: '$U 2', orden: 13 },
+        { valor: 1, tipo: 'moneda', nombre: '$U 1', orden: 14 },
+      ];
+      for (const d of uyDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('UY', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
+    // Seed for Venezuela (VES)
+    const veDenomCount = await client.query("SELECT COUNT(*) FROM denominaciones WHERE pais_code = 'VE'");
+    if (parseInt(veDenomCount.rows[0].count) === 0) {
+      const veDenoms = [
+        { valor: 100, tipo: 'billete', nombre: 'Bs.D 100', orden: 1 },
+        { valor: 50, tipo: 'billete', nombre: 'Bs.D 50', orden: 2 },
+        { valor: 20, tipo: 'billete', nombre: 'Bs.D 20', orden: 3 },
+        { valor: 10, tipo: 'billete', nombre: 'Bs.D 10', orden: 4 },
+        { valor: 5, tipo: 'billete', nombre: 'Bs.D 5', orden: 5 },
+        { valor: 1, tipo: 'moneda', nombre: 'Bs.D 1', orden: 10 },
+        { valor: 0.50, tipo: 'moneda', nombre: 'Bs.D 0.50', orden: 11 },
+        { valor: 0.25, tipo: 'moneda', nombre: 'Bs.D 0.25', orden: 12 },
+      ];
+      for (const d of veDenoms) {
+        await client.query(
+          "INSERT INTO denominaciones (pais_code, valor, tipo, nombre, orden) VALUES ('VE', $1, $2, $3, $4)",
+          [d.valor, d.tipo, d.nombre, d.orden]
+        );
+      }
+    }
+
     // Update flujo_cuentas with new fields
     await client.query(`ALTER TABLE flujo_cuentas ADD COLUMN IF NOT EXISTS fondo_caja NUMERIC(12,2) DEFAULT 0`);
     await client.query(`ALTER TABLE flujo_cuentas ADD COLUMN IF NOT EXISTS alerta_saldo_minimo NUMERIC(12,2)`);
