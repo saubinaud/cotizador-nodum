@@ -51,8 +51,9 @@ export default function PLComprasPage() {
   const [saving, setSaving] = useState(false);
 
   // Modal form
-  const [form, setForm] = useState({ fecha: todayStr(), proveedor: '', nota: '' });
+  const [form, setForm] = useState({ fecha: todayStr(), proveedor: '', nota: '', cuenta_id: '' });
   const [items, setItems] = useState([{ ...EMPTY_ITEM }]);
+  const [cuentas, setCuentas] = useState([]);
 
   // Load periodos + catalogs on mount
   useEffect(() => {
@@ -60,11 +61,13 @@ export default function PLComprasPage() {
       api.get('/pl/periodos').catch(() => ({ data: [] })),
       api.get('/insumos').catch(() => ({ data: [] })),
       api.get('/materiales').catch(() => ({ data: [] })),
-    ]).then(([perRes, insRes, matRes]) => {
+      api.get('/flujo/cuentas').catch(() => ({ data: [] })),
+    ]).then(([perRes, insRes, matRes, cuentasRes]) => {
       const pers = perRes.data || [];
       setPeriodos(pers);
       setInsumos(insRes.data || []);
       setMateriales(matRes.data || []);
+      setCuentas((cuentasRes.data || []).map(c => ({ value: c.id, label: c.nombre })));
       if (pers.length > 0) setPeriodoId(pers[0].id);
       setLoading(false);
     });
@@ -188,6 +191,7 @@ export default function PLComprasPage() {
         fecha: form.fecha,
         proveedor: form.proveedor || null,
         nota: form.nota || null,
+        cuenta_id: form.cuenta_id || null,
         items: validItems.map((it) => ({
           insumo_id: it.insumo_id || null,
           material_id: it.material_id || null,
@@ -474,6 +478,17 @@ export default function PLComprasPage() {
                     placeholder="Ej: Mercado central"
                   />
                 </div>
+                {cuentas.length > 0 && (
+                <div>
+                  <label className={cx.label}>Cuenta de pago</label>
+                  <CustomSelect
+                    options={[{ value: '', label: 'Sin especificar' }, ...cuentas]}
+                    value={form.cuenta_id}
+                    onChange={(v) => setForm((f) => ({ ...f, cuenta_id: v }))}
+                    placeholder="¿Con qué pagaste?"
+                  />
+                </div>
+                )}
               </div>
 
               {/* Items */}

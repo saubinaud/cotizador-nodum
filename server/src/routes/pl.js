@@ -940,7 +940,7 @@ router.get('/compras', async (req, res) => {
 router.post('/compras', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { periodo_id, fecha, proveedor, nota, items } = req.body;
+    const { periodo_id, fecha, proveedor, nota, items, cuenta_id } = req.body;
     if (!periodo_id || !fecha || !items || items.length === 0) {
       return res.status(400).json({ success: false, error: 'periodo_id, fecha y al menos un item son requeridos' });
     }
@@ -989,13 +989,17 @@ router.post('/compras', async (req, res) => {
       try { await recalcularWAC(insumoId); } catch (e) { console.error('WAC recalc error:', e); }
     }
 
-    // Dual-write to transacciones for timeline
+    // Dual-write to transacciones for timeline (with cuenta_id for cash flow)
     try {
       await pool.query(
-        `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, compra_id, monto, monto_absoluto, descripcion)
-         VALUES ($1, $2, 'compra', $3, $4, $5, $6, $7)`,
-        [req.user.id, periodo_id, fecha, compra.id, -total, total, proveedor || null]
+        `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, compra_id, monto, monto_absoluto, descripcion, cuenta_id)
+         VALUES ($1, $2, 'compra', $3, $4, $5, $6, $7, $8)`,
+        [req.user.id, periodo_id, fecha, compra.id, -total, total, proveedor || null, cuenta_id || null]
       );
+      // Update account balance if specified
+      if (cuenta_id) {
+        await pool.query('UPDATE flujo_cuentas SET saldo_actual = saldo_actual - $1 WHERE id = $2', [total, cuenta_id]);
+      }
     } catch (_) {}
 
     return res.status(201).json({ success: true, data: compra });
