@@ -17,7 +17,7 @@ router.post('/usuarios', async (req, res) => {
     const validPlan = ['trial', 'pro'].includes(plan) ? plan : 'trial';
     const trialEndsAt = validPlan === 'trial' && trial_days
       ? new Date(Date.now() + parseInt(trial_days) * 24 * 60 * 60 * 1000)
-      : (validPlan === 'trial' ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000) : null);
+      : (validPlan === 'trial' ? new Date(Date.now() + 10 * 24 * 60 * 60 * 1000) : null);
     const ALL_MODULES = ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion', 'pl', 'perdidas'];
     const validPermisos = Array.isArray(permisos) ? permisos.filter((p) => {
       const key = p.startsWith('~') ? p.slice(1) : p;

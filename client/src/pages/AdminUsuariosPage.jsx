@@ -29,7 +29,7 @@ export default function AdminUsuariosPage() {
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
   const [creating, setCreating] = useState(false);
-  const [createForm, setCreateForm] = useState({ email: '', nombre: '', rol: 'cliente', empresa: '', permisos: [...DEFAULT_PERMISOS], plan: 'trial', trial_days: '14' });
+  const [createForm, setCreateForm] = useState({ email: '', nombre: '', rol: 'cliente', empresa: '', permisos: [...DEFAULT_PERMISOS], plan: 'trial', trial_days: '10' });
   const [onboardingLink, setOnboardingLink] = useState('');
   const [editPermisos, setEditPermisos] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
@@ -162,7 +162,7 @@ export default function AdminUsuariosPage() {
     try {
       await api.patch(`/admin/usuarios/${u.id}/plan`, {
         plan: newPlan,
-        trial_ends_at: newPlan === 'trial' ? new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString() : null,
+        trial_ends_at: newPlan === 'trial' ? new Date(Date.now() + 10 * 24 * 60 * 60 * 1000).toISOString() : null,
       });
       toast.success(`Plan cambiado a ${newPlan === 'pro' ? 'Pro' : 'Trial'}`);
       loadUsers();
@@ -204,7 +204,7 @@ export default function AdminUsuariosPage() {
                   <Copy size={14} /> Copiar
                 </button>
               </div>
-              <button onClick={() => { setShowCreate(false); setOnboardingLink(''); setCreateForm({ email: '', nombre: '', rol: 'cliente', empresa: '', permisos: [...DEFAULT_PERMISOS], plan: 'trial', trial_days: '14' }); }} className={cx.btnGhost}>
+              <button onClick={() => { setShowCreate(false); setOnboardingLink(''); setCreateForm({ email: '', nombre: '', rol: 'cliente', empresa: '', permisos: [...DEFAULT_PERMISOS], plan: 'trial', trial_days: '10' }); }} className={cx.btnGhost}>
                 Cerrar
               </button>
             </div>
