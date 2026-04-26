@@ -25,6 +25,7 @@ import {
   Receipt,
   ShoppingBag,
   TrendingDown,
+  Wallet,
   Clock,
   Lock,
 } from 'lucide-react';
@@ -54,6 +55,7 @@ const sidebarGroups = [
       { to: '/pl/ventas', label: 'Ventas', icon: ShoppingCart, perm: 'pl' },
       { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'pl' },
       { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'pl' },
+      { to: '/pl/cashflow', label: 'Mi Plata', icon: Wallet, perm: 'pl' },
     ],
   },
   {

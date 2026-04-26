@@ -22,6 +22,7 @@ import PLResumenPage from './pages/PLResumenPage';
 import PLVentasPage from './pages/PLVentasPage';
 import PLGastosPage from './pages/PLGastosPage';
 import PLComprasPage from './pages/PLComprasPage';
+import PLCashflowPage from './pages/PLCashflowPage';
 import PerdidasPage from './pages/PerdidasPage';
 import FichaTecnicaPage from './pages/FichaTecnicaPage';
 
@@ -57,6 +58,7 @@ export default function App() {
               <Route path="/pl/ventas" element={<PLVentasPage />} />
               <Route path="/pl/gastos" element={<PLGastosPage />} />
               <Route path="/pl/compras" element={<PLComprasPage />} />
+              <Route path="/pl/cashflow" element={<PLCashflowPage />} />
               <Route path="/perdidas" element={<PerdidasPage />} />
               <Route path="/ficha-tecnica/:id" element={<FichaTecnicaPage />} />
               <Route path="/perfil" element={<PerfilPage />} />

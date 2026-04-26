@@ -470,6 +470,24 @@ router.delete('/periodos/:id', async (req, res) => {
   }
 });
 
+// PUT /api/pl/periodos/:id/saldo-inicial — update opening balance
+router.put('/periodos/:id/saldo-inicial', async (req, res) => {
+  try {
+    const { saldo_inicial } = req.body;
+    if (saldo_inicial == null) return res.status(400).json({ success: false, error: 'saldo_inicial requerido' });
+
+    const result = await pool.query(
+      'UPDATE periodos SET saldo_inicial = $1, updated_at = NOW() WHERE id = $2 AND usuario_id = $3 RETURNING id, saldo_inicial',
+      [parseFloat(saldo_inicial), req.params.id, req.user.id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+    return res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('Update saldo inicial error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
 // ==================== CATEGORIAS GASTO ====================
 
 // GET /api/pl/categorias
@@ -1010,6 +1028,286 @@ router.delete('/compras/:id', async (req, res) => {
     return res.json({ success: true, data: { message: 'Compra eliminada' } });
   } catch (err) {
     console.error('Delete compra error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// ==================== CASHFLOW ====================
+
+// GET /api/pl/cashflow/metricas?periodo_id=X — velocity & health metrics
+router.get('/cashflow/metricas', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+
+    const periodo = await pool.query(
+      'SELECT * FROM periodos WHERE id = $1 AND usuario_id = $2',
+      [periodo_id, req.user.id]
+    );
+    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+    const per = periodo.rows[0];
+    const saldoInicial = parseFloat(per.saldo_inicial) || 0;
+
+    // Current balance
+    const balRes = await pool.query(
+      `SELECT COALESCE(SUM(monto), 0)::float AS total_neto
+       FROM transacciones WHERE periodo_id = $1 AND usuario_id = $2 AND fecha <= CURRENT_DATE`,
+      [periodo_id, req.user.id]
+    );
+    const balanceActual = saldoInicial + (balRes.rows[0]?.total_neto || 0);
+
+    // Velocity metrics
+    const metricsRes = await pool.query(`
+      SELECT
+        COALESCE(SUM(CASE WHEN monto > 0 THEN monto ELSE 0 END), 0)::float AS total_entradas,
+        COALESCE(SUM(CASE WHEN monto < 0 THEN ABS(monto) ELSE 0 END), 0)::float AS total_salidas,
+        COUNT(CASE WHEN monto > 0 THEN 1 END)::int AS num_ingresos,
+        COUNT(CASE WHEN monto < 0 THEN 1 END)::int AS num_gastos,
+        COUNT(DISTINCT fecha)::int AS dias_con_actividad,
+        COUNT(DISTINCT CASE WHEN monto > 0 THEN fecha END)::int AS dias_con_ingreso
+      FROM transacciones
+      WHERE periodo_id = $1 AND usuario_id = $2
+    `, [periodo_id, req.user.id]);
+    const m = metricsRes.rows[0];
+
+    const diasTotales = Math.max(1, Math.ceil((new Date(per.fecha_fin) - new Date(per.fecha_inicio)) / 86400000) + 1);
+    const diasTranscurridos = Math.max(1, Math.ceil((Math.min(Date.now(), new Date(per.fecha_fin).getTime()) - new Date(per.fecha_inicio).getTime()) / 86400000) + 1);
+
+    const promedioVentaDiaria = m.total_entradas / diasTranscurridos;
+    const promedioGastoDiario = m.total_salidas / diasTranscurridos;
+    const netoDiario = promedioVentaDiaria - promedioGastoDiario;
+    const ratioCaja = m.total_salidas > 0 ? m.total_entradas / m.total_salidas : 0;
+    const diasHastaCero = netoDiario < 0 && balanceActual > 0 ? Math.ceil(balanceActual / Math.abs(netoDiario)) : (netoDiario >= 0 ? null : 0);
+    const runway = netoDiario > 0 ? null : (promedioGastoDiario > 0 ? Math.ceil(balanceActual / promedioGastoDiario) : null);
+
+    // Health status
+    let health = 'sano'; // emerald
+    if (ratioCaja < 1.2 || (runway !== null && runway < 15)) health = 'atencion'; // amber
+    if (ratioCaja < 0.8 || (runway !== null && runway < 7) || balanceActual < 0) health = 'critico'; // rose
+
+    // Comparison with previous period
+    const prevPer = await pool.query(
+      'SELECT id, saldo_inicial FROM periodos WHERE usuario_id = $1 AND fecha_fin < $2 ORDER BY fecha_fin DESC LIMIT 1',
+      [req.user.id, per.fecha_inicio]
+    );
+    let comparacion = null;
+    if (prevPer.rows.length > 0) {
+      const prevBal = await pool.query(
+        `SELECT COALESCE(SUM(monto), 0)::float AS total FROM transacciones WHERE periodo_id = $1 AND usuario_id = $2`,
+        [prevPer.rows[0].id, req.user.id]
+      );
+      const prevBalance = (parseFloat(prevPer.rows[0].saldo_inicial) || 0) + (prevBal.rows[0]?.total || 0);
+      comparacion = {
+        periodo_anterior: prevPer.rows[0].id,
+        balance_anterior: Math.round(prevBalance * 100) / 100,
+        variacion_pct: prevBalance !== 0 ? Math.round(((balanceActual - prevBalance) / Math.abs(prevBalance)) * 1000) / 10 : 0,
+      };
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        balance_actual: Math.round(balanceActual * 100) / 100,
+        promedio_venta_diaria: Math.round(promedioVentaDiaria * 100) / 100,
+        promedio_gasto_diario: Math.round(promedioGastoDiario * 100) / 100,
+        neto_diario: Math.round(netoDiario * 100) / 100,
+        ratio_caja: Math.round(ratioCaja * 100) / 100,
+        dias_hasta_cero: diasHastaCero,
+        runway_dias: runway,
+        health,
+        dias_con_actividad: m.dias_con_actividad,
+        dias_con_ingreso: m.dias_con_ingreso,
+        ingreso_promedio: m.num_ingresos > 0 ? Math.round((m.total_entradas / m.num_ingresos) * 100) / 100 : 0,
+        gasto_promedio: m.num_gastos > 0 ? Math.round((m.total_salidas / m.num_gastos) * 100) / 100 : 0,
+        comparacion,
+      },
+    });
+  } catch (err) {
+    console.error('Cashflow metricas error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// GET /api/pl/cashflow/simulacion?periodo_id=X&monto=2500&fecha=2026-05-01
+router.get('/cashflow/simulacion', async (req, res) => {
+  try {
+    const { periodo_id, monto, fecha } = req.query;
+    if (!periodo_id || !monto) return res.status(400).json({ success: false, error: 'periodo_id y monto requeridos' });
+
+    const montoCompra = parseFloat(monto);
+    const fechaCompra = fecha || new Date().toISOString().slice(0, 10);
+
+    const periodo = await pool.query(
+      'SELECT * FROM periodos WHERE id = $1 AND usuario_id = $2',
+      [periodo_id, req.user.id]
+    );
+    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+    const per = periodo.rows[0];
+    const saldoInicial = parseFloat(per.saldo_inicial) || 0;
+
+    // Current balance
+    const balRes = await pool.query(
+      `SELECT COALESCE(SUM(monto), 0)::float AS total FROM transacciones WHERE periodo_id = $1 AND usuario_id = $2 AND fecha <= CURRENT_DATE`,
+      [periodo_id, req.user.id]
+    );
+    const balanceHoy = saldoInicial + (balRes.rows[0]?.total || 0);
+
+    // Average daily net (last 30 days)
+    const avgRes = await pool.query(
+      `SELECT
+        COALESCE(SUM(CASE WHEN monto > 0 THEN monto ELSE 0 END) / GREATEST(COUNT(DISTINCT fecha), 1), 0)::float AS ingreso_diario,
+        COALESCE(SUM(CASE WHEN monto < 0 THEN ABS(monto) ELSE 0 END) / GREATEST(COUNT(DISTINCT fecha), 1), 0)::float AS gasto_diario
+       FROM transacciones
+       WHERE usuario_id = $1 AND fecha BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE`,
+      [req.user.id]
+    );
+    const ingresoDiario = avgRes.rows[0]?.ingreso_diario || 0;
+    const gastoDiario = avgRes.rows[0]?.gasto_diario || 0;
+    const netoDiario = ingresoDiario - gastoDiario;
+
+    // Upcoming recurring expenses (not yet registered this period)
+    const recurrentesRes = await pool.query(
+      `SELECT cg.nombre, cg.monto_default
+       FROM categorias_gasto cg
+       WHERE cg.usuario_id = $1 AND cg.recurrente = true AND cg.monto_default > 0
+         AND NOT EXISTS (
+           SELECT 1 FROM gastos g WHERE g.categoria_id = cg.id AND g.periodo_id = $2
+         )`,
+      [req.user.id, periodo_id]
+    );
+    const gastosFijosPendientes = recurrentesRes.rows;
+    const totalFijosPendientes = gastosFijosPendientes.reduce((s, r) => s + parseFloat(r.monto_default), 0);
+
+    const balanceDespuesCompra = balanceHoy - montoCompra;
+    const balanceProyectadoFinal = balanceDespuesCompra - totalFijosPendientes;
+    const diasParaRecuperar = netoDiario > 0 ? Math.ceil(montoCompra / netoDiario) : null;
+
+    let veredicto = 'ok';
+    if (balanceDespuesCompra < 0) veredicto = 'peligro';
+    else if (balanceProyectadoFinal < 0) veredicto = 'riesgo';
+    else if (balanceDespuesCompra < montoCompra) veredicto = 'ajustado';
+
+    return res.json({
+      success: true,
+      data: {
+        balance_hoy: Math.round(balanceHoy * 100) / 100,
+        monto_compra: montoCompra,
+        balance_despues: Math.round(balanceDespuesCompra * 100) / 100,
+        gastos_fijos_pendientes: gastosFijosPendientes,
+        total_fijos_pendientes: Math.round(totalFijosPendientes * 100) / 100,
+        balance_proyectado_final: Math.round(balanceProyectadoFinal * 100) / 100,
+        ingreso_diario: Math.round(ingresoDiario * 100) / 100,
+        neto_diario: Math.round(netoDiario * 100) / 100,
+        dias_para_recuperar: diasParaRecuperar,
+        veredicto,
+      },
+    });
+  } catch (err) {
+    console.error('Cashflow simulacion error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
+// GET /api/pl/cashflow?periodo_id=X — daily running balance
+router.get('/cashflow', async (req, res) => {
+  try {
+    const { periodo_id } = req.query;
+    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+
+    const periodo = await pool.query(
+      'SELECT * FROM periodos WHERE id = $1 AND usuario_id = $2',
+      [periodo_id, req.user.id]
+    );
+    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+    const per = periodo.rows[0];
+    const saldoInicial = parseFloat(per.saldo_inicial) || 0;
+
+    // Daily cash flow with generate_series to fill zero-activity days
+    const result = await pool.query(`
+      WITH dias AS (
+        SELECT d::date AS fecha
+        FROM generate_series($1::date, $2::date, '1 day'::interval) d
+      ),
+      diario AS (
+        SELECT
+          t.fecha,
+          SUM(CASE WHEN t.monto > 0 THEN t.monto ELSE 0 END) AS entradas,
+          SUM(CASE WHEN t.monto < 0 THEN ABS(t.monto) ELSE 0 END) AS salidas,
+          SUM(t.monto) AS neto
+        FROM transacciones t
+        WHERE t.periodo_id = $3 AND t.usuario_id = $4
+        GROUP BY t.fecha
+      )
+      SELECT
+        d.fecha,
+        COALESCE(di.entradas, 0)::float AS entradas,
+        COALESCE(di.salidas, 0)::float AS salidas,
+        COALESCE(di.neto, 0)::float AS neto,
+        ($5::numeric + SUM(COALESCE(di.neto, 0)) OVER (
+          ORDER BY d.fecha ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
+        ))::float AS balance
+      FROM dias d
+      LEFT JOIN diario di ON di.fecha = d.fecha
+      ORDER BY d.fecha
+    `, [per.fecha_inicio, per.fecha_fin, periodo_id, req.user.id, saldoInicial]);
+
+    // Summary
+    const totalEntradas = result.rows.reduce((s, r) => s + r.entradas, 0);
+    const totalSalidas = result.rows.reduce((s, r) => s + r.salidas, 0);
+    const balanceActual = result.rows.length > 0 ? result.rows[result.rows.length - 1].balance : saldoInicial;
+
+    // Find today's row for current balance (if period includes today)
+    const hoy = new Date().toISOString().slice(0, 10);
+    const todayRow = result.rows.find(r => r.fecha.toISOString().slice(0, 10) === hoy);
+    const saldoHoy = todayRow ? todayRow.balance : balanceActual;
+
+    // Weekly aggregation
+    const weekMap = {};
+    for (const row of result.rows) {
+      const d = new Date(row.fecha);
+      const weekStart = new Date(d);
+      weekStart.setDate(d.getDate() - d.getDay() + 1); // Monday
+      const key = weekStart.toISOString().slice(0, 10);
+      if (!weekMap[key]) weekMap[key] = { semana: key, entradas: 0, salidas: 0, neto: 0 };
+      weekMap[key].entradas += row.entradas;
+      weekMap[key].salidas += row.salidas;
+      weekMap[key].neto += row.neto;
+    }
+    const semanal = Object.values(weekMap);
+    // Add running balance to weekly
+    let weekBalance = saldoInicial;
+    for (const w of semanal) {
+      weekBalance += w.neto;
+      w.balance = weekBalance;
+    }
+
+    // Last 10 transactions for "movimientos recientes"
+    const movimientos = await pool.query(
+      `SELECT t.*, p.nombre AS producto_nombre, cg.nombre AS categoria_nombre
+       FROM transacciones t
+       LEFT JOIN productos p ON p.id = t.producto_id
+       LEFT JOIN categorias_gasto cg ON cg.id = t.categoria_id
+       WHERE t.periodo_id = $1 AND t.usuario_id = $2
+       ORDER BY t.fecha DESC, t.created_at DESC LIMIT 10`,
+      [periodo_id, req.user.id]
+    );
+
+    return res.json({
+      success: true,
+      data: {
+        periodo: per,
+        saldo_inicial: saldoInicial,
+        saldo_actual: Math.round(saldoHoy * 100) / 100,
+        total_entradas: Math.round(totalEntradas * 100) / 100,
+        total_salidas: Math.round(totalSalidas * 100) / 100,
+        balance_final: Math.round(balanceActual * 100) / 100,
+        diario: result.rows,
+        semanal,
+        movimientos: movimientos.rows,
+      },
+    });
+  } catch (err) {
+    console.error('Cashflow error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });
   }
 });

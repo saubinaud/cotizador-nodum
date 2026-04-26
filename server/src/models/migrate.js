@@ -357,6 +357,12 @@ async function runMigrations() {
     await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ`);
     await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS max_productos INTEGER NOT NULL DEFAULT 2`);
 
+    // Cashflow: saldo inicial por período
+    await client.query(`ALTER TABLE periodos ADD COLUMN IF NOT EXISTS saldo_inicial NUMERIC(12,2) DEFAULT 0`);
+
+    // Cashflow: covering index for efficient queries
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_transacciones_cashflow ON transacciones (periodo_id, fecha) INCLUDE (monto)`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);
