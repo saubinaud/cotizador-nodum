@@ -193,9 +193,7 @@ export default function Layout() {
           {user?.logo_url ? (
             <img src={user.logo_url} alt="Logo" className="w-9 h-9 rounded-xl object-cover" />
           ) : (
-            <div className="w-9 h-9 rounded-xl bg-[var(--accent)] flex items-center justify-center">
-              <Calculator size={18} className="text-white" />
-            </div>
+            <img src="/logo-kudi.jpg" alt="Kudi" className="w-9 h-9 rounded-xl object-cover" />
           )}
           {!isCollapsed && (
             <h1 className="text-base font-bold text-white tracking-wide">Kudi</h1>
@@ -325,9 +323,7 @@ export default function Layout() {
             {user?.logo_url ? (
               <img src={user.logo_url} alt="Logo" className="w-7 h-7 rounded-lg object-cover" />
             ) : (
-              <div className="w-7 h-7 rounded-lg bg-[var(--accent)] flex items-center justify-center">
-                <Calculator size={14} className="text-white" />
-              </div>
+              <img src="/logo-kudi.jpg" alt="Kudi" className="w-7 h-7 rounded-lg object-cover" />
             )}
             <span className="text-sm font-bold text-white">Kudi</span>
           </div>

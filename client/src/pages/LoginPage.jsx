@@ -41,7 +41,7 @@ export default function LoginPage() {
 
       <div className="w-full max-w-sm relative z-10">
         <div className="text-center mb-10">
-          <img src="/logo.svg" alt="Kudi" className="w-24 h-24 mx-auto mb-5 drop-shadow-lg" />
+          <img src="/logo-kudi.jpg" alt="Kudi" className="w-24 h-24 mx-auto mb-5 rounded-2xl drop-shadow-lg" />
           <h1 className="text-3xl font-bold text-white tracking-wider">KUDI</h1>
           <p className="text-white/40 text-sm mt-2">Orden financiero que impulsa tu crecimiento</p>
         </div>
