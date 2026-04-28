@@ -9,6 +9,7 @@ import {
   ArrowLeft, Pencil, Save, X, Printer, Clock, DollarSign,
   AlertTriangle, ChevronDown, ChevronUp, Package
 } from 'lucide-react';
+import { useTerminos } from '../context/TerminosContext';
 
 export default function FichaTecnicaPage() {
   const { id } = useParams();
@@ -16,6 +17,7 @@ export default function FichaTecnicaPage() {
   const api = useApi();
   const toast = useToast();
   const { user } = useAuth();
+  const tm = useTerminos();
   const simbolo = user?.simbolo || 'S/';
 
   const [data, setData] = useState(null);
@@ -166,7 +168,7 @@ export default function FichaTecnicaPage() {
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-2xl font-bold text-stone-900">Ficha Tecnica</h1>
+            <h1 className="text-2xl font-bold text-stone-900">{tm.ficha_tecnica}</h1>
             <p className="text-sm text-stone-500">{producto.nombre}</p>
           </div>
         </div>

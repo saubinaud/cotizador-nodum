@@ -7,6 +7,7 @@ import SearchableSelect from '../components/SearchableSelect';
 import CustomSelect from '../components/CustomSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import { Plus, Save, X, Trash2, Pencil, ChevronDown, ChevronUp } from 'lucide-react';
+import { useTerminos } from '../context/TerminosContext';
 
 // Normalize unit: l → L, handle case variations
 function normU(u) {
@@ -63,6 +64,7 @@ const newId = () => `tmp-${++tmpId}`;
 export default function PrepPredPage() {
   const api = useApi();
   const toast = useToast();
+  const t = useTerminos();
 
   const [preps, setPreps] = useState([]);
   const [catalogInsumos, setCatalogInsumos] = useState([]);
@@ -244,7 +246,7 @@ export default function PrepPredPage() {
     <div>
       {/* Page header */}
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-stone-900">Preparaciones predeterminadas</h1>
+        <h1 className="text-2xl font-bold text-stone-900">{t.prep_pred}</h1>
         <button onClick={startNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={14} /> Nueva
         </button>

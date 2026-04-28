@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
@@ -29,6 +29,14 @@ export default function PerfilPage() {
   const [ajustesForm, setAjustesForm] = useState({});
   const [savingAjustes, setSavingAjustes] = useState(false);
 
+  const [giros, setGiros] = useState([]);
+  useEffect(() => {
+    api.get('/auth/giros').then(res => {
+      const data = res.data || res;
+      setGiros((data.giros || []).map(g => ({ value: g.id, label: g.nombre })));
+    }).catch(() => {});
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   const startEditing = () => {
     setProfileForm({
       nombre: user?.nombre || '',
@@ -39,6 +47,7 @@ export default function PerfilPage() {
       pais: user?.pais || 'PE',
       tipo_negocio: user?.tipo_negocio || 'formal',
       precio_decimales: user?.precio_decimales || 'variable',
+      giro_negocio_id: user?.giro_negocio_id || '',
     });
     setEditing(true);
   };
@@ -58,6 +67,10 @@ export default function PerfilPage() {
       localStorage.setItem('nodum_user', JSON.stringify(updatedUser));
       localStorage.setItem('nodum_moneda_simbolo', updatedUser.simbolo || 'S/');
       toast.success('Perfil actualizado');
+      if (profileForm.giro_negocio_id !== (user?.giro_negocio_id || '')) {
+        window.location.reload();
+        return;
+      }
       setEditing(false);
     } catch (err) {
       toast.error(err.message || 'Error actualizando perfil');
@@ -296,6 +309,14 @@ export default function PerfilPage() {
                 ]}
               />
             </div>
+            <div>
+              <label className={cx.label}>Giro de negocio</label>
+              <CustomSelect
+                value={profileForm.giro_negocio_id}
+                onChange={(v) => setProfileForm({ ...profileForm, giro_negocio_id: v })}
+                options={[{ value: '', label: 'General' }, ...giros]}
+              />
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={handleSaveProfile}
@@ -352,6 +373,10 @@ export default function PerfilPage() {
               <p className="text-stone-800 text-sm">
                 {user?.precio_decimales === 'decimales' ? 'Con decimales' : user?.precio_decimales === 'enteros' ? 'Sin decimales' : 'Variable (ambos)'}
               </p>
+            </div>
+            <div>
+              <label className={cx.label}>Giro de negocio</label>
+              <p className="text-stone-800 text-sm">{user?.giro_nombre || 'General'}</p>
             </div>
             <div>
               <label className={cx.label}>Rol</label>

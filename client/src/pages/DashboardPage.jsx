@@ -21,6 +21,7 @@ import {
   Square,
   Lock,
 } from 'lucide-react';
+import { useTerminos } from '../context/TerminosContext';
 
 function normU(u) { if (!u) return ''; if (u === 'l') return 'L'; return u; }
 const FACTORES = { 'g→kg': 0.001, 'kg→g': 1000, 'g→oz': 0.03527, 'oz→g': 28.3495, 'kg→oz': 35.274, 'oz→kg': 0.02835, 'ml→L': 0.001, 'L→ml': 1000 };
@@ -35,6 +36,7 @@ export default function DashboardPage() {
   const api = useApi();
   const { user } = useAuth();
   const toast = useToast();
+  const t = useTerminos();
   const navigate = useNavigate();
   const precioMode = user?.precio_decimales || 'variable';
 
@@ -239,7 +241,7 @@ export default function DashboardPage() {
     <div>
       {/* Header — Apple style */}
       <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-stone-900">Mis productos</h1>
+        <h1 className="text-2xl font-bold text-stone-900">Mis {t.productos.toLowerCase()}</h1>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             onClick={() => setViewMode('gallery')}

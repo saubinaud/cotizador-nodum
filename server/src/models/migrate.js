@@ -1030,6 +1030,111 @@ async function runMigrations() {
         ALTER COLUMN permisos SET DEFAULT '["dashboard","cotizador","insumos","materiales","preparaciones","empaques","proyeccion","pl","perdidas","facturacion"]'::jsonb
     `);
 
+    // ==================== GIRO DE NEGOCIO ====================
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS giros_negocio (
+        id SERIAL PRIMARY KEY,
+        codigo VARCHAR(30) NOT NULL UNIQUE,
+        sector VARCHAR(50) NOT NULL,
+        nombre VARCHAR(100) NOT NULL,
+        icono VARCHAR(30),
+        terminos JSONB NOT NULL,
+        orden INTEGER NOT NULL DEFAULT 0
+      )
+    `);
+
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS giro_negocio_id INTEGER REFERENCES giros_negocio(id)`);
+
+    // Seed giros if empty
+    const girosCount = await client.query('SELECT COUNT(*) FROM giros_negocio');
+    if (parseInt(girosCount.rows[0].count) === 0) {
+      const giros = [
+        // Alimentos y Bebidas
+        { codigo: 'panaderia', sector: 'Alimentos y Bebidas', nombre: 'Panadería y Pastelería', icono: 'cake', orden: 1,
+          terminos: { insumos: 'Ingredientes', preparaciones: 'Recetas', productos: 'Productos', materiales: 'Empaque', ficha_tecnica: 'Receta estándar', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Tanda', rendimiento: 'Rendimiento', prep_pred: 'Recetas base' }},
+        { codigo: 'restaurante', sector: 'Alimentos y Bebidas', nombre: 'Restaurante / Cocina', icono: 'utensils', orden: 2,
+          terminos: { insumos: 'Ingredientes', preparaciones: 'Recetas', productos: 'Platos', materiales: 'Descartables', ficha_tecnica: 'Receta estándar', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Tanda', rendimiento: 'Rendimiento', prep_pred: 'Recetas base' }},
+        { codigo: 'catering', sector: 'Alimentos y Bebidas', nombre: 'Catering y Eventos', icono: 'party-popper', orden: 3,
+          terminos: { insumos: 'Ingredientes', preparaciones: 'Recetas', productos: 'Servicios', materiales: 'Montaje', ficha_tecnica: 'Costeo por evento', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Recetas base' }},
+        { codigo: 'food_truck', sector: 'Alimentos y Bebidas', nombre: 'Food Truck / Comida rápida', icono: 'truck', orden: 4,
+          terminos: { insumos: 'Ingredientes', preparaciones: 'Recetas', productos: 'Ítems del menú', materiales: 'Envases', ficha_tecnica: 'Receta estándar', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Tanda', rendimiento: 'Rendimiento', prep_pred: 'Recetas base' }},
+        { codigo: 'heladeria', sector: 'Alimentos y Bebidas', nombre: 'Heladería', icono: 'ice-cream-cone', orden: 5,
+          terminos: { insumos: 'Ingredientes', preparaciones: 'Fórmulas', productos: 'Sabores', materiales: 'Envases', ficha_tecnica: 'Fórmula', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Batch', rendimiento: 'Rendimiento', prep_pred: 'Fórmulas base' }},
+        { codigo: 'chocolateria', sector: 'Alimentos y Bebidas', nombre: 'Chocolatería / Confitería', icono: 'candy', orden: 6,
+          terminos: { insumos: 'Ingredientes', preparaciones: 'Recetas', productos: 'Bombones', materiales: 'Presentación', ficha_tecnica: 'Fórmula', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Tanda', rendimiento: 'Rendimiento', prep_pred: 'Recetas base' }},
+        { codigo: 'cerveceria', sector: 'Alimentos y Bebidas', nombre: 'Cervecería Artesanal', icono: 'beer', orden: 7,
+          terminos: { insumos: 'Ingredientes', preparaciones: 'Recetas de cocción', productos: 'Estilos', materiales: 'Botellas y etiquetas', ficha_tecnica: 'Receta cervecera', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Batch', rendimiento: 'Rendimiento', prep_pred: 'Recetas base' }},
+        { codigo: 'cafeteria', sector: 'Alimentos y Bebidas', nombre: 'Cafetería de Especialidad', icono: 'coffee', orden: 8,
+          terminos: { insumos: 'Ingredientes', preparaciones: 'Métodos', productos: 'Bebidas', materiales: 'Vasos y mangas', ficha_tecnica: 'Receta de barra', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Tanda', rendimiento: 'Rendimiento', prep_pred: 'Métodos base' }},
+        { codigo: 'bebidas', sector: 'Alimentos y Bebidas', nombre: 'Jugos y Bebidas', icono: 'glass-water', orden: 9,
+          terminos: { insumos: 'Ingredientes', preparaciones: 'Recetas', productos: 'Bebidas', materiales: 'Vasos y envases', ficha_tecnica: 'Receta', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Tanda', rendimiento: 'Rendimiento', prep_pred: 'Recetas base' }},
+        { codigo: 'alimentos_proc', sector: 'Alimentos y Bebidas', nombre: 'Procesadora de Alimentos', icono: 'factory', orden: 10,
+          terminos: { insumos: 'Materia prima', preparaciones: 'Fórmulas', productos: 'Producto terminado', materiales: 'Empaque', ficha_tecnica: 'Ficha técnica', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Fórmulas base' }},
+
+        // Cosméticos y Cuidado Personal
+        { codigo: 'jabones', sector: 'Cosméticos y Cuidado Personal', nombre: 'Jabones Artesanales', icono: 'droplets', orden: 11,
+          terminos: { insumos: 'Materias primas', preparaciones: 'Fórmulas', productos: 'Jabones', materiales: 'Empaque', ficha_tecnica: 'Fórmula', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Fórmulas base' }},
+        { codigo: 'cosmeticos', sector: 'Cosméticos y Cuidado Personal', nombre: 'Cremas y Cosméticos', icono: 'sparkles', orden: 12,
+          terminos: { insumos: 'Materias primas', preparaciones: 'Fórmulas', productos: 'Productos', materiales: 'Envases', ficha_tecnica: 'Fórmula', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Fórmulas base' }},
+        { codigo: 'perfumeria', sector: 'Cosméticos y Cuidado Personal', nombre: 'Perfumería', icono: 'spray-can', orden: 13,
+          terminos: { insumos: 'Esencias', preparaciones: 'Fórmulas', productos: 'Fragancias', materiales: 'Frascos', ficha_tecnica: 'Fórmula', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Fórmulas base' }},
+
+        // Artesanías
+        { codigo: 'velas', sector: 'Artesanías', nombre: 'Velas Aromáticas', icono: 'flame', orden: 14,
+          terminos: { insumos: 'Materias primas', preparaciones: 'Fórmulas', productos: 'Velas', materiales: 'Recipientes', ficha_tecnica: 'Fórmula', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Fórmulas base' }},
+        { codigo: 'joyeria', sector: 'Artesanías', nombre: 'Joyería y Bisutería', icono: 'gem', orden: 15,
+          terminos: { insumos: 'Materiales', preparaciones: 'Diseños', productos: 'Piezas', materiales: 'Presentación', ficha_tecnica: 'Ficha de diseño', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Diseños base' }},
+        { codigo: 'ceramica', sector: 'Artesanías', nombre: 'Cerámica', icono: 'amphora', orden: 16,
+          terminos: { insumos: 'Materiales', preparaciones: 'Procesos', productos: 'Piezas', materiales: 'Empaque', ficha_tecnica: 'Ficha de pieza', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Hornada', rendimiento: 'Rendimiento', prep_pred: 'Procesos base' }},
+        { codigo: 'cuero', sector: 'Artesanías', nombre: 'Marroquinería / Cuero', icono: 'briefcase', orden: 17,
+          terminos: { insumos: 'Materiales', preparaciones: 'Patronaje', productos: 'Artículos', materiales: 'Presentación', ficha_tecnica: 'Ficha de producto', merma: 'Retazo', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Patrones base' }},
+        { codigo: 'madera', sector: 'Artesanías', nombre: 'Carpintería / Madera', icono: 'trees', orden: 18,
+          terminos: { insumos: 'Materiales', preparaciones: 'Planos', productos: 'Muebles y piezas', materiales: 'Embalaje', ficha_tecnica: 'Plano de producción', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Planos base' }},
+
+        // Limpieza
+        { codigo: 'limpieza', sector: 'Productos de Limpieza', nombre: 'Productos de Limpieza', icono: 'spray-can', orden: 19,
+          terminos: { insumos: 'Químicos', preparaciones: 'Fórmulas', productos: 'Productos', materiales: 'Envases', ficha_tecnica: 'Fórmula', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Fórmulas base' }},
+
+        // Agroindustria
+        { codigo: 'conservas', sector: 'Agroindustria', nombre: 'Mermeladas y Conservas', icono: 'apple', orden: 20,
+          terminos: { insumos: 'Materia prima', preparaciones: 'Recetas', productos: 'Conservas', materiales: 'Frascos y etiquetas', ficha_tecnica: 'Receta', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Recetas base' }},
+        { codigo: 'salsas', sector: 'Agroindustria', nombre: 'Salsas y Aderezos', icono: 'flame', orden: 21,
+          terminos: { insumos: 'Materia prima', preparaciones: 'Fórmulas', productos: 'Salsas', materiales: 'Botellas', ficha_tecnica: 'Fórmula', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Fórmulas base' }},
+        { codigo: 'cafe_cacao', sector: 'Agroindustria', nombre: 'Café y Cacao', icono: 'coffee', orden: 22,
+          terminos: { insumos: 'Materia prima', preparaciones: 'Procesos', productos: 'Producto terminado', materiales: 'Bolsas y etiquetas', ficha_tecnica: 'Perfil de tueste', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Procesos base' }},
+
+        // Textil y Moda
+        { codigo: 'confeccion', sector: 'Textil y Moda', nombre: 'Confección / Taller', icono: 'scissors', orden: 23,
+          terminos: { insumos: 'Telas e hilos', preparaciones: 'Patronaje', productos: 'Prendas', materiales: 'Presentación', ficha_tecnica: 'Ficha de prenda', merma: 'Retazo', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Patrones base' }},
+        { codigo: 'serigrafia', sector: 'Textil y Moda', nombre: 'Serigrafía / Estampado', icono: 'printer', orden: 24,
+          terminos: { insumos: 'Tintas y blanks', preparaciones: 'Procesos', productos: 'Artículos', materiales: 'Empaque', ficha_tecnica: 'Ficha de diseño', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Procesos base' }},
+        { codigo: 'tejido', sector: 'Textil y Moda', nombre: 'Tejido y Crochet', icono: 'ribbon', orden: 25,
+          terminos: { insumos: 'Hilos y lanas', preparaciones: 'Patrones', productos: 'Piezas', materiales: 'Empaque', ficha_tecnica: 'Patrón', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Patrones base' }},
+
+        // Salud y Suplementos
+        { codigo: 'suplementos', sector: 'Salud y Suplementos', nombre: 'Suplementos Naturales', icono: 'pill', orden: 26,
+          terminos: { insumos: 'Extractos', preparaciones: 'Fórmulas', productos: 'Productos', materiales: 'Frascos', ficha_tecnica: 'Fórmula', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Fórmulas base' }},
+        { codigo: 'herbolaria', sector: 'Salud y Suplementos', nombre: 'Herbolaria', icono: 'leaf', orden: 27,
+          terminos: { insumos: 'Hierbas', preparaciones: 'Mezclas', productos: 'Infusiones', materiales: 'Empaque', ficha_tecnica: 'Fórmula', merma: 'Desperdicio', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Mezclas base' }},
+
+        // Mascotas
+        { codigo: 'pet_food', sector: 'Mascotas', nombre: 'Alimento para Mascotas', icono: 'paw-print', orden: 28,
+          terminos: { insumos: 'Ingredientes', preparaciones: 'Fórmulas', productos: 'Alimentos', materiales: 'Empaque', ficha_tecnica: 'Fórmula nutricional', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Lote', rendimiento: 'Rendimiento', prep_pred: 'Fórmulas base' }},
+
+        // Otro
+        { codigo: 'otro', sector: 'Otro', nombre: 'Otro / General', icono: 'box', orden: 99,
+          terminos: { insumos: 'Insumos', preparaciones: 'Preparaciones', productos: 'Productos', materiales: 'Materiales', ficha_tecnica: 'Ficha técnica', merma: 'Merma', desmedro: 'Desmedro', tanda: 'Tanda', rendimiento: 'Rendimiento', prep_pred: 'Prep. predeterminadas' }},
+      ];
+
+      for (const g of giros) {
+        await client.query(
+          'INSERT INTO giros_negocio (codigo, sector, nombre, icono, terminos, orden) VALUES ($1, $2, $3, $4, $5, $6)',
+          [g.codigo, g.sector, g.nombre, g.icono, JSON.stringify(g.terminos), g.orden]
+        );
+      }
+    }
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

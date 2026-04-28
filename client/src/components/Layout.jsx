@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { TerminosProvider } from '../context/TerminosContext';
 import {
   LayoutDashboard,
   Calculator,
@@ -31,62 +32,6 @@ import {
   FileText,
 } from 'lucide-react';
 
-const sidebarGroups = [
-  {
-    key: 'cotizador',
-    label: 'Cotizador',
-    icon: Calculator,
-    links: [
-      { to: '/dashboard', label: 'Productos', icon: LayoutDashboard, perm: 'dashboard' },
-      { to: '/cotizador', label: 'Nuevo', icon: Calculator, perm: 'cotizador' },
-      { to: '/insumos', label: 'Insumos', icon: Salad, perm: 'insumos' },
-      { to: '/materiales', label: 'Materiales', icon: Package, perm: 'materiales' },
-      { to: '/preparaciones-predeterminadas', label: 'Prep. Predet.', icon: ChefHat, perm: 'preparaciones' },
-      { to: '/empaques-predeterminados', label: 'Empaques', icon: BoxSelect, perm: 'empaques' },
-      { to: '/proyeccion', label: 'Proyeccion', icon: TrendingUp, perm: 'cotizador' },
-    ],
-  },
-  {
-    key: 'pl',
-    label: 'P&L',
-    icon: DollarSign,
-    links: [
-      { to: '/pl', label: 'Timeline', icon: Activity, perm: 'pl', end: true },
-      { to: '/pl/resumen', label: 'Estado de resultados', icon: BarChart3, perm: 'pl' },
-      { to: '/pl/ventas', label: 'Ventas', icon: ShoppingCart, perm: 'pl' },
-      { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'pl' },
-      { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'pl' },
-      { to: '/pl/cashflow', label: 'Flujo de Caja', icon: Wallet, perm: 'pl' },
-    ],
-  },
-  {
-    key: 'perdidas',
-    label: 'Pérdidas',
-    icon: TrendingDown,
-    links: [
-      { to: '/perdidas', label: 'Registro', icon: TrendingDown, perm: 'perdidas' },
-    ],
-  },
-  {
-    key: 'facturacion',
-    label: 'Facturación',
-    icon: FileText,
-    links: [
-      { to: '/comprobantes', label: 'Comprobantes', icon: FileText, perm: 'facturacion' },
-      { to: '/clientes', label: 'Clientes', icon: Users, perm: 'facturacion' },
-    ],
-  },
-];
-
-const standaloneLinks = [
-  { to: '/actividad', label: 'Mi Actividad', icon: Activity },
-  { to: '/perfil', label: 'Perfil', icon: User },
-];
-
-const adminLinks = [
-  { to: '/admin/usuarios', label: 'Usuarios', icon: Users },
-  { to: '/admin/actividad', label: 'Actividad', icon: Activity },
-];
 
 function SidebarLink({ to, label, icon: Icon, onClick, collapsed, end, disabled }) {
   if (disabled) {
@@ -128,6 +73,65 @@ function SidebarLink({ to, label, icon: Icon, onClick, collapsed, end, disabled 
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
+  const t = user?.giro_terminos || {};
+
+  const sidebarGroups = [
+    {
+      key: 'cotizador',
+      label: 'Cotizador',
+      icon: Calculator,
+      links: [
+        { to: '/dashboard', label: t.productos || 'Productos', icon: LayoutDashboard, perm: 'dashboard' },
+        { to: '/cotizador', label: 'Nuevo', icon: Calculator, perm: 'cotizador' },
+        { to: '/insumos', label: t.insumos || 'Insumos', icon: Salad, perm: 'insumos' },
+        { to: '/materiales', label: t.materiales || 'Materiales', icon: Package, perm: 'materiales' },
+        { to: '/preparaciones-predeterminadas', label: t.prep_pred || 'Prep. Predet.', icon: ChefHat, perm: 'preparaciones' },
+        { to: '/empaques-predeterminados', label: 'Empaques', icon: BoxSelect, perm: 'empaques' },
+        { to: '/proyeccion', label: 'Proyeccion', icon: TrendingUp, perm: 'cotizador' },
+      ],
+    },
+    {
+      key: 'pl',
+      label: 'P&L',
+      icon: DollarSign,
+      links: [
+        { to: '/pl', label: 'Timeline', icon: Activity, perm: 'pl', end: true },
+        { to: '/pl/resumen', label: 'Estado de resultados', icon: BarChart3, perm: 'pl' },
+        { to: '/pl/ventas', label: 'Ventas', icon: ShoppingCart, perm: 'pl' },
+        { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'pl' },
+        { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'pl' },
+        { to: '/pl/cashflow', label: 'Flujo de Caja', icon: Wallet, perm: 'pl' },
+      ],
+    },
+    {
+      key: 'perdidas',
+      label: 'Pérdidas',
+      icon: TrendingDown,
+      links: [
+        { to: '/perdidas', label: 'Registro', icon: TrendingDown, perm: 'perdidas' },
+      ],
+    },
+    {
+      key: 'facturacion',
+      label: 'Facturación',
+      icon: FileText,
+      links: [
+        { to: '/comprobantes', label: 'Comprobantes', icon: FileText, perm: 'facturacion' },
+        { to: '/clientes', label: 'Clientes', icon: Users, perm: 'facturacion' },
+      ],
+    },
+  ];
+
+  const standaloneLinks = [
+    { to: '/actividad', label: 'Mi Actividad', icon: Activity },
+    { to: '/perfil', label: 'Perfil', icon: User },
+  ];
+
+  const adminLinks = [
+    { to: '/admin/usuarios', label: 'Usuarios', icon: Users },
+    { to: '/admin/actividad', label: 'Actividad', icon: Activity },
+  ];
   const [open, setOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(() => localStorage.getItem('nodum_sidebar_collapsed') === 'true');
   const [collapsedGroups, setCollapsedGroups] = useState(() => {
@@ -340,7 +344,9 @@ export default function Layout() {
         )}
 
         <main className="p-5 pb-16 lg:p-8 lg:pb-20">
-          <Outlet />
+          <TerminosProvider terminos={user?.giro_terminos}>
+            <Outlet />
+          </TerminosProvider>
         </main>
       </div>
     </div>

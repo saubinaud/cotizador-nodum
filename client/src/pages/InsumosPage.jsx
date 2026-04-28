@@ -6,6 +6,7 @@ import { formatCurrency, formatDate } from '../utils/format';
 import ConfirmDialog from '../components/ConfirmDialog';
 import CustomSelect from '../components/CustomSelect';
 import { Plus, Save, X, Trash2, Pencil, Search, TrendingUp } from 'lucide-react';
+import { useTerminos } from '../context/TerminosContext';
 
 const UNIDADES = ['g', 'ml', 'uni', 'oz', 'kg', 'L'];
 
@@ -22,6 +23,7 @@ const emptyRow = () => ({
 export default function InsumosPage() {
   const api = useApi();
   const toast = useToast();
+  const t = useTerminos();
   const [insumos, setInsumos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -168,7 +170,7 @@ export default function InsumosPage() {
     <div>
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
         <div>
-          <h2 className="text-2xl font-bold text-stone-900">Insumos</h2>
+          <h2 className="text-2xl font-bold text-stone-900">{t.insumos}</h2>
           <p className="text-stone-500 text-sm mt-0.5">{insumos.filter((i) => !i._new).length} insumos registrados</p>
         </div>
         <button onClick={addNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>

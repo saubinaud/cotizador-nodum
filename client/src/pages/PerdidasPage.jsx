@@ -9,6 +9,7 @@ import {
   Plus, Trash2, TrendingDown, AlertTriangle,
   Salad, ChefHat, Package, BoxSelect, X, Inbox,
 } from 'lucide-react';
+import { useTerminos } from '../context/TerminosContext';
 
 function todayStr() {
   return new Date().toISOString().slice(0, 10);
@@ -29,6 +30,7 @@ export default function PerdidasPage() {
   const api = useApi();
   const toast = useToast();
   const { user } = useAuth();
+  const t = useTerminos();
 
   const [mainTab, setMainTab] = useState('mermas');
   const [subTab, setSubTab] = useState('insumos');
@@ -588,7 +590,7 @@ export default function PerdidasPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-xl font-bold text-stone-900">Perdidas</h1>
-          <p className="text-sm text-stone-500 mt-0.5">Mermas y desmedros de tu operacion</p>
+          <p className="text-sm text-stone-500 mt-0.5">{t.merma}s y {t.desmedro.toLowerCase()}s de tu operacion</p>
         </div>
         <button onClick={openForm} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={16} /> Registrar
@@ -604,7 +606,7 @@ export default function PerdidasPage() {
               mainTab === 'mermas' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
             }`}
           >
-            <TrendingDown size={14} className="inline mr-1.5" />Mermas
+            <TrendingDown size={14} className="inline mr-1.5" />{t.merma}s
           </button>
           <button
             onClick={() => { setMainTab('desmedros'); setSubTab('productos'); }}
@@ -612,7 +614,7 @@ export default function PerdidasPage() {
               mainTab === 'desmedros' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
             }`}
           >
-            <AlertTriangle size={14} className="inline mr-1.5" />Desmedros
+            <AlertTriangle size={14} className="inline mr-1.5" />{t.desmedro}s
           </button>
         </div>
 

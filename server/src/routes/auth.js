@@ -18,6 +18,23 @@ router.get('/paises', async (_req, res) => {
   }
 });
 
+// GET /api/auth/giros — public, returns business types
+router.get('/giros', async (_req, res) => {
+  try {
+    const result = await pool.query('SELECT * FROM giros_negocio ORDER BY orden');
+    // Group by sector
+    const sectors = {};
+    for (const g of result.rows) {
+      if (!sectors[g.sector]) sectors[g.sector] = [];
+      sectors[g.sector].push(g);
+    }
+    return res.json({ success: true, data: { giros: result.rows, sectores: sectors } });
+  } catch (err) {
+    console.error('Giros error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
 // POST /api/auth/login
 router.post('/login', async (req, res) => {
   try {
@@ -62,6 +79,17 @@ router.post('/login', async (req, res) => {
     const paisData = await pool.query('SELECT moneda, simbolo FROM paises WHERE code = $1', [user.pais_code || 'PE']);
     const pais = paisData.rows[0] || { moneda: 'PEN', simbolo: 'S/' };
 
+    // Get giro data
+    let giroTerminos = null;
+    let giroNombre = null;
+    if (user.giro_negocio_id) {
+      const giroRes = await pool.query('SELECT terminos, nombre, codigo FROM giros_negocio WHERE id = $1', [user.giro_negocio_id]);
+      if (giroRes.rows.length > 0) {
+        giroTerminos = giroRes.rows[0].terminos;
+        giroNombre = giroRes.rows[0].nombre;
+      }
+    }
+
     return res.json({
       success: true,
       data: {
@@ -87,6 +115,9 @@ router.post('/login', async (req, res) => {
           plan: user.plan,
           trial_ends_at: user.trial_ends_at,
           max_productos: user.max_productos,
+          giro_negocio_id: user.giro_negocio_id,
+          giro_nombre: giroNombre,
+          giro_terminos: giroTerminos,
         },
       },
     });
@@ -102,8 +133,11 @@ router.get('/me', auth, async (req, res) => {
     const result = await pool.query(
       `SELECT u.id, u.email, u.nombre, u.rol, u.nombre_comercial AS empresa, u.igv_rate, u.ruc, u.razon_social, u.permisos,
               u.pais_code AS pais, p.moneda, p.simbolo, u.logo_url, u.tipo_negocio, u.precio_decimales,
-              u.tarifa_mo_global, u.margen_minimo_global, u.plan, u.trial_ends_at, u.max_productos
-       FROM usuarios u LEFT JOIN paises p ON p.code = u.pais_code WHERE u.id = $1`,
+              u.tarifa_mo_global, u.margen_minimo_global, u.plan, u.trial_ends_at, u.max_productos,
+              u.giro_negocio_id, g.terminos AS giro_terminos, g.nombre AS giro_nombre, g.codigo AS giro_codigo
+       FROM usuarios u LEFT JOIN paises p ON p.code = u.pais_code
+       LEFT JOIN giros_negocio g ON g.id = u.giro_negocio_id
+       WHERE u.id = $1`,
       [req.user.id]
     );
     if (result.rows.length === 0) {
@@ -159,7 +193,7 @@ router.post('/cambiar-password', auth, async (req, res) => {
 // PUT /api/auth/perfil
 router.put('/perfil', auth, async (req, res) => {
   try {
-    const { nombre, nombre_comercial, ruc, razon_social, igv_rate: rawIgv, pais, tipo_negocio, precio_decimales } = req.body;
+    const { nombre, nombre_comercial, ruc, razon_social, igv_rate: rawIgv, pais, tipo_negocio, precio_decimales, giro_negocio_id } = req.body;
     let igvDecimal = rawIgv != null ? (Number(rawIgv) > 1 ? Number(rawIgv) / 100 : Number(rawIgv)) : null;
 
     // If informal, force IGV to 0
@@ -177,10 +211,11 @@ router.put('/perfil', auth, async (req, res) => {
         pais_code = COALESCE($6, pais_code),
         tipo_negocio = COALESCE($7, tipo_negocio),
         precio_decimales = COALESCE($9, precio_decimales),
+        giro_negocio_id = COALESCE($10::integer, giro_negocio_id),
         updated_at = NOW()
        WHERE id = $8
-       RETURNING id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, ruc, razon_social, permisos, pais_code AS pais, logo_url, tipo_negocio, precio_decimales`,
-      [nombre || null, nombre_comercial || null, ruc || null, razon_social || null, igvDecimal, pais || null, tipo_negocio || null, req.user.id, precio_decimales || null]
+       RETURNING id, email, nombre, rol, nombre_comercial AS empresa, igv_rate, ruc, razon_social, permisos, pais_code AS pais, logo_url, tipo_negocio, precio_decimales, giro_negocio_id`,
+      [nombre || null, nombre_comercial || null, ruc || null, razon_social || null, igvDecimal, pais || null, tipo_negocio || null, req.user.id, precio_decimales || null, giro_negocio_id != null ? giro_negocio_id : null]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Usuario no encontrado' });

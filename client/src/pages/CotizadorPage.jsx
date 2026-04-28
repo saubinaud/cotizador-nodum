@@ -18,6 +18,7 @@ import {
   ImageIcon,
   BookmarkPlus,
 } from 'lucide-react';
+import { useTerminos } from '../context/TerminosContext';
 
 function normU(u) {
   if (!u) return '';
@@ -154,6 +155,7 @@ export default function CotizadorPage() {
   const api = useApi();
   const { user } = useAuth();
   const toast = useToast();
+  const t = useTerminos();
 
   const [nombre, setNombre] = useState('');
   const [imagenUrl, setImagenUrl] = useState('');
@@ -726,7 +728,7 @@ export default function CotizadorPage() {
       {/* Page header — clean, Apple-style */}
       <div className="flex items-center justify-between mb-8">
         <h1 className="text-2xl font-bold text-stone-900">
-          {id ? 'Editar producto' : 'Nuevo producto'}
+          {id ? `Editar ${t.productos.toLowerCase().replace(/s$/, '')}` : `Nuevo ${t.productos.toLowerCase().replace(/s$/, '')}`}
         </h1>
         <button onClick={handleReset} className={cx.btnGhost + ' flex items-center gap-1.5'}>
           <RotateCcw size={14} /> Vaciar
