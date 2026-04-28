@@ -28,15 +28,17 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 flex items-center justify-center p-4">
-      <div className={`${cx.card} w-full max-w-sm p-8`}>
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-14 h-14 rounded-2xl bg-[var(--accent)] flex items-center justify-center mb-4 shadow-lg shadow-[var(--accent)]/20">
-            <Calculator size={28} className="text-white" />
+    <div className="min-h-screen bg-[#0A2F24] flex items-center justify-center p-4">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-4">
+            <Calculator size={32} className="text-white" />
           </div>
-          <h1 className="text-2xl font-bold text-stone-900 tracking-wide">Kudi</h1>
+          <h1 className="text-2xl font-bold text-white tracking-wide">Kudi</h1>
+          <p className="text-white/40 text-sm mt-1">Orden financiero que impulsa tu crecimiento</p>
         </div>
 
+        <div className="bg-white rounded-2xl p-8 shadow-xl">
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
             <label className={cx.label}>Email</label>
@@ -90,6 +92,7 @@ export default function LoginPage() {
             )}
           </button>
         </form>
+        </div>
       </div>
     </div>
   );

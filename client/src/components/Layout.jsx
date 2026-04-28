@@ -38,13 +38,13 @@ function SidebarLink({ to, label, icon: Icon, onClick, collapsed, end, disabled 
     return (
       <div
         title={collapsed ? `${label} (bloqueado)` : 'Módulo no disponible en tu plan'}
-        className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0 py-3' : 'px-4 py-3'} rounded-xl text-sm font-semibold text-stone-300 cursor-not-allowed`}
+        className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0 py-3' : 'px-4 py-3'} rounded-xl text-sm font-semibold text-white/20 cursor-not-allowed`}
       >
         <Icon size={18} />
         {!collapsed && (
           <>
             <span className="flex-1">{label}</span>
-            <Lock size={12} className="text-stone-300" />
+            <Lock size={12} className="text-white/20" />
           </>
         )}
       </div>
@@ -59,8 +59,8 @@ function SidebarLink({ to, label, icon: Icon, onClick, collapsed, end, disabled 
       className={({ isActive }) =>
         `flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0 py-3' : 'px-4 py-3'} rounded-xl text-sm font-semibold transition-all duration-200 ${
           isActive
-            ? 'bg-[var(--accent-light)] text-[var(--accent)]'
-            : 'text-stone-500 hover:text-stone-800 hover:bg-stone-50'
+            ? 'bg-white/10 text-[#4ADE80]'
+            : 'text-white/60 hover:text-white hover:bg-white/5'
         }`
       }
     >
@@ -188,7 +188,7 @@ export default function Layout() {
 
   const renderSidebarContent = (isCollapsed) => (
     <>
-      <div className={`${isCollapsed ? 'p-3' : 'p-5'} border-b border-stone-200`}>
+      <div className={`${isCollapsed ? 'p-3' : 'p-5'} border-b border-white/10`}>
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'}`}>
           {user?.logo_url ? (
             <img src={user.logo_url} alt="Logo" className="w-9 h-9 rounded-xl object-cover" />
@@ -198,7 +198,7 @@ export default function Layout() {
             </div>
           )}
           {!isCollapsed && (
-            <h1 className="text-base font-bold text-stone-800 tracking-wide">Kudi</h1>
+            <h1 className="text-base font-bold text-white tracking-wide">Kudi</h1>
           )}
         </div>
       </div>
@@ -213,7 +213,7 @@ export default function Layout() {
 
           return (
             <div key={group.key}>
-              <button onClick={() => toggleGroup(group.key)} className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-stone-400 uppercase tracking-wider hover:text-stone-600">
+              <button onClick={() => toggleGroup(group.key)} className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-white/40 uppercase tracking-wider hover:text-white/60">
                 <div className="flex items-center gap-2">
                   <group.icon size={14} />
                   {!isCollapsed && <span>{group.label}</span>}
@@ -233,12 +233,12 @@ export default function Layout() {
           <>
             {!isCollapsed && (
               <div className="mt-4 mb-2 px-3">
-                <p className="text-[10px] text-stone-400 uppercase tracking-widest font-semibold">
+                <p className="text-[10px] text-white/30 uppercase tracking-widest font-semibold">
                   Admin
                 </p>
               </div>
             )}
-            {isCollapsed && <div className="mt-4 mb-2 border-t border-stone-200" />}
+            {isCollapsed && <div className="mt-4 mb-2 border-t border-white/10" />}
             {adminLinks.map((l) => (
               <SidebarLink key={l.to} {...l} onClick={closeSidebar} collapsed={isCollapsed} />
             ))}
@@ -247,10 +247,10 @@ export default function Layout() {
       </nav>
 
       {isCollapsed && (
-        <div className="flex justify-center py-2 border-t border-stone-200">
+        <div className="flex justify-center py-2 border-t border-white/10">
           <button
             onClick={toggleCollapsed}
-            className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+            className="p-2 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-colors"
             title="Expandir menu"
           >
             <ChevronRight size={16} />
@@ -258,10 +258,10 @@ export default function Layout() {
         </div>
       )}
       {!isCollapsed && (
-        <div className="flex justify-center py-2 border-t border-stone-200">
+        <div className="flex justify-center py-2 border-t border-white/10">
           <button
             onClick={toggleCollapsed}
-            className="p-2 text-stone-400 hover:text-stone-600 hover:bg-stone-100 rounded-lg transition-colors"
+            className="p-2 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-colors"
             title="Contraer menu"
           >
             <ChevronLeft size={16} />
@@ -269,18 +269,18 @@ export default function Layout() {
         </div>
       )}
 
-      <div className={`p-3 border-t border-stone-200`}>
+      <div className={`p-3 border-t border-white/10`}>
         <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2`}>
-          <div className="w-8 h-8 rounded-full bg-stone-200 flex items-center justify-center text-xs font-bold text-stone-500 shrink-0">
+          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white/70 shrink-0">
             {user?.nombre?.charAt(0)?.toUpperCase() || 'U'}
           </div>
           {!isCollapsed && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-stone-800 truncate">{user?.nombre || 'Usuario'}</p>
-                <p className="text-[10px] text-stone-400 truncate">{user?.email}</p>
+                <p className="text-sm text-white truncate">{user?.nombre || 'Usuario'}</p>
+                <p className="text-[10px] text-white/40 truncate">{user?.email}</p>
               </div>
-              <button onClick={handleLogout} className="p-2 text-stone-400 hover:text-rose-500 transition-colors rounded-lg">
+              <button onClick={handleLogout} className="p-2 text-white/40 hover:text-rose-400 transition-colors rounded-lg">
                 <LogOut size={16} />
               </button>
             </>
@@ -291,9 +291,9 @@ export default function Layout() {
   );
 
   return (
-    <div className="min-h-screen bg-stone-50 flex">
+    <div className="min-h-screen bg-[#F4F6F5] flex">
       {/* Desktop sidebar */}
-      <aside className={`hidden lg:flex ${collapsed ? 'w-16' : 'w-56'} flex-col bg-white border-r border-stone-100 fixed inset-y-0 left-0 z-30 transition-all duration-200`}>
+      <aside className={`hidden lg:flex ${collapsed ? 'w-16' : 'w-56'} flex-col bg-[#0A2F24] fixed inset-y-0 left-0 z-30 transition-all duration-200`}>
         {renderSidebarContent(collapsed)}
       </aside>
 
@@ -301,10 +301,10 @@ export default function Layout() {
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={closeSidebar} />
-          <aside className="absolute left-0 top-0 bottom-0 w-60 bg-white border-r border-stone-200 flex flex-col">
+          <aside className="absolute left-0 top-0 bottom-0 w-60 bg-[#0A2F24] flex flex-col">
             <button
               onClick={closeSidebar}
-              className="absolute top-4 right-4 p-1 text-stone-400 hover:text-stone-800"
+              className="absolute top-4 right-4 p-1 text-white/40 hover:text-white"
             >
               <X size={20} />
             </button>
@@ -316,8 +316,8 @@ export default function Layout() {
       {/* Main content */}
       <div className={`flex-1 ${collapsed ? 'lg:ml-16' : 'lg:ml-56'} transition-all duration-200`}>
         {/* Mobile header */}
-        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-white border-b border-stone-200 sticky top-0 z-20">
-          <button onClick={() => setOpen(true)} className="p-2 text-stone-400 hover:text-stone-800">
+        <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#0A2F24] sticky top-0 z-20">
+          <button onClick={() => setOpen(true)} className="p-2 text-white/60 hover:text-white">
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
@@ -328,7 +328,7 @@ export default function Layout() {
                 <Calculator size={14} className="text-white" />
               </div>
             )}
-            <span className="text-sm font-bold text-stone-800">Kudi</span>
+            <span className="text-sm font-bold text-white">Kudi</span>
           </div>
           <div className="w-9" />
         </header>
