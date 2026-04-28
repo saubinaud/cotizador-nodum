@@ -645,15 +645,21 @@ router.get('/ventas/resumen', async (req, res) => {
 router.put('/ventas/:id', async (req, res) => {
   try {
     const { cantidad, precio_unitario, descuento, nota } = req.body;
-    const precio = parseFloat(precio_unitario) || 0;
-    const cant = parseInt(cantidad) || 1;
-    const desc = parseFloat(descuento) || 0;
+
+    // Fetch existing venta to use its values as defaults for partial updates
+    const existing = await pool.query('SELECT * FROM ventas WHERE id = $1', [req.params.id]);
+    if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Venta no encontrada' });
+    const prev = existing.rows[0];
+
+    const precio = precio_unitario != null ? parseFloat(precio_unitario) : parseFloat(prev.precio_unitario);
+    const cant = cantidad != null ? parseInt(cantidad) : parseInt(prev.cantidad);
+    const desc = descuento != null ? parseFloat(descuento) : parseFloat(prev.descuento);
     const total = (precio * cant) - desc;
 
     const result = await pool.query(
       `UPDATE ventas SET cantidad = $1, precio_unitario = $2, descuento = $3, total = $4, nota = $5
        WHERE id = $6 RETURNING *`,
-      [cant, precio, desc, total, nota || null, req.params.id]
+      [cant, precio, desc, total, nota !== undefined ? (nota || null) : prev.nota, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Venta no encontrada' });
     return res.json({ success: true, data: result.rows[0] });

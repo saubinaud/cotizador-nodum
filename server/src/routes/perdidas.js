@@ -92,9 +92,9 @@ router.post('/mermas/insumos', async (req, res) => {
     if (insumo.rows.length === 0) return res.status(404).json({ success: false, error: 'Insumo no encontrado' });
 
     const result = await pool.query(
-      `INSERT INTO mediciones_merma_insumo (insumo_id, merma_pct, causa, fecha, notas)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [insumo_id, merma_pct, causa || null, fecha, notas || null]
+      `INSERT INTO mediciones_merma_insumo (usuario_id, insumo_id, merma_pct, causa, fecha, notas)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.user.id, insumo_id, merma_pct, causa || null, fecha, notas || null]
     );
 
     // Recalculate average merma from last 5 measurements
