@@ -20,10 +20,10 @@ body {
 }
 
 :root {
-  --accent: #059669;
-  --accent-hover: #047857;
-  --accent-light: #ecfdf5;
-  --success: #059669;
+  --accent: #16A34A;
+  --accent-hover: #15803D;
+  --accent-light: #F0FDF4;
+  --success: #16A34A;
 }
 
 [data-theme="coral"] {

@@ -55,6 +55,11 @@ export default function PLVentasPage() {
   const [emitirClientes, setEmitirClientes] = useState([]);
   const [emitting, setEmitting] = useState(false);
 
+  // Venta client state
+  const [ventaClientes, setVentaClientes] = useState([]);
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [newClient, setNewClient] = useState({});
+
   // Modal form
   const [form, setForm] = useState({
     producto_id: null,
@@ -63,6 +68,7 @@ export default function PLVentasPage() {
     precio_unitario: '',
     nota: '',
     cuenta_id: '',
+    cliente_id: '',
   });
   const [descuentoTipo, setDescuentoTipo] = useState('none');
   const [descuentoValor, setDescuentoValor] = useState('');
@@ -74,11 +80,13 @@ export default function PLVentasPage() {
       api.get('/pl/periodos').catch(() => ({ data: [] })),
       api.get('/productos').catch(() => ({ data: [] })),
       api.get('/flujo/cuentas').catch(() => ({ data: [] })),
-    ]).then(([perRes, prodRes, cuentasRes]) => {
+      api.get('/clientes').catch(() => ({ data: [] })),
+    ]).then(([perRes, prodRes, cuentasRes, clientesRes]) => {
       const pers = perRes.data || [];
       setPeriodos(pers);
       setCuentas((cuentasRes.data || []).map(c => ({ value: c.id, label: c.nombre })));
       setProductos(prodRes.data || []);
+      setVentaClientes((clientesRes.data || []).map(c => ({ value: c.id, label: `${c.num_doc} — ${c.razon_social || 'Sin nombre'}` })));
       if (pers.length > 0) {
         setPeriodoId(pers[0].id);
       }
@@ -144,6 +152,23 @@ export default function PLVentasPage() {
     }
   };
 
+  // Create client inline
+  async function handleCreateClient() {
+    if (!newClient.num_doc) return;
+    try {
+      const res = await api.post('/clientes', { tipo_doc: newClient.num_doc.length === 11 ? '6' : '1', ...newClient });
+      const c = res.data || res;
+      const newOpt = { value: c.id, label: `${c.num_doc} — ${c.razon_social || 'Sin nombre'}` };
+      setVentaClientes(prev => [...prev, newOpt]);
+      setForm(f => ({ ...f, cliente_id: c.id }));
+      setShowNewClient(false);
+      setNewClient({});
+      toast.success('Cliente creado');
+    } catch (err) {
+      toast.error(err.message || 'Error creando cliente');
+    }
+  }
+
   // Open modal for new venta
   const openNewVenta = () => {
     setEditingVenta(null);
@@ -153,9 +178,11 @@ export default function PLVentasPage() {
       cantidad: 1,
       precio_unitario: '',
       nota: '',
+      cliente_id: '',
     });
     setDescuentoTipo('none');
     setDescuentoValor('');
+    setShowNewClient(false);
     setModalOpen(true);
   };
 
@@ -223,6 +250,7 @@ export default function PLVentasPage() {
           descuento: descuentoTotal,
           nota: form.nota,
           cuenta_id: form.cuenta_id || null,
+          cliente_id: form.cliente_id || null,
         });
         toast.success('Venta registrada');
       }
@@ -610,6 +638,44 @@ export default function PLVentasPage() {
                     placeholder="¿A qué cuenta entró?"
                   />
                 </div>
+                )}
+
+                {/* Cliente (opcional) */}
+                {!editingVenta && (
+                <div>
+                  <label className={cx.label}>Cliente (opcional)</label>
+                  <CustomSelect
+                    options={[{ value: '', label: 'Sin cliente' }, ...ventaClientes]}
+                    value={form.cliente_id || ''}
+                    onChange={(v) => setForm(f => ({ ...f, cliente_id: v }))}
+                    placeholder="Buscar por DNI/RUC/nombre..."
+                  />
+                  {!form.cliente_id && (
+                    <button type="button" onClick={() => setShowNewClient(true)} className={cx.btnGhost + ' text-xs mt-1'}>
+                      + Nuevo cliente
+                    </button>
+                  )}
+                </div>
+                )}
+
+                {/* Quick new client form */}
+                {showNewClient && (
+                  <div className="p-3 bg-stone-50 rounded-lg space-y-2">
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className={cx.label}>DNI/RUC</label>
+                        <input type="text" value={newClient.num_doc || ''} onChange={e => setNewClient(p => ({...p, num_doc: e.target.value}))} className={cx.input} placeholder="12345678" />
+                      </div>
+                      <div>
+                        <label className={cx.label}>Nombre/Razon social</label>
+                        <input type="text" value={newClient.razon_social || ''} onChange={e => setNewClient(p => ({...p, razon_social: e.target.value}))} className={cx.input} placeholder="Juan Perez" />
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={handleCreateClient} className={cx.btnPrimary + ' text-xs'}>Guardar cliente</button>
+                      <button type="button" onClick={() => setShowNewClient(false)} className={cx.btnGhost + ' text-xs'}>Cancelar</button>
+                    </div>
+                  </div>
                 )}
 
                 {/* Note */}

@@ -8,7 +8,7 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import CustomSelect from '../components/CustomSelect';
 
 const ALL_MODULES = [
-  { key: 'dashboard', label: 'Dashboard' },
+  { key: 'dashboard', label: 'Productos' },
   { key: 'cotizador', label: 'Cotizador' },
   { key: 'insumos', label: 'Insumos' },
   { key: 'materiales', label: 'Materiales' },
