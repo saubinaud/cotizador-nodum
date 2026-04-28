@@ -919,6 +919,117 @@ async function runMigrations() {
     await client.query(`UPDATE flujo_categorias SET nombre = 'Delivery' WHERE nombre = 'Ventas transferencia'`);
     await client.query(`UPDATE flujo_categorias SET nombre = 'Otros ingresos operativos' WHERE nombre = 'Ventas con tarjeta'`);
 
+    // ==================== FACTURACION ELECTRONICA ====================
+
+    // Configuracion de facturacion por empresa
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS facturacion_config (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL UNIQUE REFERENCES usuarios(id) ON DELETE CASCADE,
+        apisperu_company_id VARCHAR(100),
+        environment VARCHAR(20) DEFAULT 'beta',
+        habilitado BOOLEAN DEFAULT false,
+        certificado_pem TEXT,
+        certificado_subido BOOLEAN DEFAULT false,
+        certificado_vence DATE,
+        serie_factura VARCHAR(10) DEFAULT 'F001',
+        serie_boleta VARCHAR(10) DEFAULT 'B001',
+        serie_nota_credito VARCHAR(10) DEFAULT 'FC01',
+        serie_nota_debito VARCHAR(10) DEFAULT 'FD01',
+        correlativo_factura INTEGER DEFAULT 0,
+        correlativo_boleta INTEGER DEFAULT 0,
+        correlativo_nc INTEGER DEFAULT 0,
+        correlativo_nd INTEGER DEFAULT 0,
+        direccion_fiscal TEXT,
+        departamento VARCHAR(50),
+        provincia VARCHAR(50),
+        distrito VARCHAR(50),
+        ubigeo VARCHAR(10),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        updated_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // Comprobantes emitidos
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS comprobantes (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        venta_id INTEGER,
+        transaccion_id INTEGER,
+        tipo_doc VARCHAR(5) NOT NULL,
+        serie VARCHAR(10) NOT NULL,
+        correlativo VARCHAR(20) NOT NULL,
+        fecha_emision TIMESTAMPTZ NOT NULL,
+        cliente_tipo_doc VARCHAR(5),
+        cliente_num_doc VARCHAR(20),
+        cliente_razon_social VARCHAR(200),
+        cliente_direccion TEXT,
+        mto_oper_gravadas NUMERIC(12,2),
+        mto_igv NUMERIC(12,2),
+        mto_total NUMERIC(12,2),
+        moneda VARCHAR(5) DEFAULT 'PEN',
+        sunat_success BOOLEAN,
+        sunat_code VARCHAR(20),
+        sunat_message TEXT,
+        sunat_xml TEXT,
+        sunat_cdr TEXT,
+        sunat_hash VARCHAR(100),
+        estado VARCHAR(20) DEFAULT 'emitido',
+        detalle_json JSONB,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // Catalogo de clientes (compradores)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS clientes (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        tipo_doc VARCHAR(5) NOT NULL DEFAULT '1',
+        num_doc VARCHAR(20) NOT NULL,
+        razon_social VARCHAR(200),
+        direccion TEXT,
+        email VARCHAR(150),
+        telefono VARCHAR(50),
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // Add unique constraint on clientes if not exists
+    await client.query(`
+      DO $$ BEGIN
+        IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'clientes_usuario_doc_unique') THEN
+          ALTER TABLE clientes ADD CONSTRAINT clientes_usuario_doc_unique UNIQUE (usuario_id, num_doc);
+        END IF;
+      END $$;
+    `);
+
+    // Direccion fiscal en usuarios
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS direccion_fiscal TEXT`);
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS departamento VARCHAR(50)`);
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS provincia VARCHAR(50)`);
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS distrito VARCHAR(50)`);
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS ubigeo VARCHAR(10)`);
+
+    // Facturado flag en ventas y transacciones
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS comprobante_id INTEGER`);
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS facturado BOOLEAN DEFAULT false`);
+    await client.query(`ALTER TABLE transacciones ADD COLUMN IF NOT EXISTS comprobante_id INTEGER`);
+    await client.query(`ALTER TABLE transacciones ADD COLUMN IF NOT EXISTS facturado BOOLEAN DEFAULT false`);
+
+    // Indexes
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_comprobantes_usuario ON comprobantes(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_comprobantes_venta ON comprobantes(venta_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_clientes_usuario ON clientes(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_clientes_doc ON clientes(usuario_id, num_doc)`);
+
+    // Permisos: add facturacion
+    await client.query(`
+      ALTER TABLE usuarios
+        ALTER COLUMN permisos SET DEFAULT '["dashboard","cotizador","insumos","materiales","preparaciones","empaques","proyeccion","pl","perdidas","facturacion"]'::jsonb
+    `);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

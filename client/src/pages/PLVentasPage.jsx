@@ -8,7 +8,7 @@ import CustomSelect from '../components/CustomSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   Plus, X, Trash2, Pencil, ChevronDown, ChevronUp,
-  DollarSign, TrendingUp, Package, ShoppingCart,
+  DollarSign, TrendingUp, Package, ShoppingCart, FileText,
 } from 'lucide-react';
 
 // Month names in Spanish
@@ -47,6 +47,13 @@ export default function PLVentasPage() {
   const [deleteTarget, setDeleteTarget] = useState(null);
   const [collapsed, setCollapsed] = useState({});
   const [creatingPeriodo, setCreatingPeriodo] = useState(false);
+
+  // Emitir comprobante state
+  const [emitirModal, setEmitirModal] = useState(null);
+  const [emitirTipo, setEmitirTipo] = useState('boleta');
+  const [emitirClienteId, setEmitirClienteId] = useState('');
+  const [emitirClientes, setEmitirClientes] = useState([]);
+  const [emitting, setEmitting] = useState(false);
 
   // Modal form
   const [form, setForm] = useState({
@@ -240,6 +247,47 @@ export default function PLVentasPage() {
     }
   };
 
+  // Emitir comprobante handlers
+  function openEmitirModal(venta) {
+    setEmitirModal(venta);
+    setEmitirTipo('boleta');
+    setEmitirClienteId('');
+    api.get('/clientes').then(res => {
+      setEmitirClientes((res.data || res || []).map(c => ({ value: c.id, label: `${c.num_doc} - ${c.razon_social || ''}` })));
+    }).catch(() => {});
+  }
+
+  async function handleEmitir() {
+    if (!emitirModal) return;
+    setEmitting(true);
+    try {
+      const res = await api.post('/facturacion/emitir', {
+        venta_id: emitirModal.id,
+        tipo: emitirTipo,
+        cliente_id: emitirClienteId || null,
+        items: [{
+          producto_id: emitirModal.producto_id,
+          producto_nombre: emitirModal.producto_nombre,
+          cantidad: emitirModal.cantidad,
+          precio_unitario: emitirModal.precio_unitario,
+          descuento: emitirModal.descuento || 0,
+        }],
+      });
+      const data = res.data || res;
+      if (data.sunat?.success) {
+        toast.success(`${emitirTipo === 'factura' ? 'Factura' : 'Boleta'} emitida: ${data.comprobante?.serie}-${data.comprobante?.correlativo}`);
+      } else {
+        toast.error(`SUNAT: ${data.sunat?.message || 'Error desconocido'}`);
+      }
+      setEmitirModal(null);
+      loadVentas(periodoId);
+    } catch (err) {
+      toast.error(err.message || 'Error emitiendo');
+    } finally {
+      setEmitting(false);
+    }
+  }
+
   // Summary computed values
   const utilidadBruta = resumen
     ? parseFloat(resumen.ingresos_brutos) - parseFloat(resumen.cogs_total)
@@ -365,6 +413,14 @@ export default function PLVentasPage() {
                     <td className={cx.td + ' text-right font-semibold text-stone-900'}>{formatCurrency(v.total)}</td>
                     <td className={cx.td}>
                       <div className="flex items-center gap-1 justify-end">
+                        {v.facturado && (
+                          <span className={cx.badge('bg-emerald-50 text-emerald-600')}>Facturado</span>
+                        )}
+                        {!v.facturado && (
+                          <button onClick={() => openEmitirModal(v)} className={cx.btnGhost + ' text-xs text-[var(--accent)]'}>
+                            Emitir
+                          </button>
+                        )}
                         <button onClick={() => openEditVenta(v)} className={cx.btnIcon}><Pencil size={14} /></button>
                         <button onClick={() => setDeleteTarget(v)} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={14} /></button>
                       </div>
@@ -417,7 +473,15 @@ export default function PLVentasPage() {
                           </div>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
+                        {v.facturado && (
+                          <span className={cx.badge('bg-emerald-50 text-emerald-600')}>Facturado</span>
+                        )}
+                        {!v.facturado && (
+                          <button onClick={() => openEmitirModal(v)} className={cx.btnGhost + ' text-xs text-[var(--accent)] flex items-center gap-1'}>
+                            <FileText size={12} /> Emitir
+                          </button>
+                        )}
                         <button onClick={() => openEditVenta(v)} className={cx.btnGhost + ' text-xs flex items-center gap-1'}>
                           <Pencil size={12} /> Editar
                         </button>
@@ -573,6 +637,66 @@ export default function PLVentasPage() {
                   {editingVenta ? 'Guardar cambios' : 'Registrar'}
                 </button>
                 <button onClick={() => setModalOpen(false)} className={cx.btnSecondary}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Emitir comprobante modal */}
+      {emitirModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setEmitirModal(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-stone-900">Emitir comprobante</h3>
+              <button onClick={() => setEmitirModal(null)} className={cx.btnGhost}><X size={18} /></button>
+            </div>
+
+            <div className="space-y-4">
+              {/* Venta info */}
+              <div className="p-3 bg-stone-50 rounded-lg">
+                <p className="text-sm font-medium text-stone-800">{emitirModal.producto_nombre}</p>
+                <p className="text-xs text-stone-500">Cant: {emitirModal.cantidad} x {formatCurrency(emitirModal.precio_unitario)} = {formatCurrency(emitirModal.total || (emitirModal.cantidad * emitirModal.precio_unitario))}</p>
+              </div>
+
+              {/* Tipo */}
+              <div>
+                <label className={cx.label}>Tipo de comprobante</label>
+                <CustomSelect
+                  value={emitirTipo}
+                  onChange={setEmitirTipo}
+                  options={[
+                    { value: 'boleta', label: 'Boleta de venta' },
+                    { value: 'factura', label: 'Factura' },
+                  ]}
+                />
+              </div>
+
+              {/* Cliente */}
+              <div>
+                <label className={cx.label}>
+                  Cliente {emitirTipo === 'factura' ? '(requerido - con RUC)' : '(opcional)'}
+                </label>
+                <CustomSelect
+                  value={emitirClienteId}
+                  onChange={setEmitirClienteId}
+                  options={[{ value: '', label: 'Sin cliente / Varios' }, ...emitirClientes]}
+                  placeholder="Seleccionar cliente..."
+                />
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleEmitir}
+                  disabled={emitting || (emitirTipo === 'factura' && !emitirClienteId)}
+                  className={cx.btnPrimary + ' flex-1 flex items-center justify-center gap-2'}
+                >
+                  {emitting ? 'Emitiendo...' : `Emitir ${emitirTipo === 'factura' ? 'factura' : 'boleta'}`}
+                </button>
+                <button onClick={() => setEmitirModal(null)} className={cx.btnSecondary}>
                   Cancelar
                 </button>
               </div>

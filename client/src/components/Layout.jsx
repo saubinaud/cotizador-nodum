@@ -28,6 +28,7 @@ import {
   Wallet,
   Clock,
   Lock,
+  FileText,
 } from 'lucide-react';
 
 const sidebarGroups = [
@@ -64,6 +65,15 @@ const sidebarGroups = [
     icon: TrendingDown,
     links: [
       { to: '/perdidas', label: 'Registro', icon: TrendingDown, perm: 'perdidas' },
+    ],
+  },
+  {
+    key: 'facturacion',
+    label: 'Facturación',
+    icon: FileText,
+    links: [
+      { to: '/comprobantes', label: 'Comprobantes', icon: FileText, perm: 'facturacion' },
+      { to: '/clientes', label: 'Clientes', icon: Users, perm: 'facturacion' },
     ],
   },
 ];
