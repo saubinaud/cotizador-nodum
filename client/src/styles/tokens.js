@@ -1,7 +1,7 @@
 // Apple + Airbnb + Seiko Presage — premium, spacious, clean
 export const cx = {
   btnPrimary:
-    'px-5 py-2.5 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white text-sm font-semibold rounded-lg transition-colors duration-150 active:scale-[0.97] disabled:opacity-40',
+    'px-5 py-2.5 bg-[#16A34A] hover:bg-[#15803D] text-white text-sm font-semibold rounded-lg transition-all duration-150 active:scale-[0.97] disabled:opacity-40 shadow-sm hover:shadow',
   btnSecondary:
     'px-5 py-2.5 bg-white hover:bg-stone-50 border border-stone-300 text-stone-700 text-sm font-semibold rounded-lg transition-colors duration-150 active:scale-[0.97]',
   btnGhost:

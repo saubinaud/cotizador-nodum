@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { cx } from '../styles/tokens';
-import { Calculator, Eye, EyeOff } from 'lucide-react';
+import { Eye, EyeOff } from 'lucide-react';
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -28,14 +28,22 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0A2F24] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        <div className="text-center mb-8">
-          <div className="w-16 h-16 rounded-2xl bg-white/10 flex items-center justify-center mx-auto mb-4">
-            <Calculator size={32} className="text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-white tracking-wide">Kudi</h1>
-          <p className="text-white/40 text-sm mt-1">Orden financiero que impulsa tu crecimiento</p>
+    <div className="min-h-screen bg-[#0A2F24] flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Noise/grain texture overlay */}
+      <div className="absolute inset-0 opacity-[0.03]" style={{
+        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E")`,
+        backgroundSize: '128px 128px',
+      }} />
+      {/* Subtle radial glow */}
+      <div className="absolute inset-0 bg-gradient-radial from-[#16A34A]/5 via-transparent to-transparent" style={{
+        background: 'radial-gradient(ellipse at 50% 30%, rgba(22,163,74,0.08) 0%, transparent 70%)',
+      }} />
+
+      <div className="w-full max-w-sm relative z-10">
+        <div className="text-center mb-10">
+          <img src="/logo.svg" alt="Kudi" className="w-24 h-24 mx-auto mb-5 drop-shadow-lg" />
+          <h1 className="text-3xl font-bold text-white tracking-wider">KUDI</h1>
+          <p className="text-white/40 text-sm mt-2">Orden financiero que impulsa tu crecimiento</p>
         </div>
 
         <div className="bg-white rounded-2xl p-8 shadow-xl">
