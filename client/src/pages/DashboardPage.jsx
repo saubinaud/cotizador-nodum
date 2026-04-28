@@ -342,18 +342,18 @@ export default function DashboardPage() {
                     <span className="text-[var(--accent)] font-bold text-sm">{formatCurrency(precioComercial(p.precio_final, precioMode))}</span>
                   </div>
                 </div>
-                {/* Action buttons */}
-                <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
+                {/* Action buttons — always visible on mobile, hover on desktop */}
+                <div className="absolute top-2 right-2 flex gap-1 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
                   <Link to={`/ficha-tecnica/${p.id}`} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-[var(--accent)]" title="Ficha tecnica">
                     <Package size={13} />
                   </Link>
-                  <button onClick={() => handleDuplicate(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-stone-800" title="Duplicar">
+                  <button onClick={() => handleDuplicate(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-stone-800 hidden lg:block" title="Duplicar">
                     <Copy size={13} />
                   </button>
-                  <button onClick={() => handleHistory(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-stone-800" title="Historial">
+                  <button onClick={() => handleHistory(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-stone-800 hidden lg:block" title="Historial">
                     <History size={13} />
                   </button>
-                  <button onClick={() => setDeleteTarget(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-rose-600" title="Eliminar">
+                  <button onClick={() => setDeleteTarget(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-rose-600 hidden lg:block" title="Eliminar">
                     <Trash2 size={13} />
                   </button>
                 </div>
@@ -377,21 +377,18 @@ export default function DashboardPage() {
                   <span>Costo: {formatCurrency(p.costo_neto)}</span>
                   <span>Margen: {formatPercent(p.margen)}</span>
                 </div>
-                <div className="flex gap-2 border-t border-stone-200 pt-3">
-                  <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}>
-                    <Pencil size={13} /> Editar
+                <div className="flex flex-wrap gap-1 border-t border-stone-200 pt-3">
+                  <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnGhost + ' flex-1 min-w-[4rem] flex items-center justify-center gap-1 text-xs'}>
+                    <Pencil size={12} /> Editar
                   </button>
-                  <Link to={`/ficha-tecnica/${p.id}`} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1 text-[var(--accent)]'}>
-                    Ficha
+                  <Link to={`/ficha-tecnica/${p.id}`} className={cx.btnGhost + ' flex-1 min-w-[4rem] flex items-center justify-center gap-1 text-xs text-[var(--accent)]'}>
+                    <Package size={12} /> Ficha
                   </Link>
-                  <button onClick={() => handleDuplicate(p)} className={cx.btnGhost + ' flex-1 flex items-center justify-center gap-1'}>
-                    <Copy size={13} /> Duplicar
+                  <button onClick={() => handleDuplicate(p)} className={cx.btnGhost + ' flex-1 min-w-[4rem] flex items-center justify-center gap-1 text-xs'}>
+                    <Copy size={12} /> Copiar
                   </button>
-                  <button onClick={() => handleHistory(p)} className={cx.btnGhost + ' flex items-center justify-center gap-1'}>
-                    <History size={13} />
-                  </button>
-                  <button onClick={() => setDeleteTarget(p)} className={cx.btnDanger + ' flex items-center justify-center gap-1'}>
-                    <Trash2 size={13} />
+                  <button onClick={() => setDeleteTarget(p)} className={cx.btnDanger + ' flex items-center justify-center p-2'}>
+                    <Trash2 size={12} />
                   </button>
                 </div>
               </div>
