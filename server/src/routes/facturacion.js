@@ -7,15 +7,42 @@ const router = express.Router();
 router.use(auth);
 
 const APISPERU_BASE = process.env.APISPERU_BASE_URL || 'https://facturacion.apisperu.com/api/v1';
-const APISPERU_TOKEN = process.env.APISPERU_TOKEN || '';
+const APISPERU_EMAIL = process.env.APISPERU_EMAIL || '';
+const APISPERU_PASSWORD = process.env.APISPERU_PASSWORD || '';
 
-// Helper: call APIsPeru
+// Token cache (auto-refresh every 23 hours)
+let _apisperuToken = null;
+let _apisperuTokenExpires = 0;
+
+async function getApisperuToken() {
+  if (_apisperuToken && Date.now() < _apisperuTokenExpires) return _apisperuToken;
+  try {
+    const res = await fetch(`${APISPERU_BASE}/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username: APISPERU_EMAIL, password: APISPERU_PASSWORD }),
+    });
+    const data = await res.json();
+    if (data.token) {
+      _apisperuToken = data.token;
+      _apisperuTokenExpires = Date.now() + 23 * 60 * 60 * 1000; // 23h
+      console.log('[apisperu] Token refreshed');
+    }
+    return _apisperuToken;
+  } catch (err) {
+    console.error('[apisperu] Login error:', err.message);
+    return _apisperuToken; // return stale token if refresh fails
+  }
+}
+
+// Helper: call APIsPeru with auto-login
 async function callApisPeru(path, body) {
+  const token = await getApisperuToken();
   const res = await fetch(`${APISPERU_BASE}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${APISPERU_TOKEN}`,
+      'Authorization': `Bearer ${token}`,
     },
     body: JSON.stringify(body),
   });
