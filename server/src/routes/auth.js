@@ -70,6 +70,8 @@ router.post('/login', async (req, res) => {
         email: user.email,
         rol: user.rol,
         igv_rate: parseFloat(user.igv_rate) || 0.18,
+        empresa_id: user.empresa_id,
+        rol_empresa: user.rol_empresa || 'owner',
       },
       process.env.JWT_SECRET,
       { expiresIn: '12h' }
@@ -118,6 +120,8 @@ router.post('/login', async (req, res) => {
           giro_negocio_id: user.giro_negocio_id,
           giro_nombre: giroNombre,
           giro_terminos: giroTerminos,
+          empresa_id: user.empresa_id,
+          rol_empresa: user.rol_empresa || 'owner',
         },
       },
     });

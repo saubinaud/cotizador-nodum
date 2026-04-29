@@ -1241,6 +1241,96 @@ async function runMigrations() {
       FOR EACH ROW EXECUTE FUNCTION update_pedido_monto_pagado()
     `);
 
+    // ==================== MULTI-USER: EMPRESAS ====================
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS empresas (
+        id SERIAL PRIMARY KEY,
+        nombre VARCHAR(200) NOT NULL,
+        ruc VARCHAR(11),
+        razon_social VARCHAR(300),
+        nombre_comercial VARCHAR(200),
+        direccion_fiscal TEXT,
+        departamento VARCHAR(50),
+        provincia VARCHAR(50),
+        distrito VARCHAR(50),
+        ubigeo VARCHAR(10),
+        telefono VARCHAR(20),
+        email VARCHAR(150),
+        logo_url TEXT,
+        igv_rate NUMERIC(5,4) DEFAULT 0.18,
+        tipo_negocio VARCHAR(10) DEFAULT 'formal',
+        pais_code VARCHAR(5) REFERENCES paises(code),
+        giro_negocio_id INTEGER REFERENCES giros_negocio(id),
+        precio_decimales VARCHAR(10) DEFAULT 'variable',
+        tarifa_mo_global NUMERIC(8,2),
+        margen_minimo_global NUMERIC(5,2) DEFAULT 33,
+        metodo_costeo VARCHAR(10) DEFAULT 'wac',
+        plan VARCHAR(20) DEFAULT 'trial',
+        trial_ends_at TIMESTAMPTZ,
+        max_productos INTEGER DEFAULT 2,
+        max_usuarios INTEGER DEFAULT 3,
+        activo BOOLEAN DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    // Add empresa_id + rol_empresa to usuarios
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS empresa_id INTEGER REFERENCES empresas(id)`);
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS rol_empresa VARCHAR(20) DEFAULT 'owner'`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_usuarios_empresa ON usuarios(empresa_id)`);
+
+    // Auto-create empresas for existing users who don't have one
+    // This is the backfill: each existing user gets their own empresa
+    const usersWithoutEmpresa = await client.query(
+      "SELECT id, nombre, nombre_comercial, ruc, razon_social, igv_rate, tipo_negocio, pais_code, giro_negocio_id, precio_decimales, tarifa_mo_global, margen_minimo_global, metodo_costeo, plan, trial_ends_at, max_productos, logo_url, direccion_fiscal, departamento, provincia, distrito, ubigeo FROM usuarios WHERE empresa_id IS NULL AND rol != 'admin'"
+    );
+    for (const u of usersWithoutEmpresa.rows) {
+      const empRes = await client.query(
+        `INSERT INTO empresas (nombre, ruc, razon_social, nombre_comercial, igv_rate, tipo_negocio, pais_code, giro_negocio_id, precio_decimales, tarifa_mo_global, margen_minimo_global, metodo_costeo, plan, trial_ends_at, max_productos, logo_url, direccion_fiscal, departamento, provincia, distrito, ubigeo)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21) RETURNING id`,
+        [u.nombre_comercial || u.nombre, u.ruc, u.razon_social, u.nombre_comercial, u.igv_rate, u.tipo_negocio, u.pais_code, u.giro_negocio_id, u.precio_decimales, u.tarifa_mo_global, u.margen_minimo_global, u.metodo_costeo, u.plan, u.trial_ends_at, u.max_productos, u.logo_url, u.direccion_fiscal, u.departamento, u.provincia, u.distrito, u.ubigeo]
+      );
+      await client.query('UPDATE usuarios SET empresa_id = $1, rol_empresa = $2 WHERE id = $3', [empRes.rows[0].id, 'owner', u.id]);
+    }
+
+    // Also handle admin user
+    const adminNoEmpresa = await client.query("SELECT id, nombre FROM usuarios WHERE empresa_id IS NULL AND rol = 'admin'");
+    for (const a of adminNoEmpresa.rows) {
+      const empRes = await client.query(
+        "INSERT INTO empresas (nombre, ruc, plan, max_usuarios) VALUES ($1, '', 'pro', 100) RETURNING id",
+        [a.nombre + ' (Admin)']
+      );
+      await client.query('UPDATE usuarios SET empresa_id = $1, rol_empresa = $2 WHERE id = $3', [empRes.rows[0].id, 'owner', a.id]);
+    }
+
+    // Add empresa_id to ALL data tables (26 tables)
+    const dataTables = [
+      'insumos', 'materiales', 'preparaciones_predeterminadas', 'empaques_predeterminados',
+      'productos', 'periodos', 'transacciones', 'categorias_gasto',
+      'ventas', 'gastos', 'ventas_periodo', 'compras',
+      'mediciones_merma_insumo', 'mediciones_merma_preparacion',
+      'desmedros_producto', 'desmedros_preparacion', 'desmedros_insumo', 'desmedros_material',
+      'flujo_cuentas', 'flujo_categorias', 'flujo_arqueos', 'flujo_transferencias',
+      'facturacion_config', 'comprobantes', 'clientes', 'pedidos'
+    ];
+
+    for (const table of dataTables) {
+      try {
+        await client.query(`ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS empresa_id INTEGER REFERENCES empresas(id)`);
+        // Backfill from usuario_id
+        await client.query(`
+          UPDATE ${table} t SET empresa_id = u.empresa_id
+          FROM usuarios u WHERE u.id = t.usuario_id AND t.empresa_id IS NULL
+        `);
+        await client.query(`CREATE INDEX IF NOT EXISTS idx_${table}_empresa ON ${table}(empresa_id)`);
+      } catch (tableErr) {
+        // Table may not exist yet — skip silently
+        console.log(`[migrate] empresa_id skip ${table}: ${tableErr.message}`);
+      }
+    }
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);
