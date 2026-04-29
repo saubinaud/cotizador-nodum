@@ -726,8 +726,8 @@ export default function CotizadorPage() {
   return (
     <div className="max-w-7xl mx-auto pb-12">
       {/* Page header — clean, Apple-style */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-stone-900">
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-xl font-bold text-stone-900">
           {id ? `Editar ${t.productos.toLowerCase().replace(/s$/, '')}` : `Nuevo ${t.productos.toLowerCase().replace(/s$/, '')}`}
         </h1>
         <button onClick={handleReset} className={cx.btnGhost + ' flex items-center gap-1.5'}>
@@ -735,15 +735,15 @@ export default function CotizadorPage() {
         </button>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-5">
         {/* Left column: main form */}
-        <div className="xl:col-span-2 space-y-5 lg:space-y-8">
+        <div className="xl:col-span-2 space-y-4 lg:space-y-5">
 
           {/* ── Producto ── */}
           <div>
-            <h3 className="text-lg font-semibold text-stone-900 mb-4">Producto<InfoTip text="Define el nombre y tipo de presentacion. Si vendes un producto entero (torta, pie), indica cuantas porciones tiene." /></h3>
-            <div className={`${cx.card} p-4 sm:p-6`}>
-              <div className={`grid gap-4 grid-cols-1 ${tipoPresentacion === 'entero' ? 'sm:grid-cols-[9fr_7fr_4fr]' : 'sm:grid-cols-[3fr_2fr]'}`}>
+            <h3 className="text-lg font-semibold text-stone-900 mb-3">Producto<InfoTip text="Define el nombre y tipo de presentacion. Si vendes un producto entero (torta, pie), indica cuantas porciones tiene." /></h3>
+            <div className={`${cx.card} p-4`}>
+              <div className={`grid gap-3 grid-cols-1 ${tipoPresentacion === 'entero' ? 'sm:grid-cols-[9fr_7fr_4fr]' : 'sm:grid-cols-[3fr_2fr]'}`}>
                 <div>
                   <label className={cx.label}>Nombre del producto</label>
                   <input type="text" value={nombre} onChange={(e) => setNombre(e.target.value)} className={cx.input} placeholder="Ej: Cheesecake de fresa" autoFocus />
@@ -785,7 +785,7 @@ export default function CotizadorPage() {
 
           {/* ── Preparaciones — Airbnb accordion ── */}
           <div>
-            <h3 className="text-lg font-semibold text-stone-900 mb-4">Preparaciones<InfoTip text="Cada preparacion es una receta base (masa, relleno, crema). Indica cuanto rinde en total. Puedes cargar plantillas guardadas previamente." /></h3>
+            <h3 className="text-lg font-semibold text-stone-900 mb-3">Preparaciones<InfoTip text="Cada preparacion es una receta base (masa, relleno, crema). Indica cuanto rinde en total. Puedes cargar plantillas guardadas previamente." /></h3>
 
             {/* Single card with divide-y for all preps */}
             <div className={`${cx.card} divide-y divide-stone-100`}>
@@ -970,7 +970,7 @@ export default function CotizadorPage() {
 
           {/* ── Composicion del producto — light bg section ── */}
           <div>
-            <h3 className="text-lg font-semibold text-stone-900 mb-4">Composicion del producto<InfoTip text="Indica cuantos gramos/ml de cada preparacion necesitas para hacer UN producto completo. El sistema calculara automaticamente cuantos productos puedes hacer por tanda y el costo." /></h3>
+            <h3 className="text-lg font-semibold text-stone-900 mb-3">Composicion del producto<InfoTip text="Indica cuantos gramos/ml de cada preparacion necesitas para hacer UN producto completo. El sistema calculara automaticamente cuantos productos puedes hacer por tanda y el costo." /></h3>
             <div className="bg-stone-50 rounded-xl p-3 sm:p-5">
               {preparaciones.filter(p => p.nombre).length === 0 ? (
                 <p className="text-stone-400 text-sm text-center py-4">Agrega preparaciones arriba para definir la composicion.</p>
@@ -1075,10 +1075,10 @@ export default function CotizadorPage() {
 
           {/* ── Empaque / Materiales ── */}
           <div>
-            <h3 className="text-lg font-semibold text-stone-900 mb-4">Empaque<InfoTip text="Materiales de empaque para presentar tu producto. Si es presentacion entera, separa el empaque del producto completo y el de cada porcion individual." /></h3>
+            <h3 className="text-lg font-semibold text-stone-900 mb-3">Empaque<InfoTip text="Materiales de empaque para presentar tu producto. Si es presentacion entera, separa el empaque del producto completo y el de cada porcion individual." /></h3>
 
             {tipoPresentacion === 'entero' ? (
-              <div className="space-y-5">
+              <div className="space-y-4">
                 {/* Empaque producto entero */}
                 <div>
                   <div className="flex items-center justify-between mb-2">
@@ -1144,8 +1144,8 @@ export default function CotizadorPage() {
 
         {/* ── Right column: Resumen — premium sticky card ── */}
         <div className="xl:col-span-1 xl:self-start xl:sticky xl:top-6">
-          <div className={`${cx.card} p-4 sm:p-6`}>
-            <h3 className="text-lg font-semibold text-stone-900 mb-5">Resumen<InfoTip text="El costo neto incluye insumos + empaque. El margen define tu ganancia. El precio sugerido redondea a un valor comercial (.90 o .00)." /></h3>
+          <div className={`${cx.card} p-4`}>
+            <h3 className="text-lg font-semibold text-stone-900 mb-4">Resumen<InfoTip text="El costo neto incluye insumos + empaque. El margen define tu ganancia. El precio sugerido redondea a un valor comercial (.90 o .00)." /></h3>
 
             {tipoPresentacion === 'entero' ? (
               <>

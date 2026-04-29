@@ -134,10 +134,10 @@ export default function ComprobantesPage() {
   return (
     <div className="max-w-7xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div className="flex items-center gap-3">
           <FileText size={22} className="text-[var(--accent)]" />
-          <h1 className="text-2xl font-bold text-stone-900">Comprobantes</h1>
+          <h1 className="text-xl font-bold text-stone-900">Comprobantes</h1>
         </div>
         <div className="flex items-center gap-3">
           {periodos.length > 0 && (
@@ -160,22 +160,22 @@ export default function ComprobantesPage() {
       </div>
 
       {/* Summary cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
-        <div className={`${cx.card} p-5`}>
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+        <div className={`${cx.card} p-4`}>
           <div className="flex items-center gap-2 mb-2">
             <DollarSign size={18} className="text-[var(--accent)]" />
             <span className="text-xs font-semibold text-stone-500 tracking-wide uppercase">Total emitido</span>
           </div>
           <p className="text-xl font-bold text-stone-900">{formatCurrency(summary.total)}</p>
         </div>
-        <div className={`${cx.card} p-5`}>
+        <div className={`${cx.card} p-4`}>
           <div className="flex items-center gap-2 mb-2">
             <FileText size={18} className="text-stone-400" />
             <span className="text-xs font-semibold text-stone-500 tracking-wide uppercase">Facturas</span>
           </div>
           <p className="text-xl font-bold text-stone-900">{summary.facturas}</p>
         </div>
-        <div className={`${cx.card} p-5`}>
+        <div className={`${cx.card} p-4`}>
           <div className="flex items-center gap-2 mb-2">
             <Receipt size={18} className="text-stone-400" />
             <span className="text-xs font-semibold text-stone-500 tracking-wide uppercase">Boletas</span>

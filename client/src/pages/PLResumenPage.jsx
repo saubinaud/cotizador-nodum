@@ -105,7 +105,7 @@ export default function PLResumenPage() {
   if (periodos.length === 0) {
     return (
       <div className="max-w-7xl mx-auto pb-12">
-        <h1 className="text-2xl font-bold text-stone-900 mb-8">P&L — Estado de Resultados</h1>
+        <h1 className="text-xl font-bold text-stone-900 mb-5">P&L — Estado de Resultados</h1>
         <div className={`${cx.card} p-12 text-center`}>
           <Receipt size={40} className="text-stone-300 mx-auto mb-4" />
           <p className="text-stone-500 text-sm mb-6">
@@ -125,9 +125,9 @@ export default function PLResumenPage() {
   return (
     <div className="max-w-7xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-stone-900">P&L — Estado de Resultados</h1>
+          <h1 className="text-xl font-bold text-stone-900">P&L — Estado de Resultados</h1>
           <CustomSelect
             value={String(periodoId)}
             onChange={(v) => setPeriodoId(parseInt(v))}
@@ -166,9 +166,9 @@ export default function PLResumenPage() {
           </div>
         </div>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-4">
           {/* KPI Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
             <KpiCard
               icon={<UtensilsCrossed size={16} />}
               label="Food Cost"
@@ -355,8 +355,8 @@ export default function PLResumenPage() {
           {/* Top Productos — mini-table pattern */}
           {data.top_productos && data.top_productos.length > 0 && (
             <div className={cx.card}>
-              <div className="p-6">
-                <h3 className="text-lg font-semibold text-stone-900 mb-4">Top Productos</h3>
+              <div className="p-4">
+                <h3 className="text-lg font-semibold text-stone-900 mb-3">Top Productos</h3>
 
                 {/* Desktop table — bordered, bg-stone-50 header */}
                 <div className="hidden sm:block">
@@ -418,8 +418,8 @@ export default function PLResumenPage() {
           {/* Punto de Equilibrio */}
           {data.kpis.punto_equilibrio > 0 && (
             <div className={cx.card}>
-              <div className="p-6">
-                <div className="flex items-center gap-2 mb-4">
+              <div className="p-4">
+                <div className="flex items-center gap-2 mb-3">
                   <Target size={18} className="text-[var(--accent)]" />
                   <h3 className="text-lg font-semibold text-stone-900">Punto de Equilibrio</h3>
                 </div>
@@ -455,8 +455,8 @@ function KpiCard({ icon, label, value, color, sub, trend }) {
     neutral: '',
   };
   return (
-    <div className={`${cx.card} p-5 ${tintMap[color]}`}>
-      <div className="flex items-center gap-2 mb-3">
+    <div className={`${cx.card} p-4 ${tintMap[color]}`}>
+      <div className="flex items-center gap-2 mb-2">
         <span className={`p-1.5 rounded-lg ${bgMap[color]}`}>
           <span className={colorMap[color]}>{icon}</span>
         </span>

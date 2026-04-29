@@ -358,7 +358,7 @@ export default function PLCashflowPage() {
   return (
     <div className="max-w-7xl mx-auto">
       {/* Tab navigation */}
-      <div className="flex gap-1 p-1 bg-stone-100 rounded-lg w-fit mb-6">
+      <div className="flex gap-1 p-1 bg-stone-100 rounded-lg w-fit mb-4">
         {[
           { key: 'flujo', label: 'Flujo de Caja', icon: BarChart3 },
           { key: 'arqueo', label: 'Arqueo', icon: ClipboardCheck },
@@ -377,9 +377,9 @@ export default function PLCashflowPage() {
       {tab === 'flujo' && (
         <>
           {/* Header */}
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-stone-900">Flujo de Caja</h1>
+              <h1 className="text-xl font-bold text-stone-900">Flujo de Caja</h1>
               <p className="text-sm text-stone-500 mt-0.5">Estado de flujo de efectivo</p>
             </div>
             <div className="flex items-center gap-3">
@@ -500,9 +500,9 @@ export default function PLCashflowPage() {
       {/* ═══════════════════ TAB 2: ARQUEO ═══════════════════ */}
       {tab === 'arqueo' && (
         <>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-stone-900">Arqueo de Caja</h1>
+              <h1 className="text-xl font-bold text-stone-900">Arqueo de Caja</h1>
               <p className="text-sm text-stone-500 mt-0.5">Conciliacion diaria de saldos</p>
             </div>
             <div className="flex items-center gap-3">
@@ -674,9 +674,9 @@ export default function PLCashflowPage() {
       {/* ═══════════════════ TAB 3: CUENTAS ═══════════════════ */}
       {tab === 'cuentas' && (
         <>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold text-stone-900">Cuentas / Billeteras</h1>
+              <h1 className="text-xl font-bold text-stone-900">Cuentas / Billeteras</h1>
               <p className="text-sm text-stone-500 mt-0.5">Gestiona tus cuentas de efectivo, banco y digital</p>
             </div>
             <button
@@ -689,8 +689,8 @@ export default function PLCashflowPage() {
 
           {/* Inline form */}
           {showCuentaForm && (
-            <div className={cx.card + ' p-5 mb-4'}>
-              <div className="flex items-center justify-between mb-4">
+            <div className={cx.card + ' p-4 mb-4'}>
+              <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-semibold text-stone-900">{editingCuentaId ? 'Editar cuenta' : 'Nueva cuenta'}</h3>
                 <button onClick={() => { setShowCuentaForm(false); setEditingCuentaId(null); }} className={cx.btnGhost}><X size={16} /></button>
               </div>
@@ -795,8 +795,8 @@ export default function PLCashflowPage() {
           )}
 
           {/* Transferencias */}
-          <div className={cx.card + ' p-5 mt-4'}>
-            <div className="flex items-center justify-between mb-4">
+          <div className={cx.card + ' p-4 mt-4'}>
+            <div className="flex items-center justify-between mb-3">
               <h3 className="text-sm font-semibold text-stone-900">Transferencias entre cuentas</h3>
               <button onClick={() => setShowTransferForm(true)} className={cx.btnSecondary + ' flex items-center gap-2 text-xs'}>
                 <ArrowUpRight size={14} /> Nueva transferencia
@@ -856,7 +856,7 @@ export default function PLCashflowPage() {
       {showMovForm && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowMovForm(false)}>
           <div className={cx.card + ' w-full max-w-lg mx-4 p-6'} onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-5">
+            <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-stone-900">Nuevo Movimiento</h2>
               <button onClick={() => setShowMovForm(false)} className={cx.btnGhost}><X size={18} /></button>
             </div>

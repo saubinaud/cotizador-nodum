@@ -281,7 +281,7 @@ export default function PLTimelinePage() {
   if (periodos.length === 0) {
     return (
       <div className="max-w-2xl mx-auto">
-        <h1 className="text-2xl font-bold text-stone-900 mb-6">Timeline</h1>
+        <h1 className="text-xl font-bold text-stone-900 mb-4">Timeline</h1>
         <div className={`${cx.card} p-8 text-center`}>
           <Activity size={32} className="mx-auto text-stone-300 mb-3" />
           <p className="text-stone-500 text-sm mb-4">Crea tu primer periodo para empezar a registrar transacciones.</p>
@@ -296,8 +296,8 @@ export default function PLTimelinePage() {
   return (
     <div className="max-w-2xl mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <h1 className="text-2xl font-bold text-stone-900">Timeline</h1>
+      <div className="flex items-center justify-between mb-4">
+        <h1 className="text-xl font-bold text-stone-900">Timeline</h1>
         <button
           onClick={() => { resetForm(); setModalOpen(true); }}
           className={cx.btnPrimary + ' flex items-center gap-2'}
@@ -308,7 +308,7 @@ export default function PLTimelinePage() {
       </div>
 
       {/* Period selector + filter */}
-      <div className="flex gap-3 mb-5">
+      <div className="flex gap-3 mb-4">
         <div className="flex-1">
           <CustomSelect
             options={periodoOptions}
@@ -329,7 +329,7 @@ export default function PLTimelinePage() {
 
       {/* Balance summary cards */}
       {balance && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
           <div className={`${cx.card} p-4`}>
             <p className="text-[10px] font-semibold text-stone-400 uppercase tracking-wider mb-1">Ingresos</p>
             <p className="text-base font-bold text-teal-600 tabular-nums">{formatCurrency(balance.ingresos)}</p>

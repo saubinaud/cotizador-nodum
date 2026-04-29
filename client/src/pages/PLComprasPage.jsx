@@ -245,7 +245,7 @@ export default function PLComprasPage() {
   if (periodos.length === 0) {
     return (
       <div className="max-w-7xl mx-auto pb-12">
-        <h1 className="text-2xl font-bold text-stone-900 mb-8">Compras</h1>
+        <h1 className="text-xl font-bold text-stone-900 mb-5">Compras</h1>
         <div className={`${cx.card} p-12 text-center`}>
           <ShoppingBag size={40} className="text-stone-300 mx-auto mb-4" />
           <p className="text-stone-500 text-sm mb-6">
@@ -262,9 +262,9 @@ export default function PLComprasPage() {
   return (
     <div className="max-w-7xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-stone-900">Compras</h1>
+          <h1 className="text-xl font-bold text-stone-900">Compras</h1>
           <CustomSelect
             value={String(periodoId)}
             onChange={(v) => setPeriodoId(parseInt(v))}
@@ -280,7 +280,7 @@ export default function PLComprasPage() {
 
       {/* Summary cards */}
       {resumen && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
           <SummaryCard
             icon={<Salad size={18} />}
             label="Compras Insumos"
@@ -450,7 +450,7 @@ export default function PLComprasPage() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-stone-900">Nueva compra</h3>
                 <button onClick={() => setModalOpen(false)} className={cx.btnIcon}>
                   <X size={18} />
@@ -458,7 +458,7 @@ export default function PLComprasPage() {
               </div>
 
               {/* Header: fecha + proveedor */}
-              <div className="grid grid-cols-2 gap-4 mb-6">
+              <div className="grid grid-cols-2 gap-3 mb-4">
                 <div>
                   <label className={cx.label}>Fecha</label>
                   <input
@@ -671,8 +671,8 @@ export default function PLComprasPage() {
 
 function SummaryCard({ icon, label, value, color, bold }) {
   return (
-    <div className={`${cx.card} p-5`}>
-      <div className="flex items-center gap-2 mb-2">
+    <div className={`${cx.card} p-4`}>
+      <div className="flex items-center gap-2 mb-1.5">
         <span className={color || 'text-stone-400'}>{icon}</span>
         <span className="text-xs font-semibold text-stone-500 tracking-wide uppercase">{label}</span>
       </div>

@@ -240,8 +240,8 @@ export default function DashboardPage() {
   return (
     <div>
       {/* Header — Apple style */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-stone-900">Mis {t.productos.toLowerCase()}</h1>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-xl font-bold text-stone-900">Mis {t.productos.toLowerCase()}</h1>
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
           <button
             onClick={() => setViewMode('gallery')}
@@ -295,7 +295,7 @@ export default function DashboardPage() {
 
       {/* Search — Airbnb style */}
       {products.length > 0 && (
-        <div className="relative mb-6">
+        <div className="relative mb-4">
           <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-stone-400" />
           <input
             type="text"
@@ -452,8 +452,8 @@ export default function DashboardPage() {
         const renderSection = (prods, label) => {
           if (prods.length === 0) return null;
           return (
-            <div className={label === 'Presentaciones enteras' ? 'mb-8' : ''}>
-              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-4">{label} ({prods.length})</p>
+            <div className={label === 'Presentaciones enteras' ? 'mb-5' : ''}>
+              <p className="text-xs font-semibold text-stone-400 uppercase tracking-wider mb-3">{label} ({prods.length})</p>
               {viewMode === 'gallery' && renderGalleryGrid(prods)}
               {viewMode === 'table' && (
                 <>
@@ -679,8 +679,8 @@ export default function DashboardPage() {
             )}
 
             {/* Content */}
-            <div className="p-4 sm:p-6">
-              <div className="flex items-start justify-between mb-6">
+            <div className="p-4 sm:p-5">
+              <div className="flex items-start justify-between mb-4">
                 <div>
                   <h2 className="text-xl font-bold text-stone-900">{detailModal.nombre}</h2>
                   <p className="text-sm text-stone-500 mt-1">Margen: {formatPercent(detailModal.margen)}</p>

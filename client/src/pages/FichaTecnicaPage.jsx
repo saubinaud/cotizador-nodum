@@ -94,14 +94,14 @@ export default function FichaTecnicaPage() {
       <div className={`${cx.card} overflow-hidden`}>
         <button
           onClick={() => setOpenSections(s => ({ ...s, [number]: !isOpen }))}
-          className="w-full flex items-center justify-between p-5 lg:cursor-default"
+          className="w-full flex items-center justify-between p-4 lg:cursor-default"
         >
           <h3 className="text-sm font-semibold text-stone-900">{title}</h3>
           <span className="lg:hidden">
             {isOpen ? <ChevronUp size={16} className="text-stone-400" /> : <ChevronDown size={16} className="text-stone-400" />}
           </span>
         </button>
-        <div className={`${isOpen ? 'block' : 'hidden lg:block'} px-5 pb-5`}>
+        <div className={`${isOpen ? 'block' : 'hidden lg:block'} px-4 pb-4`}>
           {children}
         </div>
       </div>
@@ -162,13 +162,13 @@ export default function FichaTecnicaPage() {
   return (
     <div className="max-w-5xl mx-auto print:max-w-none">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">
           <button onClick={() => navigate(-1)} className={cx.btnGhost}>
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-stone-900">{tm.ficha_tecnica}</h1>
+            <h1 className="text-xl font-bold text-stone-900">{tm.ficha_tecnica}</h1>
             <p className="text-sm text-stone-500">{producto.nombre}</p>
           </div>
         </div>
@@ -193,7 +193,7 @@ export default function FichaTecnicaPage() {
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-3">
         {/* Section 1 — Identificacion */}
         <Section title="1. Identificacion" number={1}>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">

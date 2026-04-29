@@ -3,6 +3,7 @@ const pool = require('../models/db');
 const auth = require('../middleware/auth');
 const { calcularCostos, round4 } = require('../services/calculador');
 const { aBase, calcCostoLinea } = require('../utils/unidades');
+const { logAudit } = require('../utils/audit');
 
 const router = express.Router();
 
@@ -41,10 +42,10 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN');
 
     const prodRes = await client.query(
-      `INSERT INTO productos (usuario_id, nombre, margen, margen_porcion, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      `INSERT INTO productos (usuario_id, nombre, margen, margen_porcion, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
        RETURNING *`,
-      [req.user.id, nombre, margenDecimal, margenPorcionDecimal, igv_rate, imagen_url || null, tipo_presentacion || 'unidad', parseInt(unidades_por_producto) || 1]
+      [req.user.id, nombre, margenDecimal, margenPorcionDecimal, igv_rate, imagen_url || null, tipo_presentacion || 'unidad', parseInt(unidades_por_producto) || 1, req.user.id]
     );
     const producto = prodRes.rows[0];
 
@@ -172,7 +173,7 @@ router.post('/', async (req, res) => {
 
     await client.query('COMMIT');
 
-    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'producto', producto.id, 'crear', JSON.stringify({ nombre })]); } catch (_) {}
+    logAudit({ userId: req.user.id, entidad: 'producto', entidadId: producto.id, accion: 'crear', descripcion: `Creo producto "${nombre}"` });
 
     return res.status(201).json({ success: true, data: { ...producto, ...costos, productoUnidad } });
   } catch (err) {
@@ -350,9 +351,10 @@ router.put('/:id', async (req, res) => {
         imagen_url = COALESCE($5, imagen_url),
         tipo_presentacion = COALESCE($6, tipo_presentacion),
         unidades_por_producto = COALESCE($7, unidades_por_producto),
+        updated_by = $9,
         updated_at = NOW()
        WHERE id = $4`,
-      [nombre, margenDecimal, igv_rate, req.params.id, imagen_url, tipo_presentacion, unidades_por_producto ? parseInt(unidades_por_producto) : undefined, margenPorcionDecimal]
+      [nombre, margenDecimal, igv_rate, req.params.id, imagen_url, tipo_presentacion, unidades_por_producto ? parseInt(unidades_por_producto) : undefined, margenPorcionDecimal, req.user.id]
     );
 
     let allInsumos = [];
@@ -532,7 +534,7 @@ router.put('/:id', async (req, res) => {
 
     await client.query('COMMIT');
 
-    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'producto', req.params.id, 'actualizar', JSON.stringify({ nombre })]); } catch (_) {}
+    logAudit({ userId: req.user.id, entidad: 'producto', entidadId: req.params.id, accion: 'editar', descripcion: `Edito producto "${nombre}"` });
 
     return res.json({ success: true, data: { ...updatedProd.rows[0], ...costos } });
   } catch (err) {
@@ -801,7 +803,7 @@ router.delete('/:id', async (req, res) => {
 
     await client.query('COMMIT');
 
-    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'producto', req.params.id, 'eliminar', null]); } catch (_) {}
+    logAudit({ userId: req.user.id, entidad: 'producto', entidadId: req.params.id, accion: 'eliminar', descripcion: `Elimino producto #${req.params.id}` });
 
     return res.json({ success: true, data: { message: 'Producto eliminado' } });
   } catch (err) {

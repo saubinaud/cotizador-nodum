@@ -1135,6 +1135,39 @@ async function runMigrations() {
       }
     }
 
+    // ==================== AUDIT TRAIL ====================
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS audit_log (
+        id BIGSERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL DEFAULT 0,
+        usuario_nombre VARCHAR(200),
+        entidad VARCHAR(50) NOT NULL,
+        entidad_id INTEGER,
+        accion VARCHAR(20) NOT NULL,
+        descripcion TEXT,
+        cambios_json JSONB,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_usuario ON audit_log(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_entidad ON audit_log(entidad, entidad_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_audit_fecha ON audit_log(created_at DESC)`);
+
+    // created_by / updated_by on key tables
+    await client.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS created_by INTEGER`);
+    await client.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS updated_by INTEGER`);
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS created_by INTEGER`);
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS updated_by INTEGER`);
+    await client.query(`ALTER TABLE gastos ADD COLUMN IF NOT EXISTS created_by INTEGER`);
+    await client.query(`ALTER TABLE compras ADD COLUMN IF NOT EXISTS created_by INTEGER`);
+    await client.query(`ALTER TABLE transacciones ADD COLUMN IF NOT EXISTS created_by INTEGER`);
+    await client.query(`ALTER TABLE insumos ADD COLUMN IF NOT EXISTS created_by INTEGER`);
+    await client.query(`ALTER TABLE materiales ADD COLUMN IF NOT EXISTS created_by INTEGER`);
+    await client.query(`ALTER TABLE comprobantes ADD COLUMN IF NOT EXISTS created_by INTEGER`);
+    await client.query(`ALTER TABLE flujo_arqueos ADD COLUMN IF NOT EXISTS created_by INTEGER`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

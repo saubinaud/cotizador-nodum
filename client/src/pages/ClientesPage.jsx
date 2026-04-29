@@ -135,10 +135,10 @@ export default function ClientesPage() {
   return (
     <div className="max-w-7xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div className="flex items-center gap-3">
           <Users size={22} className="text-[var(--accent)]" />
-          <h1 className="text-2xl font-bold text-stone-900">Clientes</h1>
+          <h1 className="text-xl font-bold text-stone-900">Clientes</h1>
         </div>
         <button onClick={openNew} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={14} /> Nuevo cliente
@@ -146,7 +146,7 @@ export default function ClientesPage() {
       </div>
 
       {/* Search */}
-      <div className="relative mb-6">
+      <div className="relative mb-4">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-stone-400" />
         <input
           type="text"

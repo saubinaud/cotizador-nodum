@@ -176,12 +176,12 @@ export default function PerfilPage() {
     : 18;
 
   return (
-    <div className="max-w-xl mx-auto space-y-6">
-      <h2 className="text-2xl font-bold text-stone-900">Mi Perfil</h2>
+    <div className="max-w-xl mx-auto space-y-4">
+      <h2 className="text-xl font-bold text-stone-900">Mi Perfil</h2>
 
       {/* Profile info */}
-      <div className={`${cx.card} p-6`}>
-        <div className="flex items-center justify-between mb-6">
+      <div className={`${cx.card} p-4`}>
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-4">
             <div className="relative group">
               {user?.logo_url ? (
@@ -387,7 +387,7 @@ export default function PerfilPage() {
       </div>
 
       {/* Theme selector */}
-      <div className={`${cx.card} p-6`}>
+      <div className={`${cx.card} p-4`}>
         <h3 className="text-lg font-semibold text-stone-900 mb-3">Tema</h3>
         <div className="flex gap-3">
           {[
@@ -421,7 +421,7 @@ export default function PerfilPage() {
       </div>
 
       {/* Change password */}
-      <div className={`${cx.card} p-6`}>
+      <div className={`${cx.card} p-4`}>
         <div className="flex items-center gap-2 mb-4">
           <Lock size={16} className="text-stone-400" />
           <h3 className="text-lg font-semibold text-stone-900">Cambiar contrasena</h3>
@@ -476,7 +476,7 @@ export default function PerfilPage() {
       </div>
 
       {/* Ajustes globales */}
-      <div className={`${cx.card} p-6`}>
+      <div className={`${cx.card} p-4`}>
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
             <Settings size={16} className="text-stone-400" />

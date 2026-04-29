@@ -245,8 +245,8 @@ export default function PrepPredPage() {
   return (
     <div>
       {/* Page header */}
-      <div className="flex items-center justify-between mb-8">
-        <h1 className="text-2xl font-bold text-stone-900">{t.prep_pred}</h1>
+      <div className="flex items-center justify-between mb-5">
+        <h1 className="text-xl font-bold text-stone-900">{t.prep_pred}</h1>
         <button onClick={startNew} disabled={editingId !== null} className={cx.btnPrimary + ' flex items-center gap-2'}>
           <Plus size={14} /> Nueva
         </button>
@@ -254,8 +254,8 @@ export default function PrepPredPage() {
 
       {/* Edit/create form */}
       {editData && (
-        <div className={`${cx.card} p-6 mb-6 border-[var(--accent)]`}>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+        <div className={`${cx.card} p-4 mb-4 border-[var(--accent)]`}>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
             <div>
               <label className={cx.label}>Nombre</label>
               <input type="text" value={editData.nombre} onChange={(e) => setEditData({ ...editData, nombre: e.target.value })} className={cx.input} autoFocus />
@@ -421,7 +421,7 @@ export default function PrepPredPage() {
             }, 0);
             const isExpanded = collapsed[prep.id] === false;
             return (
-              <div key={prep.id} className="p-5">
+              <div key={prep.id} className="p-4">
                 {/* Clickable header */}
                 <div
                   className="flex items-center justify-between cursor-pointer"

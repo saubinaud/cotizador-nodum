@@ -314,7 +314,7 @@ export default function PLGastosPage() {
   if (periodos.length === 0) {
     return (
       <div className="max-w-7xl mx-auto pb-12">
-        <h1 className="text-2xl font-bold text-stone-900 mb-8">Gastos</h1>
+        <h1 className="text-xl font-bold text-stone-900 mb-5">Gastos</h1>
         <div className={`${cx.card} p-12 text-center`}>
           <Wallet size={40} className="text-stone-300 mx-auto mb-4" />
           <p className="text-stone-500 text-sm mb-6">
@@ -335,9 +335,9 @@ export default function PLGastosPage() {
   return (
     <div className="max-w-7xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-stone-900">Gastos</h1>
+          <h1 className="text-xl font-bold text-stone-900">Gastos</h1>
           <CustomSelect
             value={String(periodoId)}
             onChange={(v) => setPeriodoId(parseInt(v))}
@@ -362,7 +362,7 @@ export default function PLGastosPage() {
 
       {/* Summary cards */}
       {resumen && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
           <SummaryCard
             icon={<DollarSign size={18} />}
             label="Gastos fijos"
@@ -499,7 +499,7 @@ export default function PLGastosPage() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-stone-900">
                   {editingGasto ? 'Editar gasto' : 'Registrar gasto'}
                 </h3>
@@ -580,7 +580,7 @@ export default function PLGastosPage() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setCatModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[85vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-stone-900">Gestionar categorias</h3>
                 <button onClick={() => setCatModalOpen(false)} className={cx.btnIcon}>
                   <X size={18} />
@@ -589,7 +589,7 @@ export default function PLGastosPage() {
 
               {/* Existing categories list */}
               {categorias.length > 0 && (
-                <div className="mb-6 divide-y divide-stone-100 border border-stone-200 rounded-lg overflow-hidden">
+                <div className="mb-4 divide-y divide-stone-100 border border-stone-200 rounded-lg overflow-hidden">
                   {categorias.map((cat) => (
                     <div key={cat.id} className="flex items-center justify-between px-4 py-3">
                       <div className="flex items-center gap-2 min-w-0">
@@ -693,8 +693,8 @@ export default function PLGastosPage() {
 // Summary card component
 function SummaryCard({ icon, label, value, color, bold }) {
   return (
-    <div className={`${cx.card} p-5`}>
-      <div className="flex items-center gap-2 mb-2">
+    <div className={`${cx.card} p-4`}>
+      <div className="flex items-center gap-2 mb-1.5">
         <span className={color || 'text-stone-400'}>{icon}</span>
         <span className="text-xs font-semibold text-stone-500 tracking-wide uppercase">{label}</span>
       </div>

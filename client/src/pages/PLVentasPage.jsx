@@ -338,7 +338,7 @@ export default function PLVentasPage() {
   if (periodos.length === 0) {
     return (
       <div className="max-w-7xl mx-auto pb-12">
-        <h1 className="text-2xl font-bold text-stone-900 mb-8">Ventas</h1>
+        <h1 className="text-xl font-bold text-stone-900 mb-5">Ventas</h1>
         <div className={`${cx.card} p-12 text-center`}>
           <ShoppingCart size={40} className="text-stone-300 mx-auto mb-4" />
           <p className="text-stone-500 text-sm mb-6">
@@ -359,9 +359,9 @@ export default function PLVentasPage() {
   return (
     <div className="max-w-7xl mx-auto pb-12">
       {/* Header: title + period selector + register button */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div className="flex items-center gap-4">
-          <h1 className="text-2xl font-bold text-stone-900">Ventas</h1>
+          <h1 className="text-xl font-bold text-stone-900">Ventas</h1>
           <CustomSelect
             value={String(periodoId)}
             onChange={(v) => setPeriodoId(parseInt(v))}
@@ -377,7 +377,7 @@ export default function PLVentasPage() {
 
       {/* Summary cards */}
       {resumen && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-5">
           <SummaryCard
             icon={<DollarSign size={18} />}
             label="Ingresos"
@@ -532,7 +532,7 @@ export default function PLVentasPage() {
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setModalOpen(false)} />
           <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto">
             <div className="p-6">
-              <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-bold text-stone-900">
                   {editingVenta ? 'Editar venta' : 'Registrar venta'}
                 </h3>
@@ -786,8 +786,8 @@ export default function PLVentasPage() {
 // Summary card component
 function SummaryCard({ icon, label, value, accent, positive }) {
   return (
-    <div className={`${cx.card} p-5`}>
-      <div className="flex items-center gap-2 mb-2">
+    <div className={`${cx.card} p-4`}>
+      <div className="flex items-center gap-2 mb-1.5">
         <span className={accent ? 'text-[var(--accent)]' : 'text-stone-400'}>{icon}</span>
         <span className="text-xs font-semibold text-stone-500 tracking-wide uppercase">{label}</span>
       </div>

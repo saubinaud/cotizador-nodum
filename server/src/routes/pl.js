@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
 const { aBase, getUnidadBase } = require('../utils/unidades');
+const { logAudit } = require('../utils/audit');
 
 /**
  * Recalculates WAC (Weighted Average Cost) for an insumo
@@ -606,6 +607,8 @@ router.post('/ventas', async (req, res) => {
       }
     } catch (_) {}
 
+    logAudit({ userId: req.user.id, entidad: 'venta', entidadId: result.rows[0].id, accion: 'crear', descripcion: `Registro venta de ${cantidad} unidad(es)` });
+
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('Create venta error:', err);
@@ -693,6 +696,8 @@ router.delete('/ventas/:id', async (req, res) => {
         });
       } catch (_) {}
     }
+
+    logAudit({ userId: req.user.id, entidad: 'venta', entidadId: req.params.id, accion: 'eliminar', descripcion: 'Elimino venta' });
 
     return res.json({ success: true, data: { message: 'Venta eliminada' } });
   } catch (err) {
@@ -836,6 +841,8 @@ router.post('/gastos', async (req, res) => {
         [req.user.id, periodo_id, fecha, categoria_id, -parseFloat(monto), parseFloat(monto), descripcion || null]
       );
     } catch (_) {}
+
+    logAudit({ userId: req.user.id, entidad: 'gasto', entidadId: result.rows[0].id, accion: 'crear', descripcion: `Registro gasto de S/${monto}` });
 
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -1011,6 +1018,8 @@ router.post('/compras', async (req, res) => {
         await pool.query('UPDATE flujo_cuentas SET saldo_actual = saldo_actual - $1 WHERE id = $2', [total, cuenta_id]);
       }
     } catch (_) {}
+
+    logAudit({ userId: req.user.id, entidad: 'compra', entidadId: compra.id, accion: 'crear', descripcion: `Registro compra de S/${total}${proveedor ? ' - ' + proveedor : ''}` });
 
     return res.status(201).json({ success: true, data: compra });
   } catch (err) {

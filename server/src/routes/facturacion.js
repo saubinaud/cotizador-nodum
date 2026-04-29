@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
 const { encryptCert, decryptCert, buildInvoiceJSON, round2 } = require('../utils/facturacion');
+const { logAudit } = require('../utils/audit');
 
 const router = express.Router();
 router.use(auth);
@@ -239,6 +240,8 @@ router.post('/emitir', async (req, res) => {
       }
     }
 
+    logAudit({ userId: req.user.id, entidad: 'comprobante', entidadId: compRes.rows[0].id, accion: 'emitir', descripcion: `Emitio ${tipo === 'factura' ? 'factura' : 'boleta'} ${serie}-${correlativo} por S/${totalFinal}` });
+
     return res.json({
       success: true,
       data: {
@@ -362,6 +365,8 @@ router.post('/anular/:id', async (req, res) => {
     if (comp.rows[0].venta_id) {
       await pool.query('UPDATE ventas SET facturado = false, comprobante_id = NULL WHERE id = $1', [comp.rows[0].venta_id]);
     }
+
+    logAudit({ userId: req.user.id, entidad: 'comprobante', entidadId: req.params.id, accion: 'anular', descripcion: `Anulo comprobante #${req.params.id}` });
 
     return res.json({ success: true, data: { message: 'Comprobante anulado' } });
   } catch (err) {

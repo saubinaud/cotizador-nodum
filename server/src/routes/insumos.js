@@ -3,6 +3,7 @@ const pool = require('../models/db');
 const auth = require('../middleware/auth');
 const { recalcularProductosPorInsumo } = require('../services/calculador');
 const { getUnidadBase, calcCostoBase } = require('../utils/unidades');
+const { logAudit } = require('../utils/audit');
 
 const router = express.Router();
 
@@ -75,7 +76,7 @@ router.post('/', async (req, res) => {
       [req.user.id, nombreNorm, um, cantidad_presentacion, precio_presentacion, ub, cb]
     );
 
-    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'insumo', result.rows[0].id, 'crear', JSON.stringify({ nombre })]); } catch (_) {}
+    logAudit({ userId: req.user.id, entidad: 'insumo', entidadId: result.rows[0].id, accion: 'crear', descripcion: `Creo insumo "${nombreNorm}"` });
 
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -132,7 +133,7 @@ router.put('/:id', async (req, res) => {
       recalculated = await recalcularProductosPorInsumo(pool, req.params.id, req.user.id);
     }
 
-    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'insumo', req.params.id, 'actualizar', JSON.stringify({ nombre, unidad_medida, cantidad_presentacion, precio_presentacion })]); } catch (_) {}
+    logAudit({ userId: req.user.id, entidad: 'insumo', entidadId: req.params.id, accion: 'editar', descripcion: `Edito insumo "${nombre || 'ID ' + req.params.id}"` });
 
     return res.json({
       success: true,
@@ -186,7 +187,7 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Insumo no encontrado' });
     }
 
-    try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'insumo', req.params.id, 'eliminar', null]); } catch (_) {}
+    logAudit({ userId: req.user.id, entidad: 'insumo', entidadId: req.params.id, accion: 'eliminar', descripcion: `Elimino insumo #${req.params.id}` });
 
     return res.json({ success: true, data: { message: 'Insumo eliminado' } });
   } catch (err) {

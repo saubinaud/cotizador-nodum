@@ -101,4 +101,33 @@ router.get('/actividad', async (req, res) => {
   }
 });
 
+// GET /api/historial/audit — activity audit log
+router.get('/audit', async (req, res) => {
+  try {
+    const { entidad, limit: lim, offset: off } = req.query;
+    let query = `SELECT * FROM audit_log WHERE usuario_id = $1`;
+    const params = [req.user.id];
+    let idx = 2;
+
+    if (entidad) {
+      query += ` AND entidad = $${idx++}`;
+      params.push(entidad);
+    }
+
+    query += ' ORDER BY created_at DESC';
+    query += ` LIMIT $${idx++}`;
+    params.push(parseInt(lim) || 50);
+    if (off) {
+      query += ` OFFSET $${idx++}`;
+      params.push(parseInt(off));
+    }
+
+    const result = await pool.query(query, params);
+    return res.json({ success: true, data: result.rows });
+  } catch (err) {
+    console.error('Audit log error:', err);
+    return res.status(500).json({ success: false, error: 'Error interno' });
+  }
+});
+
 module.exports = router;

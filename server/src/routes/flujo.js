@@ -1,6 +1,7 @@
 const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
+const { logAudit } = require('../utils/audit');
 
 const router = express.Router();
 router.use(auth);
@@ -239,6 +240,8 @@ router.post('/movimientos', async (req, res) => {
       );
     }
 
+    logAudit({ userId: req.user.id, entidad: 'movimiento', entidadId: result.rows[0].id, accion: 'crear', descripcion: `Registro movimiento S/${absVal}` });
+
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('Create flujo movimiento error:', err);
@@ -330,6 +333,8 @@ router.post('/transferencias', async (req, res) => {
     // Update account balances
     await pool.query('UPDATE flujo_cuentas SET saldo_actual = saldo_actual - $1 WHERE id = $2', [montoAbs, cuenta_origen_id]);
     await pool.query('UPDATE flujo_cuentas SET saldo_actual = saldo_actual + $1 WHERE id = $2', [montoAbs, cuenta_destino_id]);
+
+    logAudit({ userId: req.user.id, entidad: 'transferencia', entidadId: result.rows[0].id, accion: 'crear', descripcion: `Transfirio S/${montoAbs} entre cuentas` });
 
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -631,6 +636,8 @@ router.post('/arqueo', async (req, res) => {
         );
       }
     }
+
+    logAudit({ userId: req.user.id, entidad: 'arqueo', entidadId: arqueoRes.rows[0].id, accion: 'crear', descripcion: `Realizo arqueo — diferencia: S/${diferencia}` });
 
     return res.status(201).json({ success: true, data: arqueoRes.rows[0] });
   } catch (err) {
