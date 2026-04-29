@@ -72,6 +72,9 @@ export default function PLVentasPage() {
   });
   const [descuentoTipo, setDescuentoTipo] = useState('none');
   const [descuentoValor, setDescuentoValor] = useState('');
+  const [contraEntrega, setContraEntrega] = useState(false);
+  const [adelanto, setAdelanto] = useState('');
+  const [fechaEntrega, setFechaEntrega] = useState('');
   const [cuentas, setCuentas] = useState([]);
 
   // Load periodos + productos on mount
@@ -182,6 +185,9 @@ export default function PLVentasPage() {
     });
     setDescuentoTipo('none');
     setDescuentoValor('');
+    setContraEntrega(false);
+    setAdelanto('');
+    setFechaEntrega('');
     setShowNewClient(false);
     setModalOpen(true);
   };
@@ -253,8 +259,30 @@ export default function PLVentasPage() {
           cliente_id: form.cliente_id || null,
         });
         toast.success('Venta registrada');
+
+        // If contra entrega, also create a pedido
+        if (contraEntrega && parseFloat(adelanto) > 0) {
+          try {
+            const prod = productos.find(p => p.id === form.producto_id);
+            const total = (parseFloat(form.precio_unitario || prod?.precio_final || 0)) * parseInt(form.cantidad || 1);
+            await api.post('/pedidos', {
+              cliente_id: form.cliente_id || null,
+              descripcion: prod?.nombre || 'Pedido',
+              items: [{ producto_id: form.producto_id, cantidad: form.cantidad, precio_unitario: form.precio_unitario }],
+              monto_total: total,
+              tipo_pago: 'contra_entrega',
+              adelanto: parseFloat(adelanto),
+              fecha_entrega_estimada: fechaEntrega || null,
+              metodo_pago: 'efectivo',
+              cuenta_id: form.cuenta_id || null,
+            });
+          } catch (_) {}
+        }
       }
       setModalOpen(false);
+      setContraEntrega(false);
+      setAdelanto('');
+      setFechaEntrega('');
       loadVentas(periodoId);
     } catch (err) {
       toast.error(err.message);
@@ -626,6 +654,41 @@ export default function PLVentasPage() {
                     </p>
                   )}
                 </div>
+
+                {/* Contra entrega toggle */}
+                {!editingVenta && (
+                <>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={contraEntrega} onChange={e => setContraEntrega(e.target.checked)}
+                      className="accent-[var(--accent)] w-4 h-4" />
+                    <span className="text-sm text-stone-700">Contra entrega</span>
+                  </label>
+                </div>
+
+                {contraEntrega && (
+                  <div className="p-3 bg-amber-50 rounded-lg space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={cx.label}>Adelanto</label>
+                        <input type="number" step="0.01" min="0" value={adelanto}
+                          onChange={e => setAdelanto(e.target.value)} className={cx.input} placeholder="0.00" />
+                      </div>
+                      <div>
+                        <label className={cx.label}>Restante</label>
+                        <p className="text-lg font-bold text-amber-600 mt-1">
+                          {formatCurrency(Math.max(0, (parseFloat(form.precio_unitario || 0) * parseInt(form.cantidad || 1)) - parseFloat(adelanto || 0)))}
+                        </p>
+                      </div>
+                    </div>
+                    <div>
+                      <label className={cx.label}>Fecha de entrega</label>
+                      <input type="date" value={fechaEntrega} onChange={e => setFechaEntrega(e.target.value)} className={cx.input} />
+                    </div>
+                  </div>
+                )}
+                </>
+                )}
 
                 {/* Cuenta */}
                 {cuentas.length > 0 && (

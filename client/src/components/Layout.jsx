@@ -100,7 +100,7 @@ export default function Layout() {
         { to: '/pl', label: 'Timeline', icon: Activity, perm: 'pl', end: true },
         { to: '/pl/resumen', label: 'Estado de resultados', icon: BarChart3, perm: 'pl' },
         { to: '/pl/ventas', label: 'Ventas', icon: ShoppingCart, perm: 'pl' },
-        { to: '/pedidos', label: 'Pedidos', icon: ClipboardList, perm: 'pl' },
+        { to: '/pedidos', label: 'Contra Entrega', icon: ClipboardList, perm: 'pl' },
         { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'pl' },
         { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'pl' },
         { to: '/pl/cashflow', label: 'Flujo de Caja', icon: Wallet, perm: 'pl' },
@@ -294,7 +294,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-[#F4F6F5] flex">
       {/* Desktop sidebar */}
-      <aside className={`hidden lg:flex ${collapsed ? 'w-16' : 'w-56'} flex-col bg-[#0A2F24] fixed inset-y-0 left-0 z-30 transition-all duration-200 relative overflow-hidden`}>
+      <aside className={`hidden lg:flex ${collapsed ? 'w-16' : 'w-52'} flex-col bg-[#0A2F24] fixed inset-y-0 left-0 z-30 transition-all duration-200 relative overflow-hidden`}>
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`, backgroundSize: '128px'}} />
         {renderSidebarContent(collapsed)}
       </aside>
@@ -303,7 +303,7 @@ export default function Layout() {
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={closeSidebar} />
-          <aside className="absolute left-0 top-0 bottom-0 w-60 bg-[#0A2F24] flex flex-col">
+          <aside className="absolute left-0 top-0 bottom-0 w-56 bg-[#0A2F24] flex flex-col">
             <button
               onClick={closeSidebar}
               className="absolute top-4 right-4 p-1 text-white/40 hover:text-white"
@@ -316,7 +316,7 @@ export default function Layout() {
       )}
 
       {/* Main content */}
-      <div className={`flex-1 ${collapsed ? 'lg:ml-16' : 'lg:ml-56'} transition-all duration-200`}>
+      <div className={`flex-1 ${collapsed ? 'lg:ml-16' : 'lg:ml-52'} transition-all duration-200`}>
         {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#0A2F24] sticky top-0 z-20">
           <button onClick={() => setOpen(true)} className="p-2 text-white/60 hover:text-white">

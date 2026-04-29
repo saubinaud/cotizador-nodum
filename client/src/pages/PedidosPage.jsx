@@ -6,7 +6,7 @@ import { formatCurrency, formatDate } from '../utils/format';
 import CustomSelect from '../components/CustomSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
-  Plus, X, ClipboardList, DollarSign, Truck, PackageCheck,
+  X, ClipboardList, DollarSign, Truck, PackageCheck,
   Clock, CreditCard, ChevronDown, ChevronUp,
 } from 'lucide-react';
 
@@ -42,11 +42,6 @@ const ESTADO_UPDATE_OPTIONS = [
   { value: 'listo', label: 'Listo' },
 ];
 
-const TIPO_PAGO_OPTIONS = [
-  { value: 'contado', label: 'Contado' },
-  { value: 'contra_entrega', label: 'Contra entrega' },
-];
-
 const METODO_PAGO_OPTIONS = [
   { value: 'efectivo', label: 'Efectivo' },
   { value: 'yape', label: 'Yape' },
@@ -54,18 +49,6 @@ const METODO_PAGO_OPTIONS = [
   { value: 'transferencia', label: 'Transferencia' },
   { value: 'tarjeta', label: 'Tarjeta' },
 ];
-
-const INITIAL_FORM = {
-  descripcion: '',
-  monto_total: '',
-  tipo_pago: 'contado',
-  fecha_entrega_estimada: '',
-  adelanto: '',
-  metodo_pago: 'efectivo',
-  cuenta_id: '',
-  cliente_id: '',
-  notas: '',
-};
 
 export default function PedidosPage() {
   const api = useApi();
@@ -76,11 +59,6 @@ export default function PedidosPage() {
   const [resumen, setResumen] = useState(null);
   const [loading, setLoading] = useState(true);
   const [filtroEstado, setFiltroEstado] = useState('');
-
-  // Create modal
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState(INITIAL_FORM);
-  const [saving, setSaving] = useState(false);
 
   // Payment modal
   const [showPago, setShowPago] = useState(null);
@@ -133,36 +111,6 @@ export default function PedidosPage() {
   useEffect(() => {
     loadPedidos();
   }, [filtroEstado]); // eslint-disable-line
-
-  // Create pedido
-  const handleCreate = async () => {
-    if (!form.descripcion || !form.monto_total) {
-      toast.error('Descripcion y monto total son requeridos');
-      return;
-    }
-    setSaving(true);
-    try {
-      await api.post('/pedidos', {
-        descripcion: form.descripcion,
-        monto_total: parseFloat(form.monto_total),
-        tipo_pago: form.tipo_pago,
-        fecha_entrega_estimada: form.fecha_entrega_estimada || null,
-        adelanto: form.tipo_pago === 'contra_entrega' && form.adelanto ? parseFloat(form.adelanto) : null,
-        metodo_pago: form.metodo_pago,
-        cuenta_id: form.cuenta_id || null,
-        cliente_id: form.cliente_id || null,
-        notas: form.notas || null,
-      });
-      toast.success('Pedido creado');
-      setShowCreate(false);
-      setForm(INITIAL_FORM);
-      loadPedidos();
-    } catch (err) {
-      toast.error(err.message || 'Error creando pedido');
-    } finally {
-      setSaving(false);
-    }
-  };
 
   // Update estado
   const handleUpdateEstado = async (id, estado) => {
@@ -245,11 +193,6 @@ export default function PedidosPage() {
     }
   };
 
-  // Computed
-  const restante = form.tipo_pago === 'contra_entrega'
-    ? Math.max((parseFloat(form.monto_total) || 0) - (parseFloat(form.adelanto) || 0), 0)
-    : 0;
-
   // Loading
   if (loading) {
     return (
@@ -266,22 +209,28 @@ export default function PedidosPage() {
   return (
     <div className="max-w-7xl mx-auto pb-12">
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+      <div className="flex flex-col gap-3 mb-4">
         <div>
-          <h1 className="text-xl font-bold text-stone-900">Pedidos</h1>
-          <p className="text-sm text-stone-500 mt-0.5">Ordenes y contra entrega</p>
+          <h1 className="text-xl font-bold text-stone-900">Contra Entrega</h1>
+          <p className="text-sm text-stone-500 mt-0.5">Pedidos pendientes de cobro</p>
         </div>
-        <div className="flex items-center gap-2">
-          <CustomSelect
-            options={ESTADO_OPTIONS}
-            value={filtroEstado}
-            onChange={setFiltroEstado}
-            placeholder="Filtrar..."
-            className="w-40"
-          />
-          <button onClick={() => { setForm(INITIAL_FORM); setShowCreate(true); }} className={cx.btnPrimary + ' flex items-center gap-2'}>
-            <Plus size={16} /> Nuevo pedido
-          </button>
+        {/* Estado tabs */}
+        <div className="flex gap-1 flex-wrap">
+          {[
+            { value: '', label: 'Todos' },
+            { value: 'pendiente', label: 'Pendiente' },
+            { value: 'en_produccion', label: 'En produccion' },
+            { value: 'listo', label: 'Listo' },
+            { value: 'entregado', label: 'Entregado' },
+            { value: 'pagado', label: 'Pagado' },
+          ].map(t => (
+            <button key={t.value} onClick={() => setFiltroEstado(t.value)}
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                filtroEstado === t.value ? 'bg-[#0A2F24] text-white' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+              }`}>
+              {t.label}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -489,149 +438,6 @@ export default function PedidosPage() {
             })}
           </div>
         </>
-      )}
-
-      {/* Create Modal */}
-      {showCreate && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
-          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-bold text-stone-900">Nuevo pedido</h3>
-                <button onClick={() => setShowCreate(false)} className={cx.btnIcon}>
-                  <X size={18} />
-                </button>
-              </div>
-
-              <div className="space-y-4">
-                {/* Descripcion */}
-                <div>
-                  <label className={cx.label}>Descripcion</label>
-                  <input
-                    type="text"
-                    value={form.descripcion}
-                    onChange={e => setForm(f => ({ ...f, descripcion: e.target.value }))}
-                    className={cx.input}
-                    placeholder="Ej: Torta 3 pisos cumple"
-                  />
-                </div>
-
-                {/* Monto total */}
-                <div>
-                  <label className={cx.label}>Monto total</label>
-                  <input
-                    type="number"
-                    value={form.monto_total}
-                    onChange={e => setForm(f => ({ ...f, monto_total: e.target.value }))}
-                    className={cx.input}
-                    step="0.01"
-                    min="0"
-                    placeholder="0.00"
-                  />
-                </div>
-
-                {/* Tipo pago */}
-                <div>
-                  <label className={cx.label}>Tipo de pago</label>
-                  <CustomSelect
-                    options={TIPO_PAGO_OPTIONS}
-                    value={form.tipo_pago}
-                    onChange={v => setForm(f => ({ ...f, tipo_pago: v }))}
-                  />
-                </div>
-
-                {/* Adelanto (only contra_entrega) */}
-                {form.tipo_pago === 'contra_entrega' && (
-                  <div>
-                    <label className={cx.label}>Adelanto</label>
-                    <input
-                      type="number"
-                      value={form.adelanto}
-                      onChange={e => setForm(f => ({ ...f, adelanto: e.target.value }))}
-                      className={cx.input}
-                      step="0.01"
-                      min="0"
-                      placeholder="0.00"
-                    />
-                    {parseFloat(form.monto_total) > 0 && (
-                      <p className="text-xs text-stone-400 mt-1">
-                        Restante: <strong className="text-amber-600">{formatCurrency(restante)}</strong>
-                      </p>
-                    )}
-                  </div>
-                )}
-
-                {/* Cliente */}
-                <div>
-                  <label className={cx.label}>Cliente (opcional)</label>
-                  <CustomSelect
-                    options={[{ value: '', label: 'Sin cliente' }, ...clientes]}
-                    value={form.cliente_id}
-                    onChange={v => setForm(f => ({ ...f, cliente_id: v }))}
-                    placeholder="Seleccionar cliente..."
-                  />
-                </div>
-
-                {/* Fecha entrega */}
-                <div>
-                  <label className={cx.label}>Fecha de entrega estimada</label>
-                  <input
-                    type="date"
-                    value={form.fecha_entrega_estimada}
-                    onChange={e => setForm(f => ({ ...f, fecha_entrega_estimada: e.target.value }))}
-                    className={cx.input}
-                  />
-                </div>
-
-                {/* Metodo pago */}
-                <div>
-                  <label className={cx.label}>Metodo de pago</label>
-                  <CustomSelect
-                    options={METODO_PAGO_OPTIONS}
-                    value={form.metodo_pago}
-                    onChange={v => setForm(f => ({ ...f, metodo_pago: v }))}
-                  />
-                </div>
-
-                {/* Cuenta */}
-                {cuentas.length > 0 && (
-                  <div>
-                    <label className={cx.label}>Cuenta</label>
-                    <CustomSelect
-                      options={[{ value: '', label: 'Sin especificar' }, ...cuentas]}
-                      value={form.cuenta_id}
-                      onChange={v => setForm(f => ({ ...f, cuenta_id: v }))}
-                      placeholder="Cuenta de ingreso..."
-                    />
-                  </div>
-                )}
-
-                {/* Notas */}
-                <div>
-                  <label className={cx.label}>Notas (opcional)</label>
-                  <textarea
-                    value={form.notas}
-                    onChange={e => setForm(f => ({ ...f, notas: e.target.value }))}
-                    className={cx.input + ' resize-none'}
-                    rows={2}
-                    placeholder="Instrucciones especiales..."
-                  />
-                </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex gap-3 mt-6">
-                <button onClick={handleCreate} disabled={saving} className={cx.btnPrimary + ' flex-1'}>
-                  {saving ? 'Guardando...' : 'Crear pedido'}
-                </button>
-                <button onClick={() => setShowCreate(false)} className={cx.btnSecondary}>
-                  Cancelar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
 
       {/* Payment Modal */}
