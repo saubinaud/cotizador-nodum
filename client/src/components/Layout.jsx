@@ -340,7 +340,7 @@ export default function Layout() {
           </div>
         )}
 
-        <main className="p-4 pb-16 lg:px-6 lg:py-5 lg:pb-16">
+        <main className="p-3 pb-14 lg:px-4 lg:py-3 lg:pb-14">
           <TerminosProvider terminos={user?.giro_terminos}>
             <Outlet />
           </TerminosProvider>
