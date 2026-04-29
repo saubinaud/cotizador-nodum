@@ -18,6 +18,7 @@ const perdidasRoutes = require('./routes/perdidas');
 const flujoRoutes = require('./routes/flujo');
 const clientesRoutes = require('./routes/clientes');
 const facturacionRoutes = require('./routes/facturacion');
+const pedidosRoutes = require('./routes/pedidos');
 const runMigrations = require('./models/migrate');
 
 const app = express();
@@ -52,6 +53,7 @@ app.use('/api/perdidas', perdidasRoutes);
 app.use('/api/flujo', flujoRoutes);
 app.use('/api/clientes', clientesRoutes);
 app.use('/api/facturacion', facturacionRoutes);
+app.use('/api/pedidos', pedidosRoutes);
 
 // --------------- 404 Handler ---------------
 

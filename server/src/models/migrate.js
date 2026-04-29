@@ -1168,6 +1168,79 @@ async function runMigrations() {
     await client.query(`ALTER TABLE comprobantes ADD COLUMN IF NOT EXISTS created_by INTEGER`);
     await client.query(`ALTER TABLE flujo_arqueos ADD COLUMN IF NOT EXISTS created_by INTEGER`);
 
+    // ==================== PEDIDOS + CONTRA ENTREGA ====================
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pedidos (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL,
+        descripcion TEXT NOT NULL,
+        items_json JSONB,
+        monto_total NUMERIC(10,2) NOT NULL,
+        monto_pagado NUMERIC(10,2) NOT NULL DEFAULT 0,
+        estado VARCHAR(20) NOT NULL DEFAULT 'pendiente',
+        tipo_pago VARCHAR(20) NOT NULL DEFAULT 'contado',
+        fecha_pedido TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        fecha_entrega_estimada DATE,
+        fecha_entrega_real TIMESTAMPTZ,
+        notas TEXT,
+        created_by INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS pagos_pedido (
+        id SERIAL PRIMARY KEY,
+        pedido_id INTEGER NOT NULL REFERENCES pedidos(id) ON DELETE CASCADE,
+        monto NUMERIC(10,2) NOT NULL,
+        fecha TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        metodo_pago VARCHAR(30) NOT NULL DEFAULT 'efectivo',
+        cuenta_id INTEGER REFERENCES flujo_cuentas(id) ON DELETE SET NULL,
+        tipo VARCHAR(20) NOT NULL DEFAULT 'adelanto',
+        transaccion_id INTEGER REFERENCES transacciones(id) ON DELETE SET NULL,
+        notas TEXT,
+        created_by INTEGER,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_pedidos_usuario ON pedidos(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_pedidos_estado ON pedidos(estado)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_pedidos_fecha ON pedidos(fecha_entrega_estimada)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_pagos_pedido ON pagos_pedido(pedido_id)`);
+
+    // Trigger: auto-update monto_pagado when payment is added/removed
+    await client.query(`
+      CREATE OR REPLACE FUNCTION update_pedido_monto_pagado()
+      RETURNS TRIGGER AS $$
+      DECLARE
+        v_pedido_id INTEGER;
+        v_total_pagado NUMERIC(10,2);
+        v_monto_total NUMERIC(10,2);
+      BEGIN
+        v_pedido_id := COALESCE(NEW.pedido_id, OLD.pedido_id);
+        SELECT COALESCE(SUM(monto), 0) INTO v_total_pagado FROM pagos_pedido WHERE pedido_id = v_pedido_id;
+        SELECT monto_total INTO v_monto_total FROM pedidos WHERE id = v_pedido_id;
+        UPDATE pedidos SET
+          monto_pagado = v_total_pagado,
+          estado = CASE WHEN v_total_pagado >= v_monto_total AND estado != 'cancelado' THEN 'pagado' ELSE estado END,
+          updated_at = NOW()
+        WHERE id = v_pedido_id;
+        RETURN COALESCE(NEW, OLD);
+      END;
+      $$ LANGUAGE plpgsql
+    `);
+
+    await client.query(`DROP TRIGGER IF EXISTS trg_pagos_update ON pagos_pedido`);
+    await client.query(`
+      CREATE TRIGGER trg_pagos_update
+      AFTER INSERT OR DELETE ON pagos_pedido
+      FOR EACH ROW EXECUTE FUNCTION update_pedido_monto_pagado()
+    `);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

@@ -27,6 +27,7 @@ import PerdidasPage from './pages/PerdidasPage';
 import ClientesPage from './pages/ClientesPage';
 import ComprobantesPage from './pages/ComprobantesPage';
 import FichaTecnicaPage from './pages/FichaTecnicaPage';
+import PedidosPage from './pages/PedidosPage';
 
 export default function App() {
   return (
@@ -63,6 +64,7 @@ export default function App() {
               <Route path="/pl/cashflow" element={<PLCashflowPage />} />
               <Route path="/perdidas" element={<PerdidasPage />} />
               <Route path="/clientes" element={<ClientesPage />} />
+              <Route path="/pedidos" element={<PedidosPage />} />
               <Route path="/comprobantes" element={<ComprobantesPage />} />
               <Route path="/ficha-tecnica/:id" element={<FichaTecnicaPage />} />
               <Route path="/perfil" element={<PerfilPage />} />

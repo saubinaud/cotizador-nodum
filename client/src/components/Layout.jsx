@@ -30,6 +30,7 @@ import {
   Clock,
   Lock,
   FileText,
+  ClipboardList,
 } from 'lucide-react';
 
 
@@ -99,6 +100,7 @@ export default function Layout() {
         { to: '/pl', label: 'Timeline', icon: Activity, perm: 'pl', end: true },
         { to: '/pl/resumen', label: 'Estado de resultados', icon: BarChart3, perm: 'pl' },
         { to: '/pl/ventas', label: 'Ventas', icon: ShoppingCart, perm: 'pl' },
+        { to: '/pedidos', label: 'Pedidos', icon: ClipboardList, perm: 'pl' },
         { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'pl' },
         { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'pl' },
         { to: '/pl/cashflow', label: 'Flujo de Caja', icon: Wallet, perm: 'pl' },
