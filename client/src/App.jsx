@@ -28,6 +28,7 @@ import ClientesPage from './pages/ClientesPage';
 import ComprobantesPage from './pages/ComprobantesPage';
 import FichaTecnicaPage from './pages/FichaTecnicaPage';
 import PedidosPage from './pages/PedidosPage';
+import EquipoPage from './pages/EquipoPage';
 
 export default function App() {
   return (
@@ -67,6 +68,7 @@ export default function App() {
               <Route path="/pedidos" element={<PedidosPage />} />
               <Route path="/comprobantes" element={<ComprobantesPage />} />
               <Route path="/ficha-tecnica/:id" element={<FichaTecnicaPage />} />
+              <Route path="/equipo" element={<EquipoPage />} />
               <Route path="/perfil" element={<PerfilPage />} />
             </Route>
 

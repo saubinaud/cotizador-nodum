@@ -138,7 +138,8 @@ router.get('/me', auth, async (req, res) => {
       `SELECT u.id, u.email, u.nombre, u.rol, u.nombre_comercial AS empresa, u.igv_rate, u.ruc, u.razon_social, u.permisos,
               u.pais_code AS pais, p.moneda, p.simbolo, u.logo_url, u.tipo_negocio, u.precio_decimales,
               u.tarifa_mo_global, u.margen_minimo_global, u.plan, u.trial_ends_at, u.max_productos,
-              u.giro_negocio_id, g.terminos AS giro_terminos, g.nombre AS giro_nombre, g.codigo AS giro_codigo
+              u.giro_negocio_id, g.terminos AS giro_terminos, g.nombre AS giro_nombre, g.codigo AS giro_codigo,
+              u.empresa_id, u.rol_empresa
        FROM usuarios u LEFT JOIN paises p ON p.code = u.pais_code
        LEFT JOIN giros_negocio g ON g.id = u.giro_negocio_id
        WHERE u.id = $1`,
