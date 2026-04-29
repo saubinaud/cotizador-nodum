@@ -176,7 +176,7 @@ export default function PerfilPage() {
     : 18;
 
   return (
-    <div className="max-w-xl mx-auto space-y-4">
+    <div className="max-w-3xl mx-auto space-y-4">
       <h2 className="text-xl font-bold text-stone-900">Mi Perfil</h2>
 
       {/* Profile info */}

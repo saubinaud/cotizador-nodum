@@ -73,7 +73,7 @@ export default function EquipoPage() {
 
   if (loading) {
     return (
-      <div className="max-w-3xl mx-auto space-y-3">
+      <div className="max-w-5xl mx-auto space-y-3">
         <div className={cx.skeleton + ' h-10 w-48'} />
         <div className={cx.skeleton + ' h-20'} />
         <div className={cx.skeleton + ' h-20'} />
@@ -83,7 +83,7 @@ export default function EquipoPage() {
   }
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-5xl mx-auto">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-xl font-bold text-stone-900">Mi Equipo</h1>

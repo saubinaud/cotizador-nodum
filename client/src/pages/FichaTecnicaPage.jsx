@@ -136,7 +136,7 @@ export default function FichaTecnicaPage() {
 
   if (loading) {
     return (
-      <div className="max-w-5xl mx-auto space-y-4">
+      <div className="max-w-6xl mx-auto space-y-4">
         {[1, 2, 3, 4, 5].map(i => (
           <div key={i} className={cx.skeleton + ' h-24'} />
         ))}
@@ -146,7 +146,7 @@ export default function FichaTecnicaPage() {
 
   if (!data) {
     return (
-      <div className="max-w-5xl mx-auto">
+      <div className="max-w-6xl mx-auto">
         <div className={`${cx.card} p-12 text-center`}>
           <Package size={40} className="mx-auto text-stone-300 mb-3" />
           <p className="text-stone-500 text-sm">No se pudo cargar la ficha tecnica.</p>
@@ -160,7 +160,7 @@ export default function FichaTecnicaPage() {
   const hasMermaPrep = preparaciones.some(p => p.merma_pct > 0);
 
   return (
-    <div className="max-w-5xl mx-auto print:max-w-none">
+    <div className="max-w-6xl mx-auto print:max-w-none">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
         <div className="flex items-center gap-3">

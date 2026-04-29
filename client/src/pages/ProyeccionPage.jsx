@@ -80,7 +80,7 @@ export default function ProyeccionPage() {
 
   if (loading) {
     return (
-      <div className="max-w-4xl mx-auto space-y-4">
+      <div className="max-w-6xl mx-auto space-y-4">
         <div className={cx.skeleton + ' h-10 w-64'} />
         <div className={cx.skeleton + ' h-32'} />
         <div className={cx.skeleton + ' h-64'} />
@@ -89,7 +89,7 @@ export default function ProyeccionPage() {
   }
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
+    <div className="max-w-6xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[var(--accent)] to-[var(--accent)] flex items-center justify-center">
