@@ -166,9 +166,6 @@ export default function CanalesPage() {
         setPreciosCanal(prev => { const n = { ...prev }; delete n[productoId]; return n; });
         toast.success('Producto removido del canal');
       }
-      // Refresh productos
-      const res = await api.get('/productos');
-      setProductos((res.data || []).filter(p => !p.locked));
     } catch (err) {
       toast.error(err.message || 'Error actualizando producto');
     }
