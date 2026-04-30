@@ -70,16 +70,17 @@ async function callApisPeru(path, body) {
 async function autoHabilitarSiCompleto(userId) {
   try {
     const user = await pool.query('SELECT ruc FROM usuarios WHERE id = $1', [userId]);
-    const config = await pool.query('SELECT direccion_fiscal, certificado_pem, habilitado FROM facturacion_config WHERE usuario_id = $1', [userId]);
+    const config = await pool.query('SELECT direccion_fiscal, certificado_pem, habilitado, sol_user FROM facturacion_config WHERE usuario_id = $1', [userId]);
 
     if (!user.rows[0] || !config.rows[0]) return;
 
     const tieneRuc = !!user.rows[0].ruc && user.rows[0].ruc.length >= 11;
     const tieneDireccion = !!config.rows[0].direccion_fiscal;
     const tieneCert = !!config.rows[0].certificado_pem;
+    const tieneSol = !!config.rows[0].sol_user;
     const yaHabilitado = config.rows[0].habilitado;
 
-    if (tieneRuc && tieneDireccion && tieneCert && !yaHabilitado) {
+    if (tieneRuc && tieneDireccion && tieneCert && tieneSol && !yaHabilitado) {
       await pool.query(
         'UPDATE facturacion_config SET habilitado = true, updated_at = NOW() WHERE usuario_id = $1',
         [userId]
@@ -193,7 +194,7 @@ router.get('/config', async (req, res) => {
 router.put('/config', async (req, res) => {
   try {
     const { direccion_fiscal, departamento, provincia, distrito, ubigeo,
-            serie_factura, serie_boleta } = req.body;
+            serie_factura, serie_boleta, sol_user, sol_pass } = req.body;
 
     const result = await pool.query(
       `UPDATE facturacion_config SET
@@ -204,10 +205,12 @@ router.put('/config', async (req, res) => {
         ubigeo = COALESCE($5, ubigeo),
         serie_factura = COALESCE($6, serie_factura),
         serie_boleta = COALESCE($7, serie_boleta),
+        sol_user = COALESCE($9, sol_user),
+        sol_pass = COALESCE($10, sol_pass),
         updated_at = NOW()
        WHERE usuario_id = $8 RETURNING *`,
       [direccion_fiscal, departamento, provincia, distrito, ubigeo,
-       serie_factura, serie_boleta, req.user.id]
+       serie_factura, serie_boleta, req.user.id, sol_user || null, sol_pass || null]
     );
 
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Config no encontrada' });
@@ -256,7 +259,7 @@ router.post('/certificado-prueba', async (req, res) => {
     // Save encrypted PEM
     const encryptedPem = encryptCert(convertRes.pem);
     await pool.query(
-      `UPDATE facturacion_config SET certificado_pem = $1, certificado_subido = true, environment = 'beta', updated_at = NOW() WHERE usuario_id = $2`,
+      `UPDATE facturacion_config SET certificado_pem = $1, certificado_subido = true, environment = 'produccion', updated_at = NOW() WHERE usuario_id = $2`,
       [encryptedPem, req.user.id]
     );
 
@@ -272,12 +275,12 @@ router.post('/certificado-prueba', async (req, res) => {
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
           plan: 'free',
-          environment: cfg?.environment || 'beta',
+          environment: cfg?.environment || 'produccion',
           ruc,
           razon_social: u?.razon_social || '',
           direccion: [cfg?.direccion_fiscal, cfg?.distrito, cfg?.provincia].filter(Boolean).join(', '),
-          sol_user: 'MODDATOS',
-          sol_pass: 'MODDATOS',
+          sol_user: cfg?.sol_user || 'MODDATOS',
+          sol_pass: cfg?.sol_pass || 'MODDATOS',
           certificado: Buffer.from(convertRes.pem).toString('base64'),
           logo: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
         }),
@@ -354,7 +357,7 @@ router.post('/certificado', async (req, res) => {
       );
       const u = userRes.rows[0];
       const configRes = await pool.query(
-        'SELECT direccion_fiscal, departamento, provincia, distrito, ubigeo, apisperu_company_id, environment FROM facturacion_config WHERE usuario_id = $1',
+        'SELECT direccion_fiscal, departamento, provincia, distrito, ubigeo, apisperu_company_id, environment, sol_user, sol_pass FROM facturacion_config WHERE usuario_id = $1',
         [req.user.id]
       );
       const cfg = configRes.rows[0];
@@ -362,12 +365,12 @@ router.post('/certificado', async (req, res) => {
       if (u?.ruc) {
         const companyData = {
           plan: 'free',
-          environment: cfg?.environment || 'beta',
+          environment: cfg?.environment || 'produccion',
           ruc: u.ruc,
           razon_social: u.razon_social || '',
           direccion: [cfg?.direccion_fiscal, cfg?.distrito, cfg?.provincia].filter(Boolean).join(', '),
-          sol_user: 'MODDATOS',
-          sol_pass: 'MODDATOS',
+          sol_user: cfg?.sol_user || 'MODDATOS',
+          sol_pass: cfg?.sol_pass || 'MODDATOS',
           certificado: Buffer.from(pem).toString('base64'),
           logo: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
         };

@@ -1395,6 +1395,11 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_zonas_envio_usuario ON zonas_envio(usuario_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_prod_canal ON producto_canal_precio(producto_id, canal_id)`);
 
+    // Facturación: sol_user/sol_pass + default produccion
+    await client.query(`ALTER TABLE facturacion_config ADD COLUMN IF NOT EXISTS sol_user VARCHAR(20)`);
+    await client.query(`ALTER TABLE facturacion_config ADD COLUMN IF NOT EXISTS sol_pass VARCHAR(50)`);
+    await client.query(`ALTER TABLE facturacion_config ALTER COLUMN environment SET DEFAULT 'produccion'`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

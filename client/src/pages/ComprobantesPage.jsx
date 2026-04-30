@@ -180,6 +180,8 @@ export default function ComprobantesPage() {
       provincia: config?.provincia || '',
       distrito: config?.distrito || '',
       ubigeo: config?.ubigeo || '',
+      sol_user: config?.sol_user || '',
+      sol_pass: config?.sol_pass || '',
     });
     setEditingConfig(true);
   }
@@ -281,12 +283,16 @@ export default function ComprobantesPage() {
               <span className={config.direccion_fiscal ? 'text-stone-600' : 'text-stone-400'}>Direccion fiscal</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
+              {config.sol_user ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
+              <span className={config.sol_user ? 'text-stone-600' : 'text-stone-400'}>Usuario secundario SOL</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
               {config.certificado_subido ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
               <span className={config.certificado_subido ? 'text-stone-600' : 'text-stone-400'}>Certificado digital</span>
             </div>
             <div className="flex items-center gap-2 text-xs">
               {config.habilitado ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
-              <span className={config.habilitado ? 'text-stone-600' : 'text-stone-400'}>Facturación activa (completa los pasos anteriores)</span>
+              <span className={config.habilitado ? 'text-stone-600' : 'text-stone-400'}>Facturación activa (completa todos los pasos)</span>
             </div>
           </div>
         </div>
@@ -335,7 +341,21 @@ export default function ComprobantesPage() {
                   <input type="text" value={configForm.ubigeo || ''} onChange={e => setConfigForm(p => ({...p, ubigeo: e.target.value}))} className={cx.input} placeholder="150122" maxLength={6} />
                 </div>
               </div>
-              <div className="flex gap-2">
+              <div className="p-3 bg-amber-50 rounded-lg mt-2">
+                <p className="text-xs text-amber-700 mb-2 font-medium">Usuario secundario SOL (requerido para emisión)</p>
+                <p className="text-[10px] text-amber-600 mb-2">Créalo en SOL → Empresas → Usuarios secundarios → con permiso "Comprobantes de pago electrónicos"</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className={cx.label}>Usuario SOL</label>
+                    <input type="text" value={configForm.sol_user || ''} onChange={e => setConfigForm(p => ({...p, sol_user: e.target.value}))} className={cx.input} placeholder="USUARIO01" />
+                  </div>
+                  <div>
+                    <label className={cx.label}>Contraseña SOL</label>
+                    <input type="password" value={configForm.sol_pass || ''} onChange={e => setConfigForm(p => ({...p, sol_pass: e.target.value}))} className={cx.input} placeholder="********" />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-2 mt-3">
                 <button onClick={handleSaveConfig} disabled={savingConfig} className={cx.btnPrimary + ' text-sm'}>
                   {savingConfig ? 'Guardando...' : 'Guardar'}
                 </button>
