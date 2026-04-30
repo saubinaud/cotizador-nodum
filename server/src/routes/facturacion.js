@@ -533,6 +533,10 @@ router.post('/emitir', async (req, res) => {
     }
     if (!sunatMessage && apiRes.error) {
       sunatMessage = apiRes.error;
+      // Add helpful context for APIsPeru connection errors
+      if (apiRes.error.includes('comunicarse con el servidor interno')) {
+        sunatMessage = 'No se pudo conectar con SUNAT. Esto puede ocurrir si: (1) Tu registro como emisor electrónico aún no está activo — espera 24h después de registrarte en SOL, (2) SUNAT está temporalmente fuera de servicio. Intenta nuevamente más tarde.';
+      }
     }
 
     console.log('[facturacion] SUNAT result:', { success: isSuccess, code: sunatCode, message: sunatMessage });
