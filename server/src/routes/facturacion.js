@@ -83,6 +83,55 @@ async function autoHabilitarSiCompleto(userId) {
   }
 }
 
+// ==================== RUC LOOKUP ====================
+
+// GET /api/facturacion/buscar-ruc/:ruc — lookup RUC data from SUNAT
+router.get('/buscar-ruc/:ruc', async (req, res) => {
+  try {
+    const { ruc } = req.params;
+    if (!ruc || ruc.length !== 11) {
+      return res.status(400).json({ success: false, error: 'RUC debe tener 11 dígitos' });
+    }
+
+    // Try apis.net.pe (free, no key needed for basic lookup)
+    const response = await fetch(`https://api.apis.net.pe/v2/sunat/ruc?numero=${ruc}`, {
+      headers: { 'Accept': 'application/json' },
+    });
+
+    if (!response.ok) {
+      // Fallback: try apiperu.dev
+      const fallback = await fetch(`https://apiperu.dev/api/ruc/${ruc}`, {
+        headers: { 'Accept': 'application/json' },
+      });
+      if (fallback.ok) {
+        const data = await fallback.json();
+        return res.json({ success: true, data: data.data || data });
+      }
+      return res.status(404).json({ success: false, error: 'No se pudo consultar el RUC' });
+    }
+
+    const data = await response.json();
+
+    return res.json({
+      success: true,
+      data: {
+        ruc: data.numeroDocumento || ruc,
+        razon_social: data.razonSocial || data.nombre || '',
+        direccion: data.direccion || '',
+        departamento: data.departamento || '',
+        provincia: data.provincia || '',
+        distrito: data.distrito || '',
+        ubigeo: data.ubigeo || '',
+        estado: data.estado || '',
+        condicion: data.condicion || '',
+      },
+    });
+  } catch (err) {
+    console.error('RUC lookup error:', err);
+    return res.status(500).json({ success: false, error: 'Error consultando RUC' });
+  }
+});
+
 // ==================== CONFIG ====================
 
 // GET /api/facturacion/config
@@ -176,6 +225,72 @@ router.post('/certificado', async (req, res) => {
       [encryptedPem, req.user.id]
     );
 
+    // Register/update company in APIsPeru
+    try {
+      const userRes = await pool.query(
+        'SELECT ruc, razon_social, nombre_comercial FROM usuarios WHERE id = $1',
+        [req.user.id]
+      );
+      const u = userRes.rows[0];
+      const configRes = await pool.query(
+        'SELECT direccion_fiscal, departamento, provincia, distrito, ubigeo, apisperu_company_id, environment FROM facturacion_config WHERE usuario_id = $1',
+        [req.user.id]
+      );
+      const cfg = configRes.rows[0];
+
+      if (u?.ruc) {
+        const companyData = {
+          plan: 'free',
+          environment: cfg?.environment || 'beta',
+          ruc: u.ruc,
+          razonSocial: u.razon_social || u.nombre_comercial || '',
+          nombreComercial: u.nombre_comercial || '',
+          address: {
+            direccion: cfg?.direccion_fiscal || '',
+            provincia: cfg?.provincia || '',
+            departamento: cfg?.departamento || '',
+            distrito: cfg?.distrito || '',
+            ubigueo: cfg?.ubigeo || '',
+          },
+          cert: convertRes.pem,
+        };
+
+        let companyId = cfg?.apisperu_company_id;
+
+        if (companyId) {
+          // Update existing company
+          await callApisPeru(`/companies/${companyId}`, companyData);
+          console.log('[apisperu] Company updated:', companyId);
+        } else {
+          // Create new company
+          const token = await getApisperuToken();
+          const createRes = await fetch(`${APISPERU_BASE}/companies`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`,
+            },
+            body: JSON.stringify(companyData),
+          });
+          const createData = await createRes.json();
+
+          if (createData.id || createData._id) {
+            companyId = createData.id || createData._id;
+            await pool.query(
+              'UPDATE facturacion_config SET apisperu_company_id = $1, updated_at = NOW() WHERE usuario_id = $2',
+              [companyId, req.user.id]
+            );
+            console.log('[apisperu] Company created:', companyId);
+          } else {
+            console.error('[apisperu] Company create failed:', createData);
+          }
+        }
+      }
+    } catch (companyErr) {
+      console.error('[apisperu] Company registration error:', companyErr.message);
+      // Don't fail the certificate upload if company registration fails
+    }
+
     // Auto-check if we can enable facturacion now
     await autoHabilitarSiCompleto(req.user.id);
 
@@ -203,6 +318,10 @@ router.post('/emitir', async (req, res) => {
       return res.status(403).json({ success: false, error: 'Facturacion no habilitada. Contacta al administrador.' });
     }
     const config = configRes.rows[0];
+
+    if (!config.apisperu_company_id) {
+      return res.status(400).json({ success: false, error: 'Empresa no registrada en el servicio de facturación. Sube tu certificado digital primero.' });
+    }
 
     // Get user data
     const userRes = await pool.query(

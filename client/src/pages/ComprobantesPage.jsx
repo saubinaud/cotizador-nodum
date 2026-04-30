@@ -5,9 +5,10 @@ import { cx } from '../styles/tokens';
 import { formatCurrency, formatDate } from '../utils/format';
 import CustomSelect from '../components/CustomSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
+import { useAuth } from '../context/AuthContext';
 import {
   FileText, Receipt, Eye, Ban, DollarSign,
-  Settings, Upload, CheckCircle, Circle, AlertTriangle,
+  Settings, Upload, CheckCircle, Circle, AlertTriangle, Search,
 } from 'lucide-react';
 
 const TIPO_DOC_OPTIONS = [
@@ -30,6 +31,7 @@ function estadoBadge(estado) {
 export default function ComprobantesPage() {
   const api = useApi();
   const toast = useToast();
+  const { user } = useAuth();
 
   const [periodos, setPeriodos] = useState([]);
   const [periodoId, setPeriodoId] = useState(null);
@@ -46,6 +48,7 @@ export default function ComprobantesPage() {
   const [configForm, setConfigForm] = useState({});
   const [savingConfig, setSavingConfig] = useState(false);
   const [uploadingCert, setUploadingCert] = useState(false);
+  const [buscandoRuc, setBuscandoRuc] = useState(false);
 
   // Load facturacion config
   async function loadConfig() {
@@ -137,6 +140,37 @@ export default function ComprobantesPage() {
       setAnularTarget(null);
     }
   };
+
+  // Buscar direccion fiscal desde RUC (SUNAT)
+  async function buscarDireccionFiscal() {
+    const ruc = user?.ruc;
+    if (!ruc || ruc.length !== 11) {
+      toast.error('Primero configura tu RUC en Perfil (11 dígitos)');
+      return;
+    }
+    setBuscandoRuc(true);
+    try {
+      const res = await api.get(`/facturacion/buscar-ruc/${ruc}`);
+      const d = res.data || res;
+      if (d.direccion) {
+        setConfigForm(prev => ({
+          ...prev,
+          direccion_fiscal: d.direccion || prev.direccion_fiscal,
+          departamento: d.departamento || prev.departamento,
+          provincia: d.provincia || prev.provincia,
+          distrito: d.distrito || prev.distrito,
+          ubigeo: d.ubigeo || prev.ubigeo,
+        }));
+        toast.success('Dirección encontrada');
+      } else {
+        toast.error('No se encontró dirección para este RUC');
+      }
+    } catch (err) {
+      toast.error('Error buscando dirección');
+    } finally {
+      setBuscandoRuc(false);
+    }
+  }
 
   // Config handlers
   function startEditConfig() {
@@ -273,6 +307,13 @@ export default function ComprobantesPage() {
 
           {editingConfig ? (
             <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-2">
+                <button type="button" onClick={buscarDireccionFiscal} disabled={buscandoRuc}
+                  className={cx.btnSecondary + ' text-xs flex items-center gap-1'}>
+                  <Search size={14} /> {buscandoRuc ? 'Buscando...' : 'Buscar mi dirección (SUNAT)'}
+                </button>
+                <span className="text-[10px] text-stone-400">Auto-completa desde tu RUC</span>
+              </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={cx.label}>Direccion fiscal</label>
