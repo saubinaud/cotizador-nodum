@@ -510,12 +510,30 @@ router.post('/emitir', async (req, res) => {
     console.log('[facturacion] APIsPeru response keys:', Object.keys(apiRes));
 
     // Parse the nested response structure
-    // APIsPeru returns: { xml, hash, sunatResponse: { success, cdrZip, cdrResponse: { id, code, description, notes } } }
+    // APIsPeru returns multiple formats:
+    // Success: { xml, hash, sunatResponse: { success: true, cdrZip, cdrResponse: { id, code: "0", description } } }
+    // SUNAT error: { xml, hash, sunatResponse: { success: false, error: { code: "0111", message: "..." } } }
+    // APIsPeru error: { error: "Error al comunicarse..." }
     const sr = apiRes.sunatResponse || {};
     const cdrResp = sr.cdrResponse || {};
+    const srError = sr.error || {};
     const isSuccess = sr.success === true || cdrResp.code === '0';
-    const sunatMessage = cdrResp.description || apiRes.error || sr.error || null;
-    const sunatCode = cdrResp.code || null;
+
+    // Build human-readable message
+    let sunatMessage = cdrResp.description || null;
+    let sunatCode = cdrResp.code || null;
+
+    if (!sunatMessage && typeof srError === 'object' && srError.message) {
+      sunatCode = srError.code || null;
+      sunatMessage = srError.message;
+      // Add helpful context for common errors
+      if (srError.code === '0111') {
+        sunatMessage = 'SUNAT rechazó: Tu RUC no está habilitado para emitir comprobantes vía sistema. Ve a SUNAT SOL → Empresas → Comprobantes de Pago Electrónicos → SEE Del contribuyente y regístrate. La activación toma 24 horas.';
+      }
+    }
+    if (!sunatMessage && apiRes.error) {
+      sunatMessage = apiRes.error;
+    }
 
     console.log('[facturacion] SUNAT result:', { success: isSuccess, code: sunatCode, message: sunatMessage });
 
