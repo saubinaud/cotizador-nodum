@@ -147,33 +147,33 @@ export default function CanalesPage() {
 
   async function toggleProductoEnCanal(productoId, checked) {
     const canalId = parseInt(activeTab);
-    const canal = canales.find(c => c.id === canalId);
-    const comision = parseFloat(canal?.comision_pct) || 0;
     try {
       if (checked) {
         const prod = productos.find(p => p.id === productoId);
+        const canal = canales.find(c => c.id === canalId);
+        const comision = parseFloat(canal?.comision_pct) || 0;
         const precio = comision < 100
           ? Math.round((parseFloat(prod.precio_final) / (1 - comision / 100)) * 100) / 100
           : parseFloat(prod.precio_final);
-
         await api.put(`/canales/precios/${productoId}`, { canal_id: canalId, precio_override: precio });
-        setProductosEnCanal(prev => new Set([...prev, productoId]));
-        setPreciosCanal(prev => ({ ...prev, [productoId]: precio }));
-        // Update productos state so precios_canal stays in sync
-        setProductos(prev => prev.map(p => p.id === productoId ? {
-          ...p, precios_canal: [...(p.precios_canal || []), { canal_id: canalId, canal_nombre: canal?.nombre, precio_override: String(precio), comision_pct: String(comision) }]
-        } : p));
         toast.success('Producto agregado');
       } else {
         await api.put(`/canales/precios/${productoId}`, { canal_id: canalId, precio_override: null });
-        setProductosEnCanal(prev => { const n = new Set(prev); n.delete(productoId); return n; });
-        setPreciosCanal(prev => { const n = { ...prev }; delete n[productoId]; return n; });
-        // Update productos state
-        setProductos(prev => prev.map(p => p.id === productoId ? {
-          ...p, precios_canal: (p.precios_canal || []).filter(pc => pc.canal_id !== canalId)
-        } : p));
         toast.success('Producto removido');
       }
+      // Reload products from server (single source of truth)
+      const res = await api.get('/productos');
+      const prods = (res.data || []).filter(p => !p.locked);
+      setProductos(prods);
+      // Recalculate canal view from fresh data
+      const pm = {};
+      const ec = new Set();
+      for (const p of prods) {
+        const cp = (p.precios_canal || []).find(c => c.canal_id === canalId);
+        if (cp) { pm[p.id] = parseFloat(cp.precio_override); ec.add(p.id); }
+      }
+      setPreciosCanal(pm);
+      setProductosEnCanal(ec);
     } catch (err) {
       toast.error(err.message || 'Error');
     }
