@@ -341,6 +341,15 @@ export default function DashboardPage() {
                     <span className="text-stone-400 text-xs">Margen: {formatPercent(p.margen)}</span>
                     <span className="text-[var(--accent)] font-bold text-sm">{formatCurrency(precioComercial(p.precio_final, precioMode))}</span>
                   </div>
+                  {p.precios_canal?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mt-1">
+                      {p.precios_canal.map((cp, i) => (
+                        <span key={i} className="text-[9px] px-1.5 py-0.5 bg-sky-50 text-sky-600 rounded">
+                          {cp.canal_nombre}: {formatCurrency(cp.precio_override)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
                 {/* Action buttons — always visible on mobile, hover on desktop */}
                 <div className="absolute top-2 right-2 flex gap-1 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
@@ -377,6 +386,15 @@ export default function DashboardPage() {
                   <span>Costo: {formatCurrency(p.costo_neto)}</span>
                   <span>Margen: {formatPercent(p.margen)}</span>
                 </div>
+                {p.precios_canal?.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {p.precios_canal.map((cp, i) => (
+                      <span key={i} className="text-[9px] px-1.5 py-0.5 bg-sky-50 text-sky-600 rounded">
+                        {cp.canal_nombre}: {formatCurrency(cp.precio_override)}
+                      </span>
+                    ))}
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-1 border-t border-stone-200 pt-3">
                   <button onClick={() => navigate(`/cotizador/${p.id}`)} className={cx.btnGhost + ' flex-1 min-w-[4rem] flex items-center justify-center gap-1 text-xs'}>
                     <Pencil size={12} /> Editar

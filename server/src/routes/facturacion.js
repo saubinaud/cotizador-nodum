@@ -7,9 +7,14 @@ const { logAudit } = require('../utils/audit');
 const router = express.Router();
 router.use(auth);
 
-const APISPERU_BASE = process.env.APISPERU_BASE_URL || 'https://facturacion.apisperu.com/api/v1';
-const APISPERU_EMAIL = process.env.APISPERU_EMAIL || '';
-const APISPERU_PASSWORD = process.env.APISPERU_PASSWORD || '';
+// Read env vars dynamically (dotenv may not be loaded yet at require time)
+function getApisperuConfig() {
+  return {
+    base: process.env.APISPERU_BASE_URL || 'https://facturacion.apisperu.com/api/v1',
+    email: process.env.APISPERU_EMAIL || '',
+    password: process.env.APISPERU_PASSWORD || '',
+  };
+}
 
 // Token cache (auto-refresh every 23 hours)
 let _apisperuToken = null;
@@ -18,10 +23,12 @@ let _apisperuTokenExpires = 0;
 async function getApisperuToken() {
   if (_apisperuToken && Date.now() < _apisperuTokenExpires) return _apisperuToken;
   try {
-    const res = await fetch(`${APISPERU_BASE}/auth/login`, {
+    const { base, email, password } = getApisperuConfig();
+    console.log('[apisperu] Login attempt with:', email, 'base:', base);
+    const res = await fetch(`${base}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: APISPERU_EMAIL, password: APISPERU_PASSWORD }),
+      body: JSON.stringify({ username: email, password }),
     });
     const data = await res.json();
     if (data.token) {
@@ -39,7 +46,8 @@ async function getApisperuToken() {
 // Helper: call APIsPeru with auto-login
 async function callApisPeru(path, body) {
   const token = await getApisperuToken();
-  const res = await fetch(`${APISPERU_BASE}${path}`, {
+  const { base } = getApisperuConfig();
+  const res = await fetch(`${base}${path}`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -228,7 +236,7 @@ router.post('/certificado-prueba', async (req, res) => {
 
     // Generate free PFX from APIsPeru
     const token = await getApisperuToken();
-    const pfxRes = await fetch(`${APISPERU_BASE}/companies/certificate/free`, {
+    const pfxRes = await fetch(`${getApisperuConfig().base}/companies/certificate/free`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
       body: JSON.stringify({ password: testPassword, ruc }),
@@ -259,14 +267,19 @@ router.post('/certificado-prueba', async (req, res) => {
       const uRes = await pool.query('SELECT razon_social, nombre_comercial FROM usuarios WHERE id = $1', [req.user.id]);
       const u = uRes.rows[0];
 
-      const companyRes = await fetch(`${APISPERU_BASE}/companies`, {
+      const companyRes = await fetch(`${getApisperuConfig().base}/companies`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify({
-          plan: 'free', environment: 'beta', ruc,
-          razonSocial: u?.razon_social || '', nombreComercial: u?.nombre_comercial || '',
-          address: { direccion: cfg?.direccion_fiscal || '', provincia: cfg?.provincia || '', departamento: cfg?.departamento || '', distrito: cfg?.distrito || '', ubigueo: cfg?.ubigeo || '' },
-          cert: convertRes.pem,
+          plan: 'free',
+          environment: cfg?.environment || 'beta',
+          ruc,
+          razon_social: u?.razon_social || '',
+          direccion: [cfg?.direccion_fiscal, cfg?.distrito, cfg?.provincia].filter(Boolean).join(', '),
+          sol_user: 'MODDATOS',
+          sol_pass: 'MODDATOS',
+          certificado: Buffer.from(convertRes.pem).toString('base64'),
+          logo: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
         }),
       });
       const companyData = await companyRes.json();
@@ -351,16 +364,12 @@ router.post('/certificado', async (req, res) => {
           plan: 'free',
           environment: cfg?.environment || 'beta',
           ruc: u.ruc,
-          razonSocial: u.razon_social || u.nombre_comercial || '',
-          nombreComercial: u.nombre_comercial || '',
-          address: {
-            direccion: cfg?.direccion_fiscal || '',
-            provincia: cfg?.provincia || '',
-            departamento: cfg?.departamento || '',
-            distrito: cfg?.distrito || '',
-            ubigueo: cfg?.ubigeo || '',
-          },
-          cert: pem,
+          razon_social: u.razon_social || '',
+          direccion: [cfg?.direccion_fiscal, cfg?.distrito, cfg?.provincia].filter(Boolean).join(', '),
+          sol_user: 'MODDATOS',
+          sol_pass: 'MODDATOS',
+          certificado: Buffer.from(pem).toString('base64'),
+          logo: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
         };
 
         let companyId = cfg?.apisperu_company_id;
@@ -372,7 +381,7 @@ router.post('/certificado', async (req, res) => {
         } else {
           // Create new company
           const token = await getApisperuToken();
-          const createRes = await fetch(`${APISPERU_BASE}/companies`, {
+          const createRes = await fetch(`${getApisperuConfig().base}/companies`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -469,7 +478,9 @@ router.post('/emitir', async (req, res) => {
     });
 
     // Send to APIsPeru
+    console.log('[facturacion] Sending invoice to APIsPeru:', JSON.stringify({ serie: invoice.serie, correlativo: invoice.correlativo, ruc: invoice.company?.ruc, tipoDoc: invoice.tipoDoc }));
     const sunatRes = await callApisPeru('/invoice/send', invoice);
+    console.log('[facturacion] APIsPeru response:', JSON.stringify(sunatRes).substring(0, 500));
 
     // Save comprobante
     const compRes = await pool.query(

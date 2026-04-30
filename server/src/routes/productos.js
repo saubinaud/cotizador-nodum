@@ -173,6 +173,25 @@ router.post('/', async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Auto-calculate channel prices
+    try {
+      const canales = await pool.query(
+        'SELECT id, comision_pct FROM canales_distribucion WHERE usuario_id = $1 AND activo = true',
+        [req.user.id]
+      );
+      for (const canal of canales.rows) {
+        const comision = parseFloat(canal.comision_pct) || 0;
+        const precioCanal = comision < 100
+          ? Math.round((costos.precio_final / (1 - comision / 100)) * 100) / 100
+          : costos.precio_final;
+        await pool.query(
+          `INSERT INTO producto_canal_precio (producto_id, canal_id, precio_override)
+           VALUES ($1, $2, $3) ON CONFLICT (producto_id, canal_id) DO UPDATE SET precio_override = $3`,
+          [producto.id, canal.id, precioCanal]
+        );
+      }
+    } catch (_) {}
+
     logAudit({ userId: req.user.id, entidad: 'producto', entidadId: producto.id, accion: 'crear', descripcion: `Creo producto "${nombre}"` });
 
     return res.status(201).json({ success: true, data: { ...producto, ...costos, productoUnidad } });
@@ -209,6 +228,18 @@ router.get('/', async (req, res) => {
         const locked = result.rows.slice(max).map(p => ({ ...p, locked: true }));
         productos = [...productos, ...locked];
       }
+    }
+
+    // Attach channel prices
+    for (const p of productos) {
+      const channelPrices = await pool.query(
+        `SELECT pcp.precio_override, cd.nombre AS canal_nombre, cd.comision_pct
+         FROM producto_canal_precio pcp
+         JOIN canales_distribucion cd ON cd.id = pcp.canal_id AND cd.activo = true
+         WHERE pcp.producto_id = $1`,
+        [p.id]
+      );
+      p.precios_canal = channelPrices.rows;
     }
 
     return res.json({ success: true, data: productos });
@@ -308,9 +339,18 @@ router.get('/:id', async (req, res) => {
       [producto.id]
     );
 
+    // Attach channel prices
+    const channelPrices = await pool.query(
+      `SELECT pcp.precio_override, cd.nombre AS canal_nombre, cd.comision_pct
+       FROM producto_canal_precio pcp
+       JOIN canales_distribucion cd ON cd.id = pcp.canal_id AND cd.activo = true
+       WHERE pcp.producto_id = $1`,
+      [producto.id]
+    );
+
     return res.json({
       success: true,
-      data: { ...producto, preparaciones, materiales: matsRes.rows },
+      data: { ...producto, preparaciones, materiales: matsRes.rows, precios_canal: channelPrices.rows },
     });
   } catch (err) {
     console.error('Get product detail error:', err);
@@ -533,6 +573,25 @@ router.put('/:id', async (req, res) => {
     }
 
     await client.query('COMMIT');
+
+    // Auto-calculate channel prices
+    try {
+      const canales = await pool.query(
+        'SELECT id, comision_pct FROM canales_distribucion WHERE usuario_id = $1 AND activo = true',
+        [req.user.id]
+      );
+      for (const canal of canales.rows) {
+        const comision = parseFloat(canal.comision_pct) || 0;
+        const precioCanal = comision < 100
+          ? Math.round((costos.precio_final / (1 - comision / 100)) * 100) / 100
+          : costos.precio_final;
+        await pool.query(
+          `INSERT INTO producto_canal_precio (producto_id, canal_id, precio_override)
+           VALUES ($1, $2, $3) ON CONFLICT (producto_id, canal_id) DO UPDATE SET precio_override = $3`,
+          [req.params.id, canal.id, precioCanal]
+        );
+      }
+    } catch (_) {}
 
     logAudit({ userId: req.user.id, entidad: 'producto', entidadId: req.params.id, accion: 'editar', descripcion: `Edito producto "${nombre}"` });
 

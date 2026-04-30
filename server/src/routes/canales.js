@@ -92,23 +92,15 @@ router.get('/precios/:productoId', async (req, res) => {
 
     const precios = canales.rows.map(canal => {
       const comision = parseFloat(canal.comision_pct) || 0;
-      const precioBase = comision < 100 ? precioTienda / (1 - comision / 100) : precioTienda;
-      let precioFinal;
-      if (canal.markup_tipo === 'fijo') {
-        precioFinal = precioBase + (parseFloat(canal.markup_valor) || 0);
-      } else {
-        precioFinal = precioBase * (1 + (parseFloat(canal.markup_valor) || 0) / 100);
-      }
+      const precioCanal = comision < 100 ? precioTienda / (1 - comision / 100) : precioTienda;
 
       return {
         canal_id: canal.id,
         canal_nombre: canal.nombre,
         comision_pct: comision,
-        markup_tipo: canal.markup_tipo,
-        markup_valor: parseFloat(canal.markup_valor) || 0,
-        precio_calculado: Math.round(precioFinal * 100) / 100,
+        precio_calculado: Math.round(precioCanal * 100) / 100,
         precio_override: overrideMap[canal.id] || null,
-        precio_final: overrideMap[canal.id] || Math.round(precioFinal * 100) / 100,
+        precio_final: overrideMap[canal.id] || Math.round(precioCanal * 100) / 100,
       };
     });
 

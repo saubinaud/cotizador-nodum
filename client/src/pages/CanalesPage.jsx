@@ -3,7 +3,6 @@ import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency } from '../utils/format';
-import CustomSelect from '../components/CustomSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   Plus, X, Trash2, Pencil, Truck, MapPin,
@@ -45,7 +44,7 @@ export default function CanalesPage() {
 
   // ─── Canales CRUD ───
   const openNewCanal = () => {
-    setForm({ nombre: '', comision_pct: '', markup_tipo: 'pct', markup_valor: '' });
+    setForm({ nombre: '', comision_pct: '' });
     setEditingId(null);
     setShowForm(true);
   };
@@ -54,8 +53,6 @@ export default function CanalesPage() {
     setForm({
       nombre: c.nombre,
       comision_pct: c.comision_pct ?? '',
-      markup_tipo: c.markup_tipo || 'pct',
-      markup_valor: c.markup_valor ?? '',
     });
     setEditingId(c.id);
     setShowForm(true);
@@ -68,8 +65,6 @@ export default function CanalesPage() {
       const body = {
         nombre: form.nombre.trim(),
         comision_pct: parseFloat(form.comision_pct) || 0,
-        markup_tipo: form.markup_tipo || 'pct',
-        markup_valor: parseFloat(form.markup_valor) || 0,
       };
       if (editingId) {
         await api.put(`/canales/${editingId}`, body);
@@ -207,7 +202,7 @@ export default function CanalesPage() {
                 </h3>
                 <button onClick={resetForm} className={cx.btnIcon}><X size={16} /></button>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={cx.label}>Nombre</label>
                   <input type="text" value={form.nombre || ''} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
@@ -217,22 +212,7 @@ export default function CanalesPage() {
                   <label className={cx.label}>Comision %</label>
                   <input type="number" step="0.1" min="0" value={form.comision_pct || ''} onChange={e => setForm(f => ({ ...f, comision_pct: e.target.value }))}
                     className={cx.input} placeholder="30" />
-                </div>
-                <div>
-                  <label className={cx.label}>Markup tipo</label>
-                  <CustomSelect
-                    value={form.markup_tipo || 'pct'}
-                    onChange={v => setForm(f => ({ ...f, markup_tipo: v }))}
-                    options={[
-                      { value: 'pct', label: 'Porcentaje (%)' },
-                      { value: 'fijo', label: 'Monto fijo (S/)' },
-                    ]}
-                  />
-                </div>
-                <div>
-                  <label className={cx.label}>Markup valor</label>
-                  <input type="number" step="0.01" min="0" value={form.markup_valor || ''} onChange={e => setForm(f => ({ ...f, markup_valor: e.target.value }))}
-                    className={cx.input} placeholder={form.markup_tipo === 'fijo' ? '2.00' : '5'} />
+                  <p className="text-[10px] text-stone-400 mt-1">Ej: 30% = precio x 1.43</p>
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
@@ -258,63 +238,65 @@ export default function CanalesPage() {
                     <tr className="border-b border-stone-100">
                       <th className={cx.th}>Nombre</th>
                       <th className={cx.th + ' text-center'}>Comision %</th>
-                      <th className={cx.th + ' text-center'}>Markup</th>
+                      <th className={cx.th + ' text-center'}>Precio ejemplo (S/ 20)</th>
                       <th className={cx.th + ' w-24'}></th>
                     </tr>
                   </thead>
                   <tbody>
-                    {canales.map(c => (
-                      <tr key={c.id} className={cx.tr}>
-                        <td className={cx.td + ' font-medium text-stone-900'}>{c.nombre}</td>
-                        <td className={cx.td + ' text-center'}>
-                          <span className={cx.badge('bg-amber-50 text-amber-600')}>
-                            {parseFloat(c.comision_pct) || 0}%
-                          </span>
-                        </td>
-                        <td className={cx.td + ' text-center'}>
-                          <span className={cx.badge('bg-sky-50 text-sky-600')}>
-                            {c.markup_tipo === 'fijo'
-                              ? `+S/ ${parseFloat(c.markup_valor || 0).toFixed(2)}`
-                              : `+${parseFloat(c.markup_valor || 0)}%`
-                            }
-                          </span>
-                        </td>
-                        <td className={cx.td}>
-                          <div className="flex items-center gap-1 justify-end">
-                            <button onClick={() => openEditCanal(c)} className={cx.btnIcon}><Pencil size={14} /></button>
-                            <button onClick={() => setDeleteTarget({ ...c, _type: 'canal' })} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={14} /></button>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                    {canales.map(c => {
+                      const com = parseFloat(c.comision_pct) || 0;
+                      const ejemplo = com < 100 ? (20 / (1 - com / 100)) : 20;
+                      return (
+                        <tr key={c.id} className={cx.tr}>
+                          <td className={cx.td + ' font-medium text-stone-900'}>{c.nombre}</td>
+                          <td className={cx.td + ' text-center'}>
+                            <span className={cx.badge('bg-amber-50 text-amber-600')}>
+                              {com}%
+                            </span>
+                          </td>
+                          <td className={cx.td + ' text-center'}>
+                            <span className={cx.badge('bg-sky-50 text-sky-600')}>
+                              {formatCurrency(Math.round(ejemplo * 100) / 100)}
+                            </span>
+                          </td>
+                          <td className={cx.td}>
+                            <div className="flex items-center gap-1 justify-end">
+                              <button onClick={() => openEditCanal(c)} className={cx.btnIcon}><Pencil size={14} /></button>
+                              <button onClick={() => setDeleteTarget({ ...c, _type: 'canal' })} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={14} /></button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
 
               {/* Mobile cards */}
               <div className="lg:hidden space-y-3">
-                {canales.map(c => (
-                  <div key={c.id} className={`${cx.card} p-4`}>
-                    <div className="flex items-center justify-between mb-2">
-                      <p className="text-sm font-semibold text-stone-900">{c.nombre}</p>
-                      <div className="flex gap-1">
-                        <button onClick={() => openEditCanal(c)} className={cx.btnIcon}><Pencil size={14} /></button>
-                        <button onClick={() => setDeleteTarget({ ...c, _type: 'canal' })} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={14} /></button>
+                {canales.map(c => {
+                  const com = parseFloat(c.comision_pct) || 0;
+                  const ejemplo = com < 100 ? (20 / (1 - com / 100)) : 20;
+                  return (
+                    <div key={c.id} className={`${cx.card} p-4`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-sm font-semibold text-stone-900">{c.nombre}</p>
+                        <div className="flex gap-1">
+                          <button onClick={() => openEditCanal(c)} className={cx.btnIcon}><Pencil size={14} /></button>
+                          <button onClick={() => setDeleteTarget({ ...c, _type: 'canal' })} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={14} /></button>
+                        </div>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className={cx.badge('bg-amber-50 text-amber-600')}>
+                          {com}%
+                        </span>
+                        <span className={cx.badge('bg-sky-50 text-sky-600')}>
+                          Ej: {formatCurrency(Math.round(ejemplo * 100) / 100)}
+                        </span>
                       </div>
                     </div>
-                    <div className="flex gap-2">
-                      <span className={cx.badge('bg-amber-50 text-amber-600')}>
-                        {parseFloat(c.comision_pct) || 0}%
-                      </span>
-                      <span className={cx.badge('bg-sky-50 text-sky-600')}>
-                        {c.markup_tipo === 'fijo'
-                          ? `+S/ ${parseFloat(c.markup_valor || 0).toFixed(2)}`
-                          : `+${parseFloat(c.markup_valor || 0)}%`
-                        }
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </>
           )}
