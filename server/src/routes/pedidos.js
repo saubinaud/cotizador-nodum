@@ -111,17 +111,20 @@ router.get('/:id', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const { cliente_id, descripcion, items, monto_total, tipo_pago,
-            fecha_entrega_estimada, notas, adelanto, metodo_pago, cuenta_id } = req.body;
+            fecha_entrega_estimada, notas, adelanto, metodo_pago, cuenta_id,
+            tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id } = req.body;
 
     if (!descripcion || !monto_total) {
       return res.status(400).json({ success: false, error: 'Descripción y monto total requeridos' });
     }
 
     const pedidoRes = await pool.query(
-      `INSERT INTO pedidos (usuario_id, cliente_id, descripcion, items_json, monto_total, tipo_pago, fecha_entrega_estimada, notas, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      `INSERT INTO pedidos (usuario_id, cliente_id, descripcion, items_json, monto_total, tipo_pago, fecha_entrega_estimada, notas, created_by,
+        tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
       [req.user.id, cliente_id || null, descripcion, items ? JSON.stringify(items) : null,
-       parseFloat(monto_total), tipo_pago || 'contado', fecha_entrega_estimada || null, notas || null, req.user.id]
+       parseFloat(monto_total), tipo_pago || 'contado', fecha_entrega_estimada || null, notas || null, req.user.id,
+       tipo_envio || null, parseFloat(costo_envio) || 0, zona_envio_id || null, direccion_envio || null, canal_id || null]
     );
     const pedido = pedidoRes.rows[0];
 

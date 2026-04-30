@@ -31,6 +31,7 @@ import {
   Lock,
   FileText,
   ClipboardList,
+  Truck,
 } from 'lucide-react';
 
 
@@ -89,6 +90,7 @@ export default function Layout() {
         { to: '/materiales', label: t.materiales || 'Materiales', icon: Package, perm: 'materiales' },
         { to: '/preparaciones-predeterminadas', label: t.prep_pred || 'Prep. Predet.', icon: ChefHat, perm: 'preparaciones' },
         { to: '/empaques-predeterminados', label: 'Empaques', icon: BoxSelect, perm: 'empaques' },
+        { to: '/canales', label: 'Canales y Envio', icon: Truck, perm: 'cotizador' },
         { to: '/proyeccion', label: 'Proyeccion', icon: TrendingUp, perm: 'cotizador' },
       ],
     },

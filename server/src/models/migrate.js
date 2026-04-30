@@ -1331,6 +1331,70 @@ async function runMigrations() {
       }
     }
 
+    // ==================== CANALES + ENVÍO ====================
+
+    // Canales de distribución
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS canales_distribucion (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        nombre VARCHAR(100) NOT NULL,
+        comision_pct NUMERIC(5,2) DEFAULT 0,
+        markup_tipo VARCHAR(10) DEFAULT 'pct',
+        markup_valor NUMERIC(10,2) DEFAULT 0,
+        activo BOOLEAN DEFAULT true,
+        orden INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // Precio por producto por canal
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS producto_canal_precio (
+        id SERIAL PRIMARY KEY,
+        producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+        canal_id INTEGER NOT NULL REFERENCES canales_distribucion(id) ON DELETE CASCADE,
+        precio_override NUMERIC(12,2),
+        UNIQUE(producto_id, canal_id)
+      )
+    `);
+
+    // Zonas de envío
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS zonas_envio (
+        id SERIAL PRIMARY KEY,
+        usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        nombre VARCHAR(100) NOT NULL,
+        costo NUMERIC(10,2) NOT NULL DEFAULT 0,
+        activo BOOLEAN DEFAULT true,
+        orden INTEGER DEFAULT 0,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      )
+    `);
+
+    // Envío en ventas
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS tipo_envio VARCHAR(20)`);
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS costo_envio NUMERIC(10,2) DEFAULT 0`);
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS zona_envio_id INTEGER`);
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS direccion_envio TEXT`);
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS canal_id INTEGER`);
+
+    // Envío en pedidos
+    await client.query(`ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS tipo_envio VARCHAR(20)`);
+    await client.query(`ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS costo_envio NUMERIC(10,2) DEFAULT 0`);
+    await client.query(`ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS zona_envio_id INTEGER`);
+    await client.query(`ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS direccion_envio TEXT`);
+    await client.query(`ALTER TABLE pedidos ADD COLUMN IF NOT EXISTS canal_id INTEGER`);
+
+    // Extra fields in clientes
+    await client.query(`ALTER TABLE clientes ADD COLUMN IF NOT EXISTS direccion_referencia TEXT`);
+    await client.query(`ALTER TABLE clientes ADD COLUMN IF NOT EXISTS distrito_envio VARCHAR(50)`);
+
+    // Indexes
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_canales_usuario ON canales_distribucion(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_zonas_envio_usuario ON zonas_envio(usuario_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_prod_canal ON producto_canal_precio(producto_id, canal_id)`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

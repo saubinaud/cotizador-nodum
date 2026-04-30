@@ -19,6 +19,7 @@ const flujoRoutes = require('./routes/flujo');
 const clientesRoutes = require('./routes/clientes');
 const facturacionRoutes = require('./routes/facturacion');
 const pedidosRoutes = require('./routes/pedidos');
+const canalesRoutes = require('./routes/canales');
 const equipoRoutes = require('./routes/equipo');
 const runMigrations = require('./models/migrate');
 
@@ -55,6 +56,7 @@ app.use('/api/flujo', flujoRoutes);
 app.use('/api/clientes', clientesRoutes);
 app.use('/api/facturacion', facturacionRoutes);
 app.use('/api/pedidos', pedidosRoutes);
+app.use('/api/canales', canalesRoutes);
 app.use('/api/equipo', equipoRoutes);
 
 // --------------- 404 Handler ---------------

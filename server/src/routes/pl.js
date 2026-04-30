@@ -572,7 +572,8 @@ router.get('/ventas', async (req, res) => {
 // POST /api/pl/ventas
 router.post('/ventas', async (req, res) => {
   try {
-    const { periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, nota, cuenta_id } = req.body;
+    const { periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, nota, cuenta_id,
+            tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id } = req.body;
     if (!periodo_id || !producto_id || !fecha || !cantidad) {
       return res.status(400).json({ success: false, error: 'periodo_id, producto_id, fecha y cantidad son requeridos' });
     }
@@ -586,12 +587,15 @@ router.post('/ventas', async (req, res) => {
 
     const precio = precio_unitario || parseFloat(prod.rows[0].precio_final);
     const desc = parseFloat(descuento) || 0;
-    const total = (precio * parseInt(cantidad)) - desc;
+    const costoEnvio = parseFloat(costo_envio) || 0;
+    const total = (precio * parseInt(cantidad)) - desc + costoEnvio;
 
     const result = await pool.query(
-      `INSERT INTO ventas (periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total, nota)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [periodo_id, producto_id, fecha, cantidad, precio, desc, total, nota || null]
+      `INSERT INTO ventas (periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total, nota,
+        tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      [periodo_id, producto_id, fecha, cantidad, precio, desc, total, nota || null,
+        tipo_envio || null, costoEnvio, zona_envio_id || null, direccion_envio || null, canal_id || null]
     );
 
     // Dual-write to transacciones for timeline (with cuenta_id for cash flow)

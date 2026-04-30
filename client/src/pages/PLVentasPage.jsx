@@ -77,6 +77,16 @@ export default function PLVentasPage() {
   const [fechaEntrega, setFechaEntrega] = useState('');
   const [cuentas, setCuentas] = useState([]);
 
+  // Shipping state
+  const [tieneEnvio, setTieneEnvio] = useState(false);
+  const [tipoEnvio, setTipoEnvio] = useState('propio');
+  const [costoEnvio, setCostoEnvio] = useState('');
+  const [zonaEnvioId, setZonaEnvioId] = useState('');
+  const [direccionEnvio, setDireccionEnvio] = useState('');
+  const [canalId, setCanalId] = useState('');
+  const [zonas, setZonas] = useState([]);
+  const [canales, setCanales] = useState([]);
+
   // Load periodos + productos on mount
   useEffect(() => {
     Promise.all([
@@ -84,12 +94,16 @@ export default function PLVentasPage() {
       api.get('/productos').catch(() => ({ data: [] })),
       api.get('/flujo/cuentas').catch(() => ({ data: [] })),
       api.get('/clientes').catch(() => ({ data: [] })),
-    ]).then(([perRes, prodRes, cuentasRes, clientesRes]) => {
+      api.get('/canales/zonas').catch(() => ({ data: [] })),
+      api.get('/canales').catch(() => ({ data: [] })),
+    ]).then(([perRes, prodRes, cuentasRes, clientesRes, zonasRes, canalesRes]) => {
       const pers = perRes.data || [];
       setPeriodos(pers);
       setCuentas((cuentasRes.data || []).map(c => ({ value: c.id, label: c.nombre })));
       setProductos(prodRes.data || []);
       setVentaClientes((clientesRes.data || []).map(c => ({ value: c.id, label: `${c.num_doc} — ${c.razon_social || 'Sin nombre'}` })));
+      setZonas(zonasRes.data || []);
+      setCanales(canalesRes.data || []);
       if (pers.length > 0) {
         setPeriodoId(pers[0].id);
       }
@@ -189,6 +203,12 @@ export default function PLVentasPage() {
     setAdelanto('');
     setFechaEntrega('');
     setShowNewClient(false);
+    setTieneEnvio(false);
+    setTipoEnvio('propio');
+    setCostoEnvio('');
+    setZonaEnvioId('');
+    setDireccionEnvio('');
+    setCanalId('');
     setModalOpen(true);
   };
 
@@ -230,6 +250,8 @@ export default function PLVentasPage() {
     return (precio * cant) - desc;
   }, [form.precio_unitario, form.cantidad, descuentoTipo, descuentoValor]);
 
+  const totalConEnvio = formTotal + (tieneEnvio ? parseFloat(costoEnvio) || 0 : 0);
+
   // Save venta
   const saveVenta = async () => {
     if (!form.producto_id || !form.fecha || !form.cantidad) {
@@ -257,6 +279,11 @@ export default function PLVentasPage() {
           nota: form.nota,
           cuenta_id: form.cuenta_id || null,
           cliente_id: form.cliente_id || null,
+          tipo_envio: tieneEnvio ? tipoEnvio : null,
+          costo_envio: tieneEnvio ? parseFloat(costoEnvio) || 0 : 0,
+          zona_envio_id: zonaEnvioId || null,
+          direccion_envio: direccionEnvio || null,
+          canal_id: canalId || null,
         });
         toast.success('Venta registrada');
 
@@ -283,6 +310,12 @@ export default function PLVentasPage() {
       setContraEntrega(false);
       setAdelanto('');
       setFechaEntrega('');
+      setTieneEnvio(false);
+      setTipoEnvio('propio');
+      setCostoEnvio('');
+      setZonaEnvioId('');
+      setDireccionEnvio('');
+      setCanalId('');
       loadVentas(periodoId);
     } catch (err) {
       toast.error(err.message);
@@ -690,6 +723,75 @@ export default function PLVentasPage() {
                 </>
                 )}
 
+                {/* Envio */}
+                {!editingVenta && (
+                <>
+                <div className="flex items-center gap-3">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="checkbox" checked={tieneEnvio} onChange={e => setTieneEnvio(e.target.checked)}
+                      className="accent-[var(--accent)] w-4 h-4" />
+                    <span className="text-sm text-stone-700">Tiene envio</span>
+                  </label>
+                </div>
+
+                {tieneEnvio && (
+                  <div className="p-3 bg-sky-50 rounded-lg space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className={cx.label}>Tipo de envio</label>
+                        <CustomSelect
+                          value={tipoEnvio}
+                          onChange={setTipoEnvio}
+                          options={[
+                            { value: 'propio', label: 'Envio propio' },
+                            { value: 'aplicacion', label: 'Por aplicacion' },
+                          ]}
+                        />
+                      </div>
+                      {tipoEnvio === 'aplicacion' && canales.length > 0 && (
+                        <div>
+                          <label className={cx.label}>Canal / Aplicacion</label>
+                          <CustomSelect
+                            value={canalId}
+                            onChange={setCanalId}
+                            options={canales.map(c => ({ value: c.id, label: c.nombre }))}
+                            placeholder="Seleccionar..."
+                          />
+                        </div>
+                      )}
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      {zonas.length > 0 && (
+                        <div>
+                          <label className={cx.label}>Zona</label>
+                          <CustomSelect
+                            value={zonaEnvioId}
+                            onChange={(v) => {
+                              setZonaEnvioId(v);
+                              const zona = zonas.find(z => z.id === parseInt(v));
+                              if (zona) setCostoEnvio(zona.costo);
+                            }}
+                            options={[{ value: '', label: 'Sin zona' }, ...zonas.map(z => ({ value: z.id, label: `${z.nombre} (S/ ${z.costo})` }))]}
+                            placeholder="Seleccionar zona..."
+                          />
+                        </div>
+                      )}
+                      <div>
+                        <label className={cx.label}>Costo envio</label>
+                        <input type="number" step="0.01" min="0" value={costoEnvio}
+                          onChange={e => setCostoEnvio(e.target.value)} className={cx.input} placeholder="0.00" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className={cx.label}>Direccion de entrega</label>
+                      <input type="text" value={direccionEnvio} onChange={e => setDireccionEnvio(e.target.value)}
+                        className={cx.input} placeholder="Direccion de entrega..." />
+                    </div>
+                  </div>
+                )}
+                </>
+                )}
+
                 {/* Cuenta */}
                 {cuentas.length > 0 && (
                 <div>
@@ -756,8 +858,13 @@ export default function PLVentasPage() {
                 {/* Computed total */}
                 <div className="flex items-center justify-between pt-2 border-t border-stone-100">
                   <span className="text-sm text-stone-500">Total</span>
-                  <span className="text-lg font-bold text-stone-900">{formatCurrency(formTotal)}</span>
+                  <span className="text-lg font-bold text-stone-900">{formatCurrency(totalConEnvio)}</span>
                 </div>
+                {tieneEnvio && parseFloat(costoEnvio) > 0 && (
+                  <p className="text-[11px] text-stone-400 text-right -mt-2">
+                    Producto: {formatCurrency(formTotal)} + Envio: {formatCurrency(parseFloat(costoEnvio))}
+                  </p>
+                )}
               </div>
 
               {/* Actions */}
