@@ -147,11 +147,11 @@ export default function CanalesPage() {
 
   async function toggleProductoEnCanal(productoId, checked) {
     const canalId = parseInt(activeTab);
+    const canal = canales.find(c => c.id === canalId);
+    const comision = parseFloat(canal?.comision_pct) || 0;
     try {
       if (checked) {
         const prod = productos.find(p => p.id === productoId);
-        const canal = canales.find(c => c.id === canalId);
-        const comision = parseFloat(canal?.comision_pct) || 0;
         const precio = comision < 100
           ? Math.round((parseFloat(prod.precio_final) / (1 - comision / 100)) * 100) / 100
           : parseFloat(prod.precio_final);
@@ -159,15 +159,23 @@ export default function CanalesPage() {
         await api.put(`/canales/precios/${productoId}`, { canal_id: canalId, precio_override: precio });
         setProductosEnCanal(prev => new Set([...prev, productoId]));
         setPreciosCanal(prev => ({ ...prev, [productoId]: precio }));
-        toast.success('Producto agregado al canal');
+        // Update productos state so precios_canal stays in sync
+        setProductos(prev => prev.map(p => p.id === productoId ? {
+          ...p, precios_canal: [...(p.precios_canal || []), { canal_id: canalId, canal_nombre: canal?.nombre, precio_override: String(precio), comision_pct: String(comision) }]
+        } : p));
+        toast.success('Producto agregado');
       } else {
         await api.put(`/canales/precios/${productoId}`, { canal_id: canalId, precio_override: null });
         setProductosEnCanal(prev => { const n = new Set(prev); n.delete(productoId); return n; });
         setPreciosCanal(prev => { const n = { ...prev }; delete n[productoId]; return n; });
-        toast.success('Producto removido del canal');
+        // Update productos state
+        setProductos(prev => prev.map(p => p.id === productoId ? {
+          ...p, precios_canal: (p.precios_canal || []).filter(pc => pc.canal_id !== canalId)
+        } : p));
+        toast.success('Producto removido');
       }
     } catch (err) {
-      toast.error(err.message || 'Error actualizando producto');
+      toast.error(err.message || 'Error');
     }
   }
 
