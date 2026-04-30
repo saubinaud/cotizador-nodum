@@ -220,8 +220,8 @@ router.put('/config', async (req, res) => {
 router.post('/certificado', async (req, res) => {
   try {
     const { cert_base64, cert_password } = req.body;
-    if (!cert_base64 || !cert_password) {
-      return res.status(400).json({ success: false, error: 'Certificado y contrasena requeridos' });
+    if (!cert_base64) {
+      return res.status(400).json({ success: false, error: 'Certificado requerido' });
     }
 
     // Convert P12 to PEM via APIsPeru

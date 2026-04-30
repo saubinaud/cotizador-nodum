@@ -201,8 +201,7 @@ export default function ComprobantesPage() {
   async function handleCertUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const password = window.prompt('Ingresa la contrasena del certificado:');
-    if (!password) return;
+    const password = window.prompt('Ingresa la contraseña del certificado (déjalo vacío si no tiene):') ?? '';
     setUploadingCert(true);
     try {
       const reader = new FileReader();
