@@ -1,124 +1,267 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency } from '../utils/format';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
-  Plus, X, Trash2, Pencil, Truck, MapPin,
+  Plus, X, Trash2, Pencil, Truck, MapPin, Check, CheckCheck,
 } from 'lucide-react';
 
 export default function CanalesPage() {
   const api = useApi();
   const toast = useToast();
 
-  const [tab, setTab] = useState('canales');
   const [canales, setCanales] = useState([]);
-  const [zonas, setZonas] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [activeTab, setActiveTab] = useState('directa');
   const [loading, setLoading] = useState(true);
 
-  // Forms
-  const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState({});
+  // Product-channel state
+  const [preciosCanal, setPreciosCanal] = useState({});
+  const [productosEnCanal, setProductosEnCanal] = useState(new Set());
+
+  // Zonas de envio
+  const [zonas, setZonas] = useState([]);
+  const [showZonaForm, setShowZonaForm] = useState(false);
+  const [zonaForm, setZonaForm] = useState({});
+  const [zonaEditingId, setZonaEditingId] = useState(null);
+
+  // Create channel
+  const [showCreate, setShowCreate] = useState(false);
+  const [createForm, setCreateForm] = useState({ nombre: '', comision_pct: '' });
+
+  // Edit channel
+  const [editingCanal, setEditingCanal] = useState(null);
+  const [editForm, setEditForm] = useState({ nombre: '', comision_pct: '' });
+
   const [saving, setSaving] = useState(false);
-  const [editingId, setEditingId] = useState(null);
   const [deleteTarget, setDeleteTarget] = useState(null);
 
-  // Load data
+  // ─── Data Loading ───
+
   useEffect(() => {
-    Promise.all([
-      api.get('/canales').catch(() => ({ data: [] })),
-      api.get('/canales/zonas').catch(() => ({ data: [] })),
-    ]).then(([canalesRes, zonasRes]) => {
-      setCanales(canalesRes.data || []);
-      setZonas(zonasRes.data || []);
-      setLoading(false);
-    });
+    loadData();
   }, []);
 
-  const resetForm = () => {
-    setForm({});
-    setEditingId(null);
-    setShowForm(false);
-  };
+  async function loadData() {
+    setLoading(true);
+    try {
+      const [canalesRes, prodsRes, zonasRes] = await Promise.all([
+        api.get('/canales').catch(() => ({ data: [] })),
+        api.get('/productos').catch(() => ({ data: [] })),
+        api.get('/canales/zonas').catch(() => ({ data: [] })),
+      ]);
+      setCanales(canalesRes.data || []);
+      setProductos((prodsRes.data || []).filter(p => !p.locked));
+      setZonas(zonasRes.data || []);
+    } catch {
+      // silently handled
+    } finally {
+      setLoading(false);
+    }
+  }
 
-  // ─── Canales CRUD ───
-  const openNewCanal = () => {
-    setForm({ nombre: '', comision_pct: '' });
-    setEditingId(null);
-    setShowForm(true);
-  };
+  // Load channel prices when switching tabs
+  useEffect(() => {
+    if (activeTab === 'directa' || activeTab === 'zonas') return;
+    loadCanalPrecios(activeTab);
+  }, [activeTab, productos]);
 
-  const openEditCanal = (c) => {
-    setForm({
-      nombre: c.nombre,
-      comision_pct: c.comision_pct ?? '',
-    });
-    setEditingId(c.id);
-    setShowForm(true);
-  };
+  const loadCanalPrecios = useCallback((canalId) => {
+    const preciosMap = {};
+    const enCanal = new Set();
+    for (const p of productos) {
+      const cp = (p.precios_canal || []).find(c => c.canal_id === parseInt(canalId));
+      if (cp) {
+        preciosMap[p.id] = parseFloat(cp.precio_override);
+        enCanal.add(p.id);
+      }
+    }
+    setPreciosCanal(preciosMap);
+    setProductosEnCanal(enCanal);
+  }, [productos]);
 
-  const saveCanal = async () => {
-    if (!form.nombre?.trim()) { toast.error('Nombre es requerido'); return; }
+  // ─── Channel CRUD ───
+
+  async function createCanal() {
+    if (!createForm.nombre?.trim()) { toast.error('Nombre es requerido'); return; }
     setSaving(true);
     try {
       const body = {
-        nombre: form.nombre.trim(),
-        comision_pct: parseFloat(form.comision_pct) || 0,
+        nombre: createForm.nombre.trim(),
+        comision_pct: parseFloat(createForm.comision_pct) || 0,
       };
-      if (editingId) {
-        await api.put(`/canales/${editingId}`, body);
-        toast.success('Canal actualizado');
-      } else {
-        await api.post('/canales', body);
-        toast.success('Canal creado');
-      }
+      await api.post('/canales', body);
+      toast.success('Canal creado');
       const res = await api.get('/canales');
-      setCanales(res.data || []);
-      resetForm();
+      const newCanales = res.data || [];
+      setCanales(newCanales);
+      // Switch to new tab
+      const newCanal = newCanales.find(c => c.nombre === body.nombre);
+      if (newCanal) setActiveTab(String(newCanal.id));
+      setShowCreate(false);
+      setCreateForm({ nombre: '', comision_pct: '' });
     } catch (err) {
-      toast.error(err.message || 'Error guardando canal');
+      toast.error(err.message || 'Error creando canal');
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const deleteCanal = async () => {
+  async function saveEditCanal() {
+    if (!editForm.nombre?.trim()) { toast.error('Nombre es requerido'); return; }
+    setSaving(true);
+    try {
+      await api.put(`/canales/${editingCanal.id}`, {
+        nombre: editForm.nombre.trim(),
+        comision_pct: parseFloat(editForm.comision_pct) || 0,
+      });
+      toast.success('Canal actualizado');
+      const res = await api.get('/canales');
+      setCanales(res.data || []);
+      setEditingCanal(null);
+    } catch (err) {
+      toast.error(err.message || 'Error actualizando canal');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deleteCanal() {
     if (!deleteTarget) return;
     try {
       await api.del(`/canales/${deleteTarget.id}`);
       toast.success('Canal eliminado');
       setCanales(prev => prev.filter(c => c.id !== deleteTarget.id));
+      if (activeTab === String(deleteTarget.id)) setActiveTab('directa');
     } catch (err) {
-      toast.error(err.message || 'Error eliminando');
+      toast.error(err.message || 'Error eliminando canal');
     } finally {
       setDeleteTarget(null);
     }
-  };
+  }
+
+  // ─── Product-Channel Operations ───
+
+  async function toggleProductoEnCanal(productoId, checked) {
+    const canalId = parseInt(activeTab);
+    try {
+      if (checked) {
+        const prod = productos.find(p => p.id === productoId);
+        const canal = canales.find(c => c.id === canalId);
+        const comision = parseFloat(canal?.comision_pct) || 0;
+        const precio = comision < 100
+          ? Math.round((parseFloat(prod.precio_final) / (1 - comision / 100)) * 100) / 100
+          : parseFloat(prod.precio_final);
+
+        await api.put(`/canales/precios/${productoId}`, { canal_id: canalId, precio_override: precio });
+        setProductosEnCanal(prev => new Set([...prev, productoId]));
+        setPreciosCanal(prev => ({ ...prev, [productoId]: precio }));
+        toast.success('Producto agregado al canal');
+      } else {
+        await api.put(`/canales/precios/${productoId}`, { canal_id: canalId, precio_override: null });
+        setProductosEnCanal(prev => { const n = new Set(prev); n.delete(productoId); return n; });
+        setPreciosCanal(prev => { const n = { ...prev }; delete n[productoId]; return n; });
+        toast.success('Producto removido del canal');
+      }
+      // Refresh productos
+      const res = await api.get('/productos');
+      setProductos((res.data || []).filter(p => !p.locked));
+    } catch (err) {
+      toast.error(err.message || 'Error actualizando producto');
+    }
+  }
+
+  async function updatePrecioCanal(productoId, nuevoPrecio) {
+    const canalId = parseInt(activeTab);
+    try {
+      await api.put(`/canales/precios/${productoId}`, { canal_id: canalId, precio_override: parseFloat(nuevoPrecio) });
+      setPreciosCanal(prev => ({ ...prev, [productoId]: parseFloat(nuevoPrecio) }));
+      // Refresh productos
+      const res = await api.get('/productos');
+      setProductos((res.data || []).filter(p => !p.locked));
+    } catch (err) {
+      toast.error(err.message || 'Error actualizando precio');
+    }
+  }
+
+  async function selectAll() {
+    const canalId = parseInt(activeTab);
+    const canal = canales.find(c => c.id === canalId);
+    const comision = parseFloat(canal?.comision_pct) || 0;
+    setSaving(true);
+    try {
+      for (const p of productos) {
+        if (!productosEnCanal.has(p.id)) {
+          const precio = comision < 100
+            ? Math.round((parseFloat(p.precio_final) / (1 - comision / 100)) * 100) / 100
+            : parseFloat(p.precio_final);
+          await api.put(`/canales/precios/${p.id}`, { canal_id: canalId, precio_override: precio });
+        }
+      }
+      const res = await api.get('/productos');
+      setProductos((res.data || []).filter(p => !p.locked));
+      loadCanalPrecios(activeTab);
+      toast.success('Todos los productos agregados');
+    } catch (err) {
+      toast.error(err.message || 'Error agregando productos');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function deselectAll() {
+    const canalId = parseInt(activeTab);
+    setSaving(true);
+    try {
+      for (const p of productos) {
+        if (productosEnCanal.has(p.id)) {
+          await api.put(`/canales/precios/${p.id}`, { canal_id: canalId, precio_override: null });
+        }
+      }
+      const res = await api.get('/productos');
+      setProductos((res.data || []).filter(p => !p.locked));
+      setPreciosCanal({});
+      setProductosEnCanal(new Set());
+      toast.success('Todos los productos removidos');
+    } catch (err) {
+      toast.error(err.message || 'Error removiendo productos');
+    } finally {
+      setSaving(false);
+    }
+  }
 
   // ─── Zonas CRUD ───
-  const openNewZona = () => {
-    setForm({ nombre: '', costo: '' });
-    setEditingId(null);
-    setShowForm(true);
-  };
 
-  const openEditZona = (z) => {
-    setForm({ nombre: z.nombre, costo: z.costo ?? '' });
-    setEditingId(z.id);
-    setShowForm(true);
-  };
+  function openNewZona() {
+    setZonaForm({ nombre: '', costo: '' });
+    setZonaEditingId(null);
+    setShowZonaForm(true);
+  }
 
-  const saveZona = async () => {
-    if (!form.nombre?.trim()) { toast.error('Nombre es requerido'); return; }
+  function openEditZona(z) {
+    setZonaForm({ nombre: z.nombre, costo: z.costo ?? '' });
+    setZonaEditingId(z.id);
+    setShowZonaForm(true);
+  }
+
+  function resetZonaForm() {
+    setZonaForm({});
+    setZonaEditingId(null);
+    setShowZonaForm(false);
+  }
+
+  async function saveZona() {
+    if (!zonaForm.nombre?.trim()) { toast.error('Nombre es requerido'); return; }
     setSaving(true);
     try {
       const body = {
-        nombre: form.nombre.trim(),
-        costo: parseFloat(form.costo) || 0,
+        nombre: zonaForm.nombre.trim(),
+        costo: parseFloat(zonaForm.costo) || 0,
       };
-      if (editingId) {
-        await api.put(`/canales/zonas/${editingId}`, body);
+      if (zonaEditingId) {
+        await api.put(`/canales/zonas/${zonaEditingId}`, body);
         toast.success('Zona actualizada');
       } else {
         await api.post('/canales/zonas', body);
@@ -126,212 +269,350 @@ export default function CanalesPage() {
       }
       const res = await api.get('/canales/zonas');
       setZonas(res.data || []);
-      resetForm();
+      resetZonaForm();
     } catch (err) {
       toast.error(err.message || 'Error guardando zona');
     } finally {
       setSaving(false);
     }
-  };
+  }
 
-  const deleteZona = async () => {
+  async function deleteZona() {
     if (!deleteTarget) return;
     try {
       await api.del(`/canales/zonas/${deleteTarget.id}`);
       toast.success('Zona eliminada');
       setZonas(prev => prev.filter(z => z.id !== deleteTarget.id));
     } catch (err) {
-      toast.error(err.message || 'Error eliminando');
+      toast.error(err.message || 'Error eliminando zona');
     } finally {
       setDeleteTarget(null);
     }
-  };
+  }
 
-  // Loading
+  // ─── Helpers ───
+
+  function startEditCanal(c) {
+    setEditingCanal(c);
+    setEditForm({ nombre: c.nombre, comision_pct: c.comision_pct ?? '' });
+  }
+
+  const activeCanal = canales.find(c => String(c.id) === activeTab);
+
+  // ─── Loading ───
+
   if (loading) {
     return (
       <div className="max-w-5xl mx-auto pb-12 space-y-4">
         <div className={cx.skeleton + ' h-10 w-48'} />
+        <div className={cx.skeleton + ' h-12 w-full'} />
         <div className={cx.skeleton + ' h-64'} />
       </div>
     );
   }
 
-  const tabs = [
-    { value: 'canales', label: 'Canales' },
-    { value: 'zonas', label: 'Zonas de envio' },
-  ];
+  // ─── Render ───
 
   return (
     <div className="max-w-5xl mx-auto pb-12">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
-        <h1 className="text-xl font-bold text-stone-900">Canales y Envio</h1>
-        <button
-          onClick={tab === 'canales' ? openNewCanal : openNewZona}
-          className={cx.btnPrimary + ' flex items-center gap-2'}
-        >
-          <Plus size={14} /> {tab === 'canales' ? 'Nuevo canal' : 'Nueva zona'}
-        </button>
+        <h1 className="text-xl font-bold text-stone-900">Canales de venta</h1>
       </div>
 
       {/* Tab pills */}
-      <div className="flex gap-2 mb-5">
-        {tabs.map(t => (
+      <div className="flex gap-1 flex-wrap mb-4">
+        <button
+          onClick={() => setActiveTab('directa')}
+          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+            activeTab === 'directa'
+              ? 'bg-[#0A2F24] text-white'
+              : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+          }`}
+        >
+          Venta Directa
+        </button>
+
+        {canales.map(c => (
           <button
-            key={t.value}
-            onClick={() => { setTab(t.value); resetForm(); }}
-            className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
-              tab === t.value ? 'bg-[#0A2F24] text-white' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+            key={c.id}
+            onClick={() => setActiveTab(String(c.id))}
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+              activeTab === String(c.id)
+                ? 'bg-[#0A2F24] text-white'
+                : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
             }`}
           >
-            {t.label}
+            {c.nombre}
+            <span className="opacity-60 ml-1">{c.comision_pct}%</span>
           </button>
         ))}
+
+        <button
+          onClick={() => setActiveTab('zonas')}
+          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+            activeTab === 'zonas'
+              ? 'bg-[#0A2F24] text-white'
+              : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
+          }`}
+        >
+          Zonas de envio
+        </button>
+
+        <button
+          onClick={() => setShowCreate(true)}
+          className="px-3 py-2 text-xs font-semibold rounded-lg bg-[var(--accent)] text-white hover:opacity-90 flex items-center gap-1"
+        >
+          <Plus size={12} /> Canal
+        </button>
       </div>
 
-      {/* ─── Tab: Canales ─── */}
-      {tab === 'canales' && (
-        <>
-          {/* Inline form */}
-          {showForm && (
-            <div className={`${cx.card} p-5 mb-4`}>
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-bold text-stone-900">
-                  {editingId ? 'Editar canal' : 'Nuevo canal'}
-                </h3>
-                <button onClick={resetForm} className={cx.btnIcon}><X size={16} /></button>
+      {/* ─── Create Channel Modal ─── */}
+      {showCreate && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowCreate(false)} />
+          <div className="relative bg-white rounded-2xl p-6 w-full max-w-sm shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-stone-900">Nuevo canal</h3>
+              <button onClick={() => setShowCreate(false)} className={cx.btnIcon}><X size={16} /></button>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className={cx.label}>Nombre</label>
+                <input
+                  type="text"
+                  value={createForm.nombre}
+                  onChange={e => setCreateForm(f => ({ ...f, nombre: e.target.value }))}
+                  className={cx.input}
+                  placeholder="Rappi, PedidosYa..."
+                />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className={cx.label}>Nombre</label>
-                  <input type="text" value={form.nombre || ''} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
-                    className={cx.input} placeholder="Rappi, PedidosYa..." />
-                </div>
-                <div>
-                  <label className={cx.label}>Comision %</label>
-                  <input type="number" step="0.1" min="0" value={form.comision_pct || ''} onChange={e => setForm(f => ({ ...f, comision_pct: e.target.value }))}
-                    className={cx.input} placeholder="30" />
-                  <p className="text-[10px] text-stone-400 mt-1">Ej: 30% = precio x 1.43</p>
-                </div>
-              </div>
-              <div className="flex gap-2 mt-4">
-                <button onClick={saveCanal} disabled={saving} className={cx.btnPrimary}>
-                  {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Crear canal'}
-                </button>
-                <button onClick={resetForm} className={cx.btnSecondary}>Cancelar</button>
+              <div>
+                <label className={cx.label}>Comision %</label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={createForm.comision_pct}
+                  onChange={e => setCreateForm(f => ({ ...f, comision_pct: e.target.value }))}
+                  className={cx.input}
+                  placeholder="30"
+                />
+                <p className="text-[10px] text-stone-400 mt-1">Ej: 30% = precio x 1.43</p>
               </div>
             </div>
-          )}
-
-          {canales.length === 0 ? (
-            <div className={`${cx.card} p-12 text-center`}>
-              <Truck size={40} className="text-stone-300 mx-auto mb-4" />
-              <p className="text-stone-400 text-sm">No hay canales registrados</p>
+            <div className="flex gap-2 mt-5 justify-end">
+              <button onClick={() => setShowCreate(false)} className={cx.btnSecondary}>Cancelar</button>
+              <button onClick={createCanal} disabled={saving} className={cx.btnPrimary}>
+                {saving ? 'Creando...' : 'Crear canal'}
+              </button>
             </div>
-          ) : (
-            <>
-              {/* Desktop table */}
-              <div className={`${cx.card} hidden lg:block overflow-hidden`}>
-                <table className="w-full">
-                  <thead>
-                    <tr className="border-b border-stone-100">
-                      <th className={cx.th}>Nombre</th>
-                      <th className={cx.th + ' text-center'}>Comision %</th>
-                      <th className={cx.th + ' text-center'}>Precio ejemplo (S/ 20)</th>
-                      <th className={cx.th + ' w-24'}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {canales.map(c => {
-                      const com = parseFloat(c.comision_pct) || 0;
-                      const ejemplo = com < 100 ? (20 / (1 - com / 100)) : 20;
-                      return (
-                        <tr key={c.id} className={cx.tr}>
-                          <td className={cx.td + ' font-medium text-stone-900'}>{c.nombre}</td>
-                          <td className={cx.td + ' text-center'}>
-                            <span className={cx.badge('bg-amber-50 text-amber-600')}>
-                              {com}%
-                            </span>
-                          </td>
-                          <td className={cx.td + ' text-center'}>
-                            <span className={cx.badge('bg-sky-50 text-sky-600')}>
-                              {formatCurrency(Math.round(ejemplo * 100) / 100)}
-                            </span>
-                          </td>
-                          <td className={cx.td}>
-                            <div className="flex items-center gap-1 justify-end">
-                              <button onClick={() => openEditCanal(c)} className={cx.btnIcon}><Pencil size={14} /></button>
-                              <button onClick={() => setDeleteTarget({ ...c, _type: 'canal' })} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={14} /></button>
-                            </div>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Mobile cards */}
-              <div className="lg:hidden space-y-3">
-                {canales.map(c => {
-                  const com = parseFloat(c.comision_pct) || 0;
-                  const ejemplo = com < 100 ? (20 / (1 - com / 100)) : 20;
-                  return (
-                    <div key={c.id} className={`${cx.card} p-4`}>
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-sm font-semibold text-stone-900">{c.nombre}</p>
-                        <div className="flex gap-1">
-                          <button onClick={() => openEditCanal(c)} className={cx.btnIcon}><Pencil size={14} /></button>
-                          <button onClick={() => setDeleteTarget({ ...c, _type: 'canal' })} className={cx.btnIcon + ' hover:text-rose-600'}><Trash2 size={14} /></button>
-                        </div>
-                      </div>
-                      <div className="flex gap-2">
-                        <span className={cx.badge('bg-amber-50 text-amber-600')}>
-                          {com}%
-                        </span>
-                        <span className={cx.badge('bg-sky-50 text-sky-600')}>
-                          Ej: {formatCurrency(Math.round(ejemplo * 100) / 100)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </>
+          </div>
+        </div>
       )}
 
-      {/* ─── Tab: Zonas ─── */}
-      {tab === 'zonas' && (
+      {/* ─── Tab: Venta Directa ─── */}
+      {activeTab === 'directa' && (
+        <div>
+          {productos.length === 0 ? (
+            <div className={`${cx.card} p-12 text-center`}>
+              <Truck size={40} className="text-stone-300 mx-auto mb-4" />
+              <p className="text-stone-400 text-sm">No hay productos registrados</p>
+            </div>
+          ) : (
+            <div className={cx.card + ' overflow-hidden'}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-stone-200">
+                    <th className={cx.th}>Producto</th>
+                    <th className={cx.th + ' text-right'}>Precio tienda</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {productos.map(p => (
+                    <tr key={p.id} className={cx.tr}>
+                      <td className={cx.td + ' font-medium text-stone-800'}>{p.nombre}</td>
+                      <td className={cx.td + ' text-right text-[var(--accent)] font-semibold'}>
+                        {formatCurrency(p.precio_final)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── Tab: Channel ─── */}
+      {activeTab !== 'directa' && activeTab !== 'zonas' && activeCanal && (
+        <div>
+          {/* Channel info header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
+            {editingCanal?.id === activeCanal.id ? (
+              /* Inline edit */
+              <div className="flex items-center gap-2 flex-wrap flex-1">
+                <input
+                  type="text"
+                  value={editForm.nombre}
+                  onChange={e => setEditForm(f => ({ ...f, nombre: e.target.value }))}
+                  className={cx.input + ' !w-40'}
+                  placeholder="Nombre"
+                />
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={editForm.comision_pct}
+                  onChange={e => setEditForm(f => ({ ...f, comision_pct: e.target.value }))}
+                  className={cx.input + ' !w-24'}
+                  placeholder="%"
+                />
+                <button onClick={saveEditCanal} disabled={saving} className={cx.btnPrimary + ' text-xs !px-3 !py-1.5'}>
+                  {saving ? '...' : 'Guardar'}
+                </button>
+                <button onClick={() => setEditingCanal(null)} className={cx.btnGhost + ' text-xs !px-2 !py-1.5'}>
+                  Cancelar
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className={cx.badge('bg-amber-50 text-amber-600')}>
+                  Comision: {activeCanal.comision_pct}%
+                </span>
+                <span className="text-xs text-stone-400">
+                  {productosEnCanal.size} producto{productosEnCanal.size !== 1 ? 's' : ''}
+                </span>
+              </div>
+            )}
+
+            <div className="flex gap-1 flex-wrap">
+              <button onClick={selectAll} disabled={saving} className={cx.btnGhost + ' text-xs flex items-center gap-1'}>
+                <CheckCheck size={12} /> Seleccionar todos
+              </button>
+              <button onClick={deselectAll} disabled={saving} className={cx.btnGhost + ' text-xs'}>
+                Deseleccionar
+              </button>
+              {!editingCanal && (
+                <>
+                  <button onClick={() => startEditCanal(activeCanal)} className={cx.btnGhost + ' text-xs flex items-center gap-1'}>
+                    <Pencil size={12} /> Editar
+                  </button>
+                  <button
+                    onClick={() => setDeleteTarget({ ...activeCanal, _type: 'canal' })}
+                    className={cx.btnDanger + ' text-xs flex items-center gap-1'}
+                  >
+                    <Trash2 size={12} /> Eliminar
+                  </button>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Product list with checkboxes */}
+          {productos.length === 0 ? (
+            <div className={`${cx.card} p-12 text-center`}>
+              <p className="text-stone-400 text-sm">No hay productos registrados</p>
+            </div>
+          ) : (
+            <div className={cx.card + ' divide-y divide-stone-100'}>
+              {productos.map(p => {
+                const isIn = productosEnCanal.has(p.id);
+                const precio = preciosCanal[p.id] || 0;
+                const comision = parseFloat(activeCanal.comision_pct) || 0;
+                const calculado = comision < 100
+                  ? parseFloat(p.precio_final) / (1 - comision / 100)
+                  : parseFloat(p.precio_final);
+                const subsidiando = isIn && precio < calculado * 0.99;
+
+                return (
+                  <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                    <input
+                      type="checkbox"
+                      checked={isIn}
+                      onChange={e => toggleProductoEnCanal(p.id, e.target.checked)}
+                      className="accent-[var(--accent)] w-4 h-4 shrink-0"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-stone-800 truncate">{p.nombre}</p>
+                      <p className="text-[10px] text-stone-400">
+                        Tienda: {formatCurrency(p.precio_final)} · Calculado: {formatCurrency(Math.round(calculado * 100) / 100)}
+                      </p>
+                    </div>
+                    {isIn && (
+                      <div className="flex items-center gap-1">
+                        {subsidiando && (
+                          <span className="text-[9px] text-amber-500 whitespace-nowrap">Subsidiado</span>
+                        )}
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={precio}
+                          onChange={e => setPreciosCanal(prev => ({ ...prev, [p.id]: e.target.value }))}
+                          onBlur={() => updatePrecioCanal(p.id, preciosCanal[p.id])}
+                          className={`w-24 px-2 py-1 text-sm text-right border rounded ${
+                            subsidiando
+                              ? 'border-amber-300 text-amber-700'
+                              : 'border-stone-200 text-stone-800'
+                          } focus:outline-none focus:border-stone-400`}
+                        />
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ─── Tab: Zonas de envio ─── */}
+      {activeTab === 'zonas' && (
         <>
-          {/* Inline form */}
-          {showForm && (
+          <div className="flex justify-end mb-4">
+            <button onClick={openNewZona} className={cx.btnPrimary + ' flex items-center gap-2'}>
+              <Plus size={14} /> Nueva zona
+            </button>
+          </div>
+
+          {/* Zona form */}
+          {showZonaForm && (
             <div className={`${cx.card} p-5 mb-4`}>
               <div className="flex items-center justify-between mb-3">
                 <h3 className="text-sm font-bold text-stone-900">
-                  {editingId ? 'Editar zona' : 'Nueva zona'}
+                  {zonaEditingId ? 'Editar zona' : 'Nueva zona'}
                 </h3>
-                <button onClick={resetForm} className={cx.btnIcon}><X size={16} /></button>
+                <button onClick={resetZonaForm} className={cx.btnIcon}><X size={16} /></button>
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className={cx.label}>Nombre</label>
-                  <input type="text" value={form.nombre || ''} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))}
-                    className={cx.input} placeholder="Centro, Norte, Sur..." />
+                  <input
+                    type="text"
+                    value={zonaForm.nombre || ''}
+                    onChange={e => setZonaForm(f => ({ ...f, nombre: e.target.value }))}
+                    className={cx.input}
+                    placeholder="Centro, Norte, Sur..."
+                  />
                 </div>
                 <div>
                   <label className={cx.label}>Costo (S/)</label>
-                  <input type="number" step="0.01" min="0" value={form.costo || ''} onChange={e => setForm(f => ({ ...f, costo: e.target.value }))}
-                    className={cx.input} placeholder="5.00" />
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={zonaForm.costo || ''}
+                    onChange={e => setZonaForm(f => ({ ...f, costo: e.target.value }))}
+                    className={cx.input}
+                    placeholder="5.00"
+                  />
                 </div>
               </div>
               <div className="flex gap-2 mt-4">
                 <button onClick={saveZona} disabled={saving} className={cx.btnPrimary}>
-                  {saving ? 'Guardando...' : editingId ? 'Guardar cambios' : 'Crear zona'}
+                  {saving ? 'Guardando...' : zonaEditingId ? 'Guardar cambios' : 'Crear zona'}
                 </button>
-                <button onClick={resetForm} className={cx.btnSecondary}>Cancelar</button>
+                <button onClick={resetZonaForm} className={cx.btnSecondary}>Cancelar</button>
               </div>
             </div>
           )}
