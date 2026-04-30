@@ -746,12 +746,22 @@ router.get('/:id/ficha-tecnica', async (req, res) => {
     const pctMo = (costoMoUnitario / totalCosto) * 100;
     const pctCif = (cifUnitario / totalCosto) * 100;
 
+    // 6. Get channel prices
+    const preciosCanalRes = await pool.query(
+      `SELECT pcp.canal_id, pcp.precio_override, cd.nombre AS canal_nombre, cd.comision_pct
+       FROM producto_canal_precio pcp
+       JOIN canales_distribucion cd ON cd.id = pcp.canal_id AND cd.activo = true
+       WHERE pcp.producto_id = $1`,
+      [req.params.id]
+    );
+
     return res.json({
       success: true,
       data: {
         producto,
         preparaciones,
         materiales: matsRes.rows,
+        precios_canal: preciosCanalRes.rows,
         user_settings: userSettings,
         calculos: {
           food_cost: Math.round(foodCost * 100) / 100,

@@ -723,6 +723,24 @@ export default function PLVentasPage() {
                 </>
                 )}
 
+                {/* Canal de venta */}
+                {!editingVenta && canales.length > 0 && (
+                  <div>
+                    <label className={cx.label}>Canal de venta (opcional)</label>
+                    <CustomSelect
+                      value={canalId}
+                      onChange={setCanalId}
+                      options={[{ value: '', label: 'Venta directa (sin canal)' }, ...canales.map(c => ({ value: c.id, label: c.nombre }))]}
+                      placeholder="Venta directa"
+                    />
+                    {canalId && form.producto_id && (
+                      <p className="text-[10px] text-stone-400 mt-1">
+                        Revisa la ficha tecnica del producto para ver el precio sugerido de este canal.
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {/* Envio */}
                 {!editingVenta && (
                 <>
@@ -748,17 +766,6 @@ export default function PLVentasPage() {
                           ]}
                         />
                       </div>
-                      {tipoEnvio === 'aplicacion' && canales.length > 0 && (
-                        <div>
-                          <label className={cx.label}>Canal / Aplicacion</label>
-                          <CustomSelect
-                            value={canalId}
-                            onChange={setCanalId}
-                            options={canales.map(c => ({ value: c.id, label: c.nombre }))}
-                            placeholder="Seleccionar..."
-                          />
-                        </div>
-                      )}
                     </div>
                     <div className="grid grid-cols-2 gap-3">
                       {zonas.length > 0 && (

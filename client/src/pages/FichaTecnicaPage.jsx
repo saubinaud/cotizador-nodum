@@ -76,6 +76,14 @@ export default function FichaTecnicaPage() {
         instrucciones_ensamble: editForm.instrucciones_ensamble,
         instrucciones_prep: editForm.instrucciones_prep,
       });
+      // Save channel price overrides
+      if (editForm.precios_canal) {
+        for (const [canalId, precio] of Object.entries(editForm.precios_canal)) {
+          if (precio !== '') {
+            await api.put(`/canales/precios/${id}`, { canal_id: parseInt(canalId), precio_override: parseFloat(precio) });
+          }
+        }
+      }
       toast.success('Ficha actualizada');
       setEditing(false);
       loadFicha();
@@ -476,8 +484,55 @@ export default function FichaTecnicaPage() {
           </div>
         </Section>
 
-        {/* Section 10 — Instrucciones */}
-        <Section title={`${hasMermaPrep ? '10' : '9'}. Instrucciones`} number={10}>
+        {/* Section 10 — Precios por canal */}
+        {data.precios_canal && data.precios_canal.length > 0 && (
+          <Section title={`${hasMermaPrep ? '10' : '9'}. Precios por canal`} number={10}>
+            <div className="space-y-2">
+              {data.precios_canal.map((cp, i) => {
+                const comision = parseFloat(cp.comision_pct) || 0;
+                const precioCalculado = comision < 100
+                  ? parseFloat(producto.precio_final) / (1 - comision / 100)
+                  : parseFloat(producto.precio_final);
+                const precioActual = parseFloat(cp.precio_override) || 0;
+                const esBajo = precioActual < precioCalculado;
+                return (
+                  <div key={i} className="flex items-center justify-between py-2 border-b border-stone-100 last:border-0">
+                    <div>
+                      <span className="text-sm font-medium text-stone-800">{cp.canal_nombre}</span>
+                      <span className="text-xs text-stone-400 ml-2">Comision: {cp.comision_pct}%</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs text-stone-400">Calculado: {formatCurrency(precioCalculado)}</span>
+                      {editing ? (
+                        <input type="number" step="0.01" className={cx.input + ' w-28 text-right text-sm'}
+                          value={editForm.precios_canal?.[cp.canal_id] ?? cp.precio_override ?? ''}
+                          onChange={e => setEditForm(prev => ({
+                            ...prev,
+                            precios_canal: { ...(prev.precios_canal || {}), [cp.canal_id]: e.target.value }
+                          }))}
+                        />
+                      ) : (
+                        <span className={`text-sm font-bold ${esBajo ? 'text-amber-600' : 'text-[var(--accent)]'}`}>
+                          {formatCurrency(cp.precio_override)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {!editing && data.precios_canal.some(cp => {
+                const comision = parseFloat(cp.comision_pct) || 0;
+                const calc = comision < 100 ? parseFloat(producto.precio_final) / (1 - comision / 100) : parseFloat(producto.precio_final);
+                return parseFloat(cp.precio_override) < calc;
+              }) && (
+                <p className="text-[10px] text-amber-500 mt-1">Los precios en ambar estan por debajo del calculado — estas subsidiando el producto en ese canal.</p>
+              )}
+            </div>
+          </Section>
+        )}
+
+        {/* Section 11 — Instrucciones */}
+        <Section title={`${hasMermaPrep ? (data.precios_canal?.length > 0 ? '11' : '10') : (data.precios_canal?.length > 0 ? '10' : '9')}. Instrucciones`} number={11}>
           <div className="space-y-4">
             {preparaciones.map((prep, pi) => (
               <div key={prep.id}>

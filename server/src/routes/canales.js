@@ -29,6 +29,24 @@ router.post('/', async (req, res) => {
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [req.user.id, nombre, parseFloat(comision_pct) || 0, markup_tipo || 'pct', parseFloat(markup_valor) || 0]
     );
+    // Auto-generate prices for all existing products
+    try {
+      const comision = parseFloat(result.rows[0].comision_pct) || 0;
+      const prods = await pool.query(
+        'SELECT id, precio_final FROM productos WHERE usuario_id = $1',
+        [req.user.id]
+      );
+      for (const p of prods.rows) {
+        const precioCanal = comision < 100
+          ? Math.round((parseFloat(p.precio_final) / (1 - comision / 100)) * 100) / 100
+          : parseFloat(p.precio_final);
+        await pool.query(
+          'INSERT INTO producto_canal_precio (producto_id, canal_id, precio_override) VALUES ($1, $2, $3) ON CONFLICT (producto_id, canal_id) DO UPDATE SET precio_override = $3',
+          [p.id, result.rows[0].id, precioCanal]
+        );
+      }
+    } catch (_) {}
+
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('Create canal error:', err);
@@ -49,6 +67,24 @@ router.put('/:id', async (req, res) => {
       [nombre, comision_pct != null ? parseFloat(comision_pct) : null, markup_tipo, markup_valor != null ? parseFloat(markup_valor) : null, activo, req.params.id, req.user.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Canal no encontrado' });
+
+    // Recalculate prices for all products when comision changes
+    if (comision_pct != null) {
+      try {
+        const newComision = parseFloat(result.rows[0].comision_pct) || 0;
+        const prods = await pool.query('SELECT id, precio_final FROM productos WHERE usuario_id = $1', [req.user.id]);
+        for (const p of prods.rows) {
+          const precioCanal = newComision < 100
+            ? Math.round((parseFloat(p.precio_final) / (1 - newComision / 100)) * 100) / 100
+            : parseFloat(p.precio_final);
+          await pool.query(
+            'INSERT INTO producto_canal_precio (producto_id, canal_id, precio_override) VALUES ($1, $2, $3) ON CONFLICT (producto_id, canal_id) DO UPDATE SET precio_override = $3',
+            [p.id, req.params.id, precioCanal]
+          );
+        }
+      } catch (_) {}
+    }
+
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
     console.error('Update canal error:', err);
