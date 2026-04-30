@@ -286,7 +286,7 @@ export default function ComprobantesPage() {
             </div>
             <div className="flex items-center gap-2 text-xs">
               {config.habilitado ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
-              <span className={config.habilitado ? 'text-stone-600' : 'text-stone-400'}>Habilitado por administrador</span>
+              <span className={config.habilitado ? 'text-stone-600' : 'text-stone-400'}>Facturación activa (completa los pasos anteriores)</span>
             </div>
           </div>
         </div>
