@@ -216,6 +216,75 @@ router.put('/config', async (req, res) => {
   }
 });
 
+// POST /api/facturacion/certificado-prueba — generate free test certificate
+router.post('/certificado-prueba', async (req, res) => {
+  try {
+    // Get user RUC
+    const userRes = await pool.query('SELECT ruc FROM usuarios WHERE id = $1', [req.user.id]);
+    const ruc = userRes.rows[0]?.ruc;
+    if (!ruc) return res.status(400).json({ success: false, error: 'Configura tu RUC en Perfil primero' });
+
+    const testPassword = 'kudi' + Date.now().toString().slice(-4);
+
+    // Generate free PFX from APIsPeru
+    const token = await getApisperuToken();
+    const pfxRes = await fetch(`${APISPERU_BASE}/companies/certificate/free`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+      body: JSON.stringify({ password: testPassword, ruc }),
+    });
+    const pfxBuffer = await pfxRes.arrayBuffer();
+    const pfxBase64 = Buffer.from(pfxBuffer).toString('base64');
+
+    // Convert PFX to PEM
+    const convertRes = await callApisPeru('/companies/certificate', {
+      cert: pfxBase64, cert_pass: testPassword, base64: true,
+    });
+
+    if (!convertRes.pem) {
+      return res.status(500).json({ success: false, error: 'Error generando certificado de prueba' });
+    }
+
+    // Save encrypted PEM
+    const encryptedPem = encryptCert(convertRes.pem);
+    await pool.query(
+      `UPDATE facturacion_config SET certificado_pem = $1, certificado_subido = true, environment = 'beta', updated_at = NOW() WHERE usuario_id = $2`,
+      [encryptedPem, req.user.id]
+    );
+
+    // Register company in APIsPeru
+    try {
+      const configRes = await pool.query('SELECT * FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
+      const cfg = configRes.rows[0];
+      const uRes = await pool.query('SELECT razon_social, nombre_comercial FROM usuarios WHERE id = $1', [req.user.id]);
+      const u = uRes.rows[0];
+
+      const companyRes = await fetch(`${APISPERU_BASE}/companies`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+        body: JSON.stringify({
+          plan: 'free', environment: 'beta', ruc,
+          razonSocial: u?.razon_social || '', nombreComercial: u?.nombre_comercial || '',
+          address: { direccion: cfg?.direccion_fiscal || '', provincia: cfg?.provincia || '', departamento: cfg?.departamento || '', distrito: cfg?.distrito || '', ubigueo: cfg?.ubigeo || '' },
+          cert: convertRes.pem,
+        }),
+      });
+      const companyData = await companyRes.json();
+      if (companyData.id || companyData._id) {
+        await pool.query('UPDATE facturacion_config SET apisperu_company_id = $1, updated_at = NOW() WHERE usuario_id = $2',
+          [companyData.id || companyData._id, req.user.id]);
+      }
+    } catch (_) {}
+
+    await autoHabilitarSiCompleto(req.user.id);
+
+    return res.json({ success: true, data: { message: 'Certificado de prueba generado y activado (modo beta)' } });
+  } catch (err) {
+    console.error('Cert prueba error:', err);
+    return res.status(500).json({ success: false, error: 'Error generando certificado' });
+  }
+});
+
 // POST /api/facturacion/certificado — upload .p12 certificate
 router.post('/certificado', async (req, res) => {
   try {
@@ -224,19 +293,38 @@ router.post('/certificado', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Certificado requerido' });
     }
 
-    // Convert P12 to PEM via APIsPeru
-    const convertRes = await callApisPeru('/companies/certificate', {
-      cert: cert_base64,
-      cert_pass: cert_password,
-      base64: true,
-    });
+    // Try converting P12 to PEM locally first (handles SUNAT's RC2 cipher)
+    let pem = null;
+    try {
+      const { execSync } = require('child_process');
+      const fs = require('fs');
+      const tmpP12 = '/tmp/cert_upload_' + Date.now() + '.p12';
+      const tmpPem = tmpP12 + '.pem';
+      fs.writeFileSync(tmpP12, Buffer.from(cert_base64, 'base64'));
+      execSync(`openssl pkcs12 -in ${tmpP12} -out ${tmpPem} -nodes -passin "pass:${(cert_password || '').replace(/"/g, '\\"')}" -legacy 2>/dev/null || openssl pkcs12 -in ${tmpP12} -out ${tmpPem} -nodes -passin "pass:${(cert_password || '').replace(/"/g, '\\"')}" 2>/dev/null`);
+      pem = fs.readFileSync(tmpPem, 'utf8');
+      fs.unlinkSync(tmpP12);
+      fs.unlinkSync(tmpPem);
+    } catch (localErr) {
+      console.log('[cert] Local conversion failed, trying APIsPeru:', localErr.message);
+    }
 
-    if (!convertRes.pem) {
-      return res.status(400).json({ success: false, error: 'Error convirtiendo certificado. Verifica la contrasena.' });
+    // Fallback: try APIsPeru conversion
+    if (!pem) {
+      const convertRes = await callApisPeru('/companies/certificate', {
+        cert: cert_base64,
+        cert_pass: cert_password || '',
+        base64: true,
+      });
+      pem = convertRes.pem;
+    }
+
+    if (!pem) {
+      return res.status(400).json({ success: false, error: 'Error convirtiendo certificado. Verifica la contraseña.' });
     }
 
     // Encrypt and store the PEM
-    const encryptedPem = encryptCert(convertRes.pem);
+    const encryptedPem = encryptCert(pem);
 
     await pool.query(
       `UPDATE facturacion_config SET
@@ -272,7 +360,7 @@ router.post('/certificado', async (req, res) => {
             distrito: cfg?.distrito || '',
             ubigueo: cfg?.ubigeo || '',
           },
-          cert: convertRes.pem,
+          cert: pem,
         };
 
         let companyId = cfg?.apisperu_company_id;
