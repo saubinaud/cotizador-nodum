@@ -215,6 +215,30 @@ router.put('/config', async (req, res) => {
 
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Config no encontrada' });
 
+    // Sync with APIsPeru if company exists and sol_user/sol_pass changed
+    if (sol_user || sol_pass || direccion_fiscal) {
+      try {
+        const cfg = await pool.query('SELECT apisperu_company_id, sol_user, sol_pass, direccion_fiscal, distrito, provincia FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
+        const c = cfg.rows[0];
+        if (c?.apisperu_company_id) {
+          const token = await getApisperuToken();
+          const updateBody = {};
+          if (c.sol_user) updateBody.sol_user = c.sol_user;
+          if (c.sol_pass) updateBody.sol_pass = c.sol_pass;
+          if (c.direccion_fiscal) updateBody.direccion = [c.direccion_fiscal, c.distrito, c.provincia].filter(Boolean).join(', ');
+
+          await fetch(`${getApisperuConfig().base}/companies/${c.apisperu_company_id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+            body: JSON.stringify(updateBody),
+          });
+          console.log('[apisperu] Company synced after config update');
+        }
+      } catch (syncErr) {
+        console.error('[apisperu] Sync error:', syncErr.message);
+      }
+    }
+
     // Auto-check if we can enable facturacion now
     await autoHabilitarSiCompleto(req.user.id);
 
