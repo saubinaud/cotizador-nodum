@@ -479,8 +479,18 @@ router.post('/emitir', async (req, res) => {
 
     // Send to APIsPeru
     console.log('[facturacion] Sending invoice to APIsPeru:', JSON.stringify({ serie: invoice.serie, correlativo: invoice.correlativo, ruc: invoice.company?.ruc, tipoDoc: invoice.tipoDoc }));
-    const sunatRes = await callApisPeru('/invoice/send', invoice);
-    console.log('[facturacion] APIsPeru response:', JSON.stringify(sunatRes).substring(0, 500));
+    const apiRes = await callApisPeru('/invoice/send', invoice);
+    console.log('[facturacion] APIsPeru response keys:', Object.keys(apiRes));
+
+    // Parse the nested response structure
+    // APIsPeru returns: { xml, hash, sunatResponse: { success, cdrZip, cdrResponse: { id, code, description, notes } } }
+    const sr = apiRes.sunatResponse || {};
+    const cdrResp = sr.cdrResponse || {};
+    const isSuccess = sr.success === true || cdrResp.code === '0';
+    const sunatMessage = cdrResp.description || apiRes.error || sr.error || null;
+    const sunatCode = cdrResp.code || null;
+
+    console.log('[facturacion] SUNAT result:', { success: isSuccess, code: sunatCode, message: sunatMessage });
 
     // Save comprobante
     const compRes = await pool.query(
@@ -497,15 +507,15 @@ router.post('/emitir', async (req, res) => {
         cliente?.tipo_doc || '0', cliente?.num_doc || '00000000',
         cliente?.razon_social || 'VARIOS', cliente?.direccion || null,
         totalValorVenta, totalIGV, totalFinal, 'PEN',
-        sunatRes.success || false, sunatRes.code || null, sunatRes.message || sunatRes.description || null,
-        sunatRes.xml || null, sunatRes.cdr || null, sunatRes.hash || null,
-        sunatRes.success ? 'emitido' : 'error',
+        isSuccess, sunatCode, sunatMessage,
+        apiRes.xml || null, sr.cdrZip || null, apiRes.hash || null,
+        isSuccess ? 'emitido' : 'error',
         JSON.stringify(items),
       ]
     );
 
     // If successful, increment correlativo and mark venta as facturada
-    if (sunatRes.success) {
+    if (isSuccess) {
       const corField = tipo === 'factura' ? 'correlativo_factura' : 'correlativo_boleta';
       await pool.query(
         `UPDATE facturacion_config SET ${corField} = ${corField} + 1, updated_at = NOW() WHERE usuario_id = $1`,
@@ -527,9 +537,9 @@ router.post('/emitir', async (req, res) => {
       data: {
         comprobante: compRes.rows[0],
         sunat: {
-          success: sunatRes.success,
-          code: sunatRes.code,
-          message: sunatRes.message || sunatRes.description,
+          success: isSuccess,
+          code: sunatCode,
+          message: sunatMessage,
         },
       },
     });

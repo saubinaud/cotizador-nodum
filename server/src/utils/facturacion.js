@@ -117,7 +117,7 @@ function buildInvoiceJSON({ tipo, venta, productos, usuario, config, cliente }) 
       mtoBaseIgv: round2(valorVentaLinea),
       porcentajeIgv: igvPct,
       igv: round2(igvLinea),
-      tipAfeIgv: '10', // Gravado
+      tipAfeIgv: 10, // Gravado (number, not string)
       totalImpuestos: round2(igvLinea),
       mtoPrecioUnitario: round2(precioConIGV),
     };
@@ -137,7 +137,7 @@ function buildInvoiceJSON({ tipo, venta, productos, usuario, config, cliente }) 
     tipoDoc,
     serie,
     correlativo,
-    fechaEmision: new Date().toISOString(),
+    fechaEmision: new Date().toISOString().replace('Z', '-05:00'), // Peru timezone
     tipoMoneda: 'PEN',
 
     formaPago: { moneda: 'PEN', tipo: 'Contado' },
