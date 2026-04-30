@@ -20,6 +20,10 @@ import {
   Columns2,
   Square,
   Lock,
+  Truck,
+  X,
+  CheckCircle,
+  Circle,
 } from 'lucide-react';
 import { useTerminos } from '../context/TerminosContext';
 
@@ -44,6 +48,9 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [deleteTarget, setDeleteTarget] = useState(null);
+  const [canalesModal, setCanalesModal] = useState(null); // product object
+  const [canalesList, setCanalesList] = useState([]);
+  const [savingCanal, setSavingCanal] = useState(false);
   const [historyModal, setHistoryModal] = useState(null);
   const [history, setHistory] = useState([]);
   const [selectedVersion, setSelectedVersion] = useState(null);
@@ -98,6 +105,44 @@ export default function DashboardPage() {
       setDetailData(data.data || data);
     } catch {
       setDetailData(null);
+    }
+  };
+
+  const openCanalesModal = async (product) => {
+    setCanalesModal(product);
+    try {
+      const res = await api.get('/canales');
+      setCanalesList(res.data || []);
+    } catch {}
+  };
+
+  const toggleProductoCanal = async (productoId, canalId, isIn) => {
+    setSavingCanal(true);
+    try {
+      if (isIn) {
+        // Remove
+        await api.put(`/canales/precios/${productoId}`, { canal_id: canalId, precio_override: null });
+      } else {
+        // Add with calculated price
+        const canal = canalesList.find(c => c.id === canalId);
+        const prod = canalesModal;
+        const comision = parseFloat(canal?.comision_pct) || 0;
+        const precio = comision < 100
+          ? Math.round((parseFloat(prod.precio_final) / (1 - comision / 100)) * 100) / 100
+          : parseFloat(prod.precio_final);
+        await api.put(`/canales/precios/${productoId}`, { canal_id: canalId, precio_override: precio });
+      }
+      // Refresh products to update precios_canal
+      const res = await api.get('/productos');
+      setProducts(res.data || []);
+      // Update the modal product reference
+      const updated = (res.data || []).find(p => p.id === productoId);
+      if (updated) setCanalesModal(updated);
+      toast.success(isIn ? 'Producto removido del canal' : 'Producto agregado al canal');
+    } catch (err) {
+      toast.error(err.message || 'Error');
+    } finally {
+      setSavingCanal(false);
     }
   };
 
@@ -402,8 +447,8 @@ export default function DashboardPage() {
                   <Link to={`/ficha-tecnica/${p.id}`} className={cx.btnGhost + ' flex-1 min-w-[4rem] flex items-center justify-center gap-1 text-xs text-[var(--accent)]'}>
                     <Package size={12} /> Ficha
                   </Link>
-                  <button onClick={() => handleDuplicate(p)} className={cx.btnGhost + ' flex-1 min-w-[4rem] flex items-center justify-center gap-1 text-xs'}>
-                    <Copy size={12} /> Copiar
+                  <button onClick={() => openCanalesModal(p)} className={cx.btnGhost + ' flex-1 min-w-[4rem] flex items-center justify-center gap-1 text-xs'}>
+                    <Truck size={12} /> Canales
                   </button>
                   <button onClick={() => setDeleteTarget(p)} className={cx.btnDanger + ' flex items-center justify-center p-2'}>
                     <Trash2 size={12} />
@@ -812,6 +857,48 @@ export default function DashboardPage() {
                 </>
               )}
             </div>
+          </div>
+        </div>
+      )}
+      {/* Canales modal — assign product to channels */}
+      {canalesModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setCanalesModal(null)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-stone-900">Canales de venta</h3>
+                <p className="text-xs text-stone-500">{canalesModal.nombre}</p>
+              </div>
+              <button onClick={() => setCanalesModal(null)} className={cx.btnGhost + ' p-1'}><X size={16} /></button>
+            </div>
+
+            {canalesList.length === 0 ? (
+              <div className="py-6 text-center">
+                <p className="text-sm text-stone-400 mb-2">No hay canales configurados</p>
+                <Link to="/canales" className={cx.btnPrimary + ' text-xs'}>Crear canales</Link>
+              </div>
+            ) : (
+              <div className="space-y-1">
+                {canalesList.map(canal => {
+                  const isIn = (canalesModal.precios_canal || []).some(pc => pc.canal_id === canal.id);
+                  const cp = (canalesModal.precios_canal || []).find(pc => pc.canal_id === canal.id);
+                  const comision = parseFloat(canal.comision_pct) || 0;
+                  const calculado = comision < 100 ? Math.round((parseFloat(canalesModal.precio_final) / (1 - comision / 100)) * 100) / 100 : parseFloat(canalesModal.precio_final);
+
+                  return (
+                    <button key={canal.id} onClick={() => toggleProductoCanal(canalesModal.id, canal.id, isIn)} disabled={savingCanal}
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all text-left ${isIn ? 'bg-emerald-50 border border-emerald-200' : 'bg-stone-50 border border-stone-100 hover:border-stone-200'}`}>
+                      {isIn ? <CheckCircle size={18} className="text-emerald-500 shrink-0" /> : <Circle size={18} className="text-stone-300 shrink-0" />}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-stone-800">{canal.nombre}</p>
+                        <p className="text-[10px] text-stone-400">Comisión: {comision}% · Precio: {formatCurrency(isIn ? (cp?.precio_override || calculado) : calculado)}</p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </div>
       )}
