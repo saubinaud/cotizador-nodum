@@ -93,24 +93,44 @@ router.get('/buscar-ruc/:ruc', async (req, res) => {
       return res.status(400).json({ success: false, error: 'RUC debe tener 11 dígitos' });
     }
 
-    // Try apis.net.pe (free, no key needed for basic lookup)
-    const response = await fetch(`https://api.apis.net.pe/v2/sunat/ruc?numero=${ruc}`, {
-      headers: { 'Accept': 'application/json' },
-    });
+    // Try PeruAPI with api_token
+    const peruApiKey = process.env.PERUAPI_KEY || '';
+    let data = null;
 
-    if (!response.ok) {
-      // Fallback: try apiperu.dev
-      const fallback = await fetch(`https://apiperu.dev/api/ruc/${ruc}`, {
-        headers: { 'Accept': 'application/json' },
-      });
-      if (fallback.ok) {
-        const data = await fallback.json();
-        return res.json({ success: true, data: data.data || data });
-      }
-      return res.status(404).json({ success: false, error: 'No se pudo consultar el RUC' });
+    // Option 1: PeruAPI (if key is configured and IP authorized)
+    if (peruApiKey) {
+      try {
+        const r1 = await fetch(`https://peruapi.com/api/ruc/${ruc}?api_token=${peruApiKey}`);
+        const d1 = await r1.json();
+        if (d1.ruc || d1.razon_social) data = d1;
+      } catch (_) {}
     }
 
-    const data = await response.json();
+    // Option 2: apis.net.pe
+    if (!data) {
+      try {
+        const r2 = await fetch(`https://api.apis.net.pe/v2/sunat/ruc?numero=${ruc}`, { headers: { 'Accept': 'application/json' } });
+        if (r2.ok) {
+          const d2 = await r2.json();
+          if (d2.razonSocial || d2.nombre) data = { razon_social: d2.razonSocial, direccion: d2.direccion, departamento: d2.departamento, provincia: d2.provincia, distrito: d2.distrito, ubigeo: d2.ubigeo, estado: d2.estado, condicion: d2.condicion };
+        }
+      } catch (_) {}
+    }
+
+    // Option 3: apiperu.dev
+    if (!data) {
+      try {
+        const r3 = await fetch(`https://apiperu.dev/api/ruc/${ruc}`, { headers: { 'Accept': 'application/json' } });
+        if (r3.ok) {
+          const d3 = await r3.json();
+          data = d3.data || d3;
+        }
+      } catch (_) {}
+    }
+
+    if (!data || (!data.razon_social && !data.direccion)) {
+      return res.status(404).json({ success: false, error: 'No se pudo consultar el RUC. Verifica que el RUC sea correcto o ingresa los datos manualmente.' });
+    }
 
     return res.json({
       success: true,
