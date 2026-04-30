@@ -533,9 +533,9 @@ export default function CanalesPage() {
                 ) : (
                   <div className={cx.card + ' divide-y divide-stone-100'}>
                     {prodsEnCanal.map(p => {
-                      const precio = preciosCanal[p.id] || 0;
+                      const precio = parseFloat(preciosCanal[p.id]) || 0;
                       const calculado = comision < 100 ? parseFloat(p.precio_final) / (1 - comision / 100) : parseFloat(p.precio_final);
-                      const subsidiando = precio < calculado * 0.99;
+                      const subsidiando = precio > 0 && precio < calculado * 0.99;
 
                       return (
                         <div key={p.id} className="flex items-center gap-3 px-4 py-3">

@@ -401,8 +401,8 @@ export default function DashboardPage() {
                   <Link to={`/ficha-tecnica/${p.id}`} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-[var(--accent)]" title="Ficha tecnica">
                     <Package size={13} />
                   </Link>
-                  <button onClick={() => handleDuplicate(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-stone-800 hidden lg:block" title="Duplicar">
-                    <Copy size={13} />
+                  <button onClick={() => openCanalesModal(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-sky-600" title="Canales">
+                    <Truck size={13} />
                   </button>
                   <button onClick={() => handleHistory(p)} className="bg-white/80 backdrop-blur rounded-lg p-1.5 text-stone-500 hover:text-stone-800 hidden lg:block" title="Historial">
                     <History size={13} />
@@ -494,8 +494,8 @@ export default function DashboardPage() {
                         <Link to={`/ficha-tecnica/${p.id}`} className={cx.btnIcon + ' text-[var(--accent)]'} title="Ficha tecnica">
                           <Package size={15} />
                         </Link>
-                        <button onClick={() => handleDuplicate(p)} className={cx.btnIcon} title="Duplicar">
-                          <Copy size={15} />
+                        <button onClick={() => openCanalesModal(p)} className={cx.btnIcon + ' text-sky-500'} title="Canales">
+                          <Truck size={15} />
                         </button>
                         <button onClick={() => handleHistory(p)} className={cx.btnIcon} title="Historial">
                           <History size={15} />
