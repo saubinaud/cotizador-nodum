@@ -274,25 +274,45 @@ export default function ComprobantesPage() {
         <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
           <div className="flex items-center gap-2 mb-2">
             <AlertTriangle size={16} className="text-amber-600" />
-            <h3 className="text-sm font-semibold text-amber-800">Facturacion no habilitada</h3>
+            <h3 className="text-sm font-semibold text-amber-800">Facturación no habilitada</h3>
           </div>
-          <p className="text-xs text-amber-700 mb-3">Completa los pasos para poder emitir boletas y facturas electronicas:</p>
-          <div className="space-y-2">
-            <div className="flex items-center gap-2 text-xs">
-              {config.direccion_fiscal ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
-              <span className={config.direccion_fiscal ? 'text-stone-600' : 'text-stone-400'}>Direccion fiscal</span>
+          <p className="text-xs text-amber-700 mb-3">Completa estos pasos para emitir boletas y facturas electrónicas:</p>
+          <div className="space-y-3">
+            {/* Step 0: Register as electronic issuer */}
+            <div className="p-3 bg-white rounded-lg border border-amber-100">
+              <p className="text-xs font-semibold text-amber-800 mb-1">Paso previo: Registrarte como emisor electrónico</p>
+              <p className="text-[10px] text-stone-500 mb-2">Si nunca has emitido vía sistema (solo desde el portal SOL), necesitas habilitarte:</p>
+              <ol className="text-[10px] text-stone-600 space-y-1 list-decimal pl-4">
+                <li>Entra a <strong>clave.sol.gob.pe</strong> con tu RUC + usuario + clave SOL</li>
+                <li>Ve a <strong>Empresas → Comprobantes de Pago Electrónicos</strong></li>
+                <li>Selecciona <strong>"SEE - Del contribuyente"</strong></li>
+                <li>Sube tu <strong>certificado digital</strong> y registra un <strong>correo electrónico</strong></li>
+                <li>La habilitación se activa al <strong>día siguiente</strong></li>
+              </ol>
+              <p className="text-[10px] text-amber-600 mt-1">Solo se hace una vez. Después ya puedes emitir desde Kudi.</p>
             </div>
-            <div className="flex items-center gap-2 text-xs">
-              {config.sol_user ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
-              <span className={config.sol_user ? 'text-stone-600' : 'text-stone-400'}>Usuario secundario SOL</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              {config.certificado_subido ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
-              <span className={config.certificado_subido ? 'text-stone-600' : 'text-stone-400'}>Certificado digital</span>
-            </div>
-            <div className="flex items-center gap-2 text-xs">
-              {config.habilitado ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
-              <span className={config.habilitado ? 'text-stone-600' : 'text-stone-400'}>Facturación activa (completa todos los pasos)</span>
+
+            {/* Checklist */}
+            <div className="space-y-1.5">
+              <div className="flex items-center gap-2 text-xs">
+                {config.direccion_fiscal ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
+                <span className={config.direccion_fiscal ? 'text-stone-600' : 'text-stone-400'}>1. Dirección fiscal</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                {config.sol_user ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
+                <span className={config.sol_user ? 'text-stone-600' : 'text-stone-400'}>2. Usuario y clave SOL</span>
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                {config.certificado_subido ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
+                <span className={config.certificado_subido ? 'text-stone-600' : 'text-stone-400'}>3. Certificado digital (.p12)</span>
+                {!config.certificado_subido && (
+                  <span className="text-[9px] text-amber-500">SOL → Empresas → CDT → Descargar</span>
+                )}
+              </div>
+              <div className="flex items-center gap-2 text-xs">
+                {config.habilitado ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
+                <span className={config.habilitado ? 'text-stone-600' : 'text-stone-400'}>4. Facturación activa</span>
+              </div>
             </div>
           </div>
         </div>
@@ -342,8 +362,8 @@ export default function ComprobantesPage() {
                 </div>
               </div>
               <div className="p-3 bg-amber-50 rounded-lg mt-2">
-                <p className="text-xs text-amber-700 mb-2 font-medium">Usuario secundario SOL (requerido para emisión)</p>
-                <p className="text-[10px] text-amber-600 mb-2">Créalo en SOL → Empresas → Usuarios secundarios → con permiso "Comprobantes de pago electrónicos"</p>
+                <p className="text-xs text-amber-700 mb-2 font-medium">Credenciales SOL (requerido para emisión)</p>
+                <p className="text-[10px] text-amber-600 mb-2">El mismo usuario y clave con los que entras a SUNAT SOL</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={cx.label}>Usuario SOL</label>
