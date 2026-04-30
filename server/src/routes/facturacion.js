@@ -50,6 +50,39 @@ async function callApisPeru(path, body) {
   return res.json();
 }
 
+// ==================== AUTO-ENABLE LOGIC ====================
+
+/**
+ * Auto-enables facturacion when ALL requirements are met:
+ * 1. User has RUC in their profile
+ * 2. Config has direccion_fiscal
+ * 3. Config has certificado uploaded
+ * If all 3 are true → habilitado = true automatically
+ */
+async function autoHabilitarSiCompleto(userId) {
+  try {
+    const user = await pool.query('SELECT ruc FROM usuarios WHERE id = $1', [userId]);
+    const config = await pool.query('SELECT direccion_fiscal, certificado_pem, habilitado FROM facturacion_config WHERE usuario_id = $1', [userId]);
+
+    if (!user.rows[0] || !config.rows[0]) return;
+
+    const tieneRuc = !!user.rows[0].ruc && user.rows[0].ruc.length >= 11;
+    const tieneDireccion = !!config.rows[0].direccion_fiscal;
+    const tieneCert = !!config.rows[0].certificado_pem;
+    const yaHabilitado = config.rows[0].habilitado;
+
+    if (tieneRuc && tieneDireccion && tieneCert && !yaHabilitado) {
+      await pool.query(
+        'UPDATE facturacion_config SET habilitado = true, updated_at = NOW() WHERE usuario_id = $1',
+        [userId]
+      );
+      console.log(`[facturacion] Auto-habilitado para usuario ${userId}`);
+    }
+  } catch (err) {
+    console.error('[facturacion] Auto-habilitar error:', err.message);
+  }
+}
+
 // ==================== CONFIG ====================
 
 // GET /api/facturacion/config
@@ -101,7 +134,13 @@ router.put('/config', async (req, res) => {
     );
 
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Config no encontrada' });
-    return res.json({ success: true, data: result.rows[0] });
+
+    // Auto-check if we can enable facturacion now
+    await autoHabilitarSiCompleto(req.user.id);
+
+    // Return fresh config
+    const fresh = await pool.query('SELECT * FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
+    return res.json({ success: true, data: { ...fresh.rows[0], certificado_pem: undefined, certificado_subido: !!fresh.rows[0]?.certificado_pem } });
   } catch (err) {
     console.error('Update config error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });
@@ -136,6 +175,9 @@ router.post('/certificado', async (req, res) => {
        WHERE usuario_id = $2`,
       [encryptedPem, req.user.id]
     );
+
+    // Auto-check if we can enable facturacion now
+    await autoHabilitarSiCompleto(req.user.id);
 
     return res.json({ success: true, data: { message: 'Certificado guardado correctamente' } });
   } catch (err) {

@@ -7,6 +7,7 @@ import CustomSelect from '../components/CustomSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   FileText, Receipt, Eye, Ban, DollarSign,
+  Settings, Upload, CheckCircle, Circle, AlertTriangle,
 } from 'lucide-react';
 
 const TIPO_DOC_OPTIONS = [
@@ -38,8 +39,26 @@ export default function ComprobantesPage() {
   const [tipoFilter, setTipoFilter] = useState('');
   const [anularTarget, setAnularTarget] = useState(null);
 
-  // Load periodos on mount
+  // Facturacion config state
+  const [config, setConfig] = useState(null);
+  const [loadingConfig, setLoadingConfig] = useState(true);
+  const [editingConfig, setEditingConfig] = useState(false);
+  const [configForm, setConfigForm] = useState({});
+  const [savingConfig, setSavingConfig] = useState(false);
+  const [uploadingCert, setUploadingCert] = useState(false);
+
+  // Load facturacion config
+  async function loadConfig() {
+    try {
+      const res = await api.get('/facturacion/config');
+      setConfig(res.data || res);
+    } catch { /* config not available yet */ }
+    finally { setLoadingConfig(false); }
+  }
+
+  // Load periodos + config on mount
   useEffect(() => {
+    loadConfig();
     api.get('/pl/periodos').then(res => {
       const pers = res.data || res || [];
       setPeriodos(pers.map(p => ({ value: String(p.id), label: p.nombre })));
@@ -119,6 +138,62 @@ export default function ComprobantesPage() {
     }
   };
 
+  // Config handlers
+  function startEditConfig() {
+    setConfigForm({
+      direccion_fiscal: config?.direccion_fiscal || '',
+      departamento: config?.departamento || '',
+      provincia: config?.provincia || '',
+      distrito: config?.distrito || '',
+      ubigeo: config?.ubigeo || '',
+    });
+    setEditingConfig(true);
+  }
+
+  async function handleSaveConfig() {
+    setSavingConfig(true);
+    try {
+      await api.put('/facturacion/config', configForm);
+      toast.success('Configuracion actualizada');
+      setEditingConfig(false);
+      loadConfig();
+    } catch (err) {
+      toast.error(err.message || 'Error guardando');
+    } finally {
+      setSavingConfig(false);
+    }
+  }
+
+  async function handleCertUpload(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const password = window.prompt('Ingresa la contrasena del certificado:');
+    if (!password) return;
+    setUploadingCert(true);
+    try {
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const base64 = reader.result.split(',')[1];
+          await api.post('/facturacion/certificado', {
+            cert_base64: base64,
+            cert_password: password,
+          });
+          toast.success('Certificado subido correctamente');
+          loadConfig();
+        } catch (err) {
+          toast.error(err.message || 'Error subiendo certificado');
+        } finally {
+          setUploadingCert(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch {
+      toast.error('Error procesando archivo');
+      setUploadingCert(false);
+    }
+  }
+
   if (loading) {
     return (
       <div className="max-w-7xl mx-auto pb-12 space-y-4">
@@ -158,6 +233,125 @@ export default function ComprobantesPage() {
           />
         </div>
       </div>
+
+      {/* Facturacion Setup Banner */}
+      {config && !config.habilitado && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-xl mb-4">
+          <div className="flex items-center gap-2 mb-2">
+            <AlertTriangle size={16} className="text-amber-600" />
+            <h3 className="text-sm font-semibold text-amber-800">Facturacion no habilitada</h3>
+          </div>
+          <p className="text-xs text-amber-700 mb-3">Completa los pasos para poder emitir boletas y facturas electronicas:</p>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-xs">
+              {config.direccion_fiscal ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
+              <span className={config.direccion_fiscal ? 'text-stone-600' : 'text-stone-400'}>Direccion fiscal</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              {config.certificado_subido ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
+              <span className={config.certificado_subido ? 'text-stone-600' : 'text-stone-400'}>Certificado digital</span>
+            </div>
+            <div className="flex items-center gap-2 text-xs">
+              {config.habilitado ? <CheckCircle size={14} className="text-emerald-500" /> : <Circle size={14} className="text-stone-300" />}
+              <span className={config.habilitado ? 'text-stone-600' : 'text-stone-400'}>Habilitado por administrador</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Config card */}
+      {!loadingConfig && config && (
+        <div className={cx.card + ' p-4 mb-4'}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold text-stone-900">Configuracion de facturacion</h3>
+            {!editingConfig && (
+              <button onClick={() => startEditConfig()} className={cx.btnGhost + ' text-xs flex items-center gap-1'}>
+                <Settings size={14} /> Configurar
+              </button>
+            )}
+          </div>
+
+          {editingConfig ? (
+            <div className="space-y-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className={cx.label}>Direccion fiscal</label>
+                  <input type="text" value={configForm.direccion_fiscal || ''} onChange={e => setConfigForm(p => ({...p, direccion_fiscal: e.target.value}))} className={cx.input} placeholder="Av. Principal 123" />
+                </div>
+                <div>
+                  <label className={cx.label}>Departamento</label>
+                  <input type="text" value={configForm.departamento || ''} onChange={e => setConfigForm(p => ({...p, departamento: e.target.value}))} className={cx.input} placeholder="Lima" />
+                </div>
+                <div>
+                  <label className={cx.label}>Provincia</label>
+                  <input type="text" value={configForm.provincia || ''} onChange={e => setConfigForm(p => ({...p, provincia: e.target.value}))} className={cx.input} placeholder="Lima" />
+                </div>
+                <div>
+                  <label className={cx.label}>Distrito</label>
+                  <input type="text" value={configForm.distrito || ''} onChange={e => setConfigForm(p => ({...p, distrito: e.target.value}))} className={cx.input} placeholder="Miraflores" />
+                </div>
+                <div>
+                  <label className={cx.label}>Ubigeo (codigo INEI)</label>
+                  <input type="text" value={configForm.ubigeo || ''} onChange={e => setConfigForm(p => ({...p, ubigeo: e.target.value}))} className={cx.input} placeholder="150122" maxLength={6} />
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={handleSaveConfig} disabled={savingConfig} className={cx.btnPrimary + ' text-sm'}>
+                  {savingConfig ? 'Guardando...' : 'Guardar'}
+                </button>
+                <button onClick={() => setEditingConfig(false)} className={cx.btnGhost + ' text-sm'}>Cancelar</button>
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+              <div>
+                <span className="text-stone-400">Direccion</span>
+                <p className="text-stone-800 mt-0.5">{config?.direccion_fiscal || '-'}</p>
+              </div>
+              <div>
+                <span className="text-stone-400">Distrito</span>
+                <p className="text-stone-800 mt-0.5">{config?.distrito || '-'}</p>
+              </div>
+              <div>
+                <span className="text-stone-400">Certificado</span>
+                <p className={`mt-0.5 font-medium ${config?.certificado_subido ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {config?.certificado_subido ? 'Subido' : 'No subido'}
+                </p>
+              </div>
+              <div>
+                <span className="text-stone-400">Estado</span>
+                <p className={`mt-0.5 font-medium ${config?.habilitado ? 'text-emerald-600' : 'text-amber-600'}`}>
+                  {config?.habilitado ? 'Habilitado' : 'No habilitado'}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* Certificate upload section */}
+          {!config?.certificado_subido && (
+            <div className="mt-3 p-3 bg-stone-50 rounded-lg">
+              <p className="text-xs text-stone-600 mb-2">
+                <strong>Certificado digital:</strong> Descargalo gratis desde SUNAT SOL - Empresas - Comprobantes - CDT. Sube el archivo .p12 aqui.
+              </p>
+              <div className="flex items-center gap-2">
+                <input type="file" accept=".p12,.pfx" id="cert-upload" className="hidden" onChange={handleCertUpload} />
+                <label htmlFor="cert-upload" className={cx.btnSecondary + ' text-xs cursor-pointer flex items-center gap-1'}>
+                  <Upload size={14} /> Subir certificado .p12
+                </label>
+                {uploadingCert && <span className="text-xs text-stone-400">Subiendo...</span>}
+              </div>
+            </div>
+          )}
+
+          {/* Series info */}
+          {config && (
+            <div className="mt-3 flex flex-wrap gap-4 text-xs text-stone-400">
+              <span>Serie Factura: <strong className="text-stone-600">{config.serie_factura || 'F001'}</strong> ({config.correlativo_factura || 0})</span>
+              <span>Serie Boleta: <strong className="text-stone-600">{config.serie_boleta || 'B001'}</strong> ({config.correlativo_boleta || 0})</span>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">

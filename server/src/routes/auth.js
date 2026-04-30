@@ -239,6 +239,19 @@ router.put('/perfil', auth, async (req, res) => {
       );
     }
 
+    // Auto-check facturacion if RUC was updated
+    if (ruc) {
+      try {
+        const facConfig = await pool.query('SELECT direccion_fiscal, certificado_pem, habilitado FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
+        if (facConfig.rows.length > 0 && !facConfig.rows[0].habilitado) {
+          const c = facConfig.rows[0];
+          if (ruc.length >= 11 && c.direccion_fiscal && c.certificado_pem) {
+            await pool.query('UPDATE facturacion_config SET habilitado = true, updated_at = NOW() WHERE usuario_id = $1', [req.user.id]);
+          }
+        }
+      } catch (_) {}
+    }
+
     const paisInfo = await pool.query('SELECT moneda, simbolo FROM paises WHERE code = $1', [result.rows[0].pais || 'PE']);
     const enriched = { ...result.rows[0], moneda: paisInfo.rows[0]?.moneda || 'PEN', simbolo: paisInfo.rows[0]?.simbolo || 'S/' };
     return res.json({ success: true, data: { user: enriched } });
