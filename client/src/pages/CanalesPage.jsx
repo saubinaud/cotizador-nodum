@@ -5,7 +5,7 @@ import { cx } from '../styles/tokens';
 import { formatCurrency } from '../utils/format';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
-  Plus, X, Trash2, Pencil, Truck, MapPin, Check, CheckCheck,
+  Plus, X, Trash2, Pencil, Truck, MapPin, Check, CheckCheck, Package,
 } from 'lucide-react';
 
 export default function CanalesPage() {
@@ -29,6 +29,7 @@ export default function CanalesPage() {
 
   // Create channel
   const [showCreate, setShowCreate] = useState(false);
+  const [showAddProducts, setShowAddProducts] = useState(false);
   const [createForm, setCreateForm] = useState({ nombre: '', comision_pct: '' });
 
   // Edit channel
@@ -509,60 +510,95 @@ export default function CanalesPage() {
             </div>
           </div>
 
-          {/* Product list with checkboxes */}
-          {productos.length === 0 ? (
-            <div className={`${cx.card} p-12 text-center`}>
-              <p className="text-stone-400 text-sm">No hay productos registrados</p>
-            </div>
-          ) : (
-            <div className={cx.card + ' divide-y divide-stone-100'}>
-              {productos.map(p => {
-                const isIn = productosEnCanal.has(p.id);
-                const precio = preciosCanal[p.id] || 0;
-                const comision = parseFloat(activeCanal.comision_pct) || 0;
-                const calculado = comision < 100
-                  ? parseFloat(p.precio_final) / (1 - comision / 100)
-                  : parseFloat(p.precio_final);
-                const subsidiando = isIn && precio < calculado * 0.99;
+          {/* Products in this channel */}
+          {(() => {
+            const prodsEnCanal = productos.filter(p => productosEnCanal.has(p.id));
+            const prodsNoEnCanal = productos.filter(p => !productosEnCanal.has(p.id));
+            const comision = parseFloat(activeCanal.comision_pct) || 0;
 
-                return (
-                  <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-                    <input
-                      type="checkbox"
-                      checked={isIn}
-                      onChange={e => toggleProductoEnCanal(p.id, e.target.checked)}
-                      className="accent-[var(--accent)] w-4 h-4 shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-stone-800 truncate">{p.nombre}</p>
-                      <p className="text-[10px] text-stone-400">
-                        Tienda: {formatCurrency(p.precio_final)} · Calculado: {formatCurrency(Math.round(calculado * 100) / 100)}
-                      </p>
-                    </div>
-                    {isIn && (
-                      <div className="flex items-center gap-1">
-                        {subsidiando && (
-                          <span className="text-[9px] text-amber-500 whitespace-nowrap">Subsidiado</span>
-                        )}
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={precio}
-                          onChange={e => setPreciosCanal(prev => ({ ...prev, [p.id]: e.target.value }))}
-                          onBlur={() => updatePrecioCanal(p.id, preciosCanal[p.id])}
-                          className={`w-24 px-2 py-1 text-sm text-right border rounded ${
-                            subsidiando
-                              ? 'border-amber-300 text-amber-700'
-                              : 'border-stone-200 text-stone-800'
-                          } focus:outline-none focus:border-stone-400`}
-                        />
-                      </div>
-                    )}
+            return (
+              <>
+                {/* Add products button */}
+                {prodsNoEnCanal.length > 0 && (
+                  <button onClick={() => setShowAddProducts(true)} className={cx.btnPrimary + ' text-xs flex items-center gap-1 mb-3'}>
+                    <Plus size={14} /> Agregar productos ({prodsNoEnCanal.length} disponibles)
+                  </button>
+                )}
+
+                {prodsEnCanal.length === 0 ? (
+                  <div className={`${cx.card} p-12 text-center`}>
+                    <Package size={32} className="text-stone-300 mx-auto mb-3" />
+                    <p className="text-stone-400 text-sm mb-3">No hay productos en este canal</p>
+                    <button onClick={() => setShowAddProducts(true)} className={cx.btnPrimary + ' text-xs'}>
+                      Agregar productos
+                    </button>
                   </div>
-                );
-              })}
-            </div>
-          )}
+                ) : (
+                  <div className={cx.card + ' divide-y divide-stone-100'}>
+                    {prodsEnCanal.map(p => {
+                      const precio = preciosCanal[p.id] || 0;
+                      const calculado = comision < 100 ? parseFloat(p.precio_final) / (1 - comision / 100) : parseFloat(p.precio_final);
+                      const subsidiando = precio < calculado * 0.99;
+
+                      return (
+                        <div key={p.id} className="flex items-center gap-3 px-4 py-3">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-stone-800 truncate">{p.nombre}</p>
+                            <p className="text-[10px] text-stone-400">
+                              Tienda: {formatCurrency(p.precio_final)} · Calculado: {formatCurrency(Math.round(calculado * 100) / 100)}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {subsidiando && <span className="text-[9px] text-amber-500">Subsidiado</span>}
+                            <input type="number" step="0.01" value={precio}
+                              onChange={e => setPreciosCanal(prev => ({ ...prev, [p.id]: e.target.value }))}
+                              onBlur={() => updatePrecioCanal(p.id, preciosCanal[p.id])}
+                              className={`w-24 px-2 py-1 text-sm text-right border rounded ${subsidiando ? 'border-amber-300 text-amber-700' : 'border-stone-200 text-stone-800'} focus:outline-none focus:border-stone-400`}
+                            />
+                            <button onClick={() => toggleProductoEnCanal(p.id, false)} className={cx.btnDanger + ' p-1'} title="Remover">
+                              <X size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Add products modal */}
+                {showAddProducts && (
+                  <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setShowAddProducts(false)} />
+                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[85vh] overflow-y-auto p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-sm font-semibold text-stone-900">Agregar productos a {activeCanal.nombre}</h3>
+                        <button onClick={() => setShowAddProducts(false)} className={cx.btnGhost + ' p-1'}><X size={16} /></button>
+                      </div>
+                      <div className="space-y-1">
+                        {prodsNoEnCanal.map(p => {
+                          const calc = comision < 100 ? Math.round((parseFloat(p.precio_final) / (1 - comision / 100)) * 100) / 100 : parseFloat(p.precio_final);
+                          return (
+                            <div key={p.id} className="flex items-center justify-between py-2 px-3 hover:bg-stone-50 rounded-lg">
+                              <div>
+                                <p className="text-sm text-stone-800">{p.nombre}</p>
+                                <p className="text-[10px] text-stone-400">Tienda: {formatCurrency(p.precio_final)} → Canal: {formatCurrency(calc)}</p>
+                              </div>
+                              <button onClick={async () => { await toggleProductoEnCanal(p.id, true); }} className={cx.btnPrimary + ' text-[10px] !px-2 !py-1'}>
+                                Agregar
+                              </button>
+                            </div>
+                          );
+                        })}
+                        {prodsNoEnCanal.length === 0 && (
+                          <p className="text-center text-sm text-stone-400 py-4">Todos los productos ya están en este canal</p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 
