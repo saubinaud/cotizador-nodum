@@ -37,6 +37,25 @@ const PERMISOS = {
     reportes: ['ver'],
     pedidos: ['ver'],
   },
+  vendedor: {
+    productos: ['ver'],
+    ventas: ['ver', 'crear'],
+    pedidos: ['ver', 'crear', 'entregar', 'pagar'],
+    clientes: ['ver', 'crear', 'editar'],
+    facturacion: ['ver', 'emitir'],
+  },
+  repartidor: {
+    pedidos: ['ver', 'entregar'],
+    clientes: ['ver'],
+  },
+  contador: {
+    productos: ['ver'],
+    ventas: ['ver'],
+    financiero: ['ver'],
+    facturacion: ['ver'],
+    reportes: ['ver'],
+    clientes: ['ver'],
+  },
 };
 
 function requirePermiso(recurso, accion) {

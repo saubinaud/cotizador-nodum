@@ -30,7 +30,7 @@ router.post('/invitar', requirePermiso('equipo', 'gestionar'), async (req, res) 
     const { email, nombre, rol_empresa } = req.body;
     if (!email || !nombre) return res.status(400).json({ success: false, error: 'Email y nombre requeridos' });
 
-    const validRoles = ['manager', 'cashier', 'kitchen', 'viewer'];
+    const validRoles = ['manager', 'cashier', 'kitchen', 'viewer', 'vendedor', 'repartidor', 'contador'];
     const rol = validRoles.includes(rol_empresa) ? rol_empresa : 'cashier';
 
     // Check if email already exists
@@ -72,7 +72,7 @@ router.post('/invitar', requirePermiso('equipo', 'gestionar'), async (req, res) 
 router.patch('/:id/rol', requirePermiso('equipo', 'gestionar'), async (req, res) => {
   try {
     const { rol_empresa } = req.body;
-    const validRoles = ['manager', 'cashier', 'kitchen', 'viewer'];
+    const validRoles = ['manager', 'cashier', 'kitchen', 'viewer', 'vendedor', 'repartidor', 'contador'];
     if (!validRoles.includes(rol_empresa)) {
       return res.status(400).json({ success: false, error: 'Rol invalido' });
     }

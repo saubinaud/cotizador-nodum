@@ -75,7 +75,7 @@ router.get('/consulta-ruc/:ruc', async (req, res) => {
 // POST /api/onboarding/completar — complete onboarding (set password, RUC, etc.)
 router.post('/completar', async (req, res) => {
   try {
-    const { token, password, ruc, razon_social, direccion, igv_rate: rawIgv, pais, tipo_negocio } = req.body;
+    const { token, password, ruc, razon_social, direccion, igv_rate: rawIgv, pais, tipo_negocio, giro_negocio_id } = req.body;
     // Frontend may send 18 (integer %) or 0.18 (decimal). DB needs decimal.
     // If informal, IGV is always 0.
     const igv_rate = tipo_negocio === 'informal' ? 0 : (rawIgv ? (Number(rawIgv) > 1 ? Number(rawIgv) / 100 : Number(rawIgv)) : 0.18);
@@ -114,12 +114,13 @@ router.post('/completar', async (req, res) => {
         igv_rate = $4,
         pais_code = $5,
         tipo_negocio = $6,
+        giro_negocio_id = $7,
         estado = 'activo',
         onboarding_token = NULL,
         onboarding_token_expires = NULL,
         onboarding_completed_at = NOW(),
         updated_at = NOW()
-       WHERE id = $7`,
+       WHERE id = $8`,
       [
         password_hash,
         ruc || null,
@@ -127,9 +128,13 @@ router.post('/completar', async (req, res) => {
         igv_rate,
         pais || 'PE',
         tipo_negocio || 'formal',
+        giro_negocio_id || null,
         user.id,
       ]
     );
+
+    // TODO: Send confirmation email via Notifuse or SMTP
+    // await sendEmail(user.email, 'Bienvenido a Kudi', '...');
 
     return res.json({ success: true, data: { message: 'Onboarding completado. Ya puedes iniciar sesion.' } });
   } catch (err) {

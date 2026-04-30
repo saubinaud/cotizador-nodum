@@ -386,40 +386,6 @@ export default function PerfilPage() {
         )}
       </div>
 
-      {/* Theme selector */}
-      <div className={`${cx.card} p-4`}>
-        <h3 className="text-lg font-semibold text-stone-900 mb-3">Tema</h3>
-        <div className="flex gap-3">
-          {[
-            { key: 'menta', color: '#059669', name: 'Menta' },
-            { key: 'coral', color: '#e8590c', name: 'Coral' },
-            { key: 'lavanda', color: '#4f46e5', name: 'Lavanda' },
-          ].map((t) => (
-            <button
-              key={t.key}
-              onClick={() => {
-                if (t.key === 'menta') {
-                  localStorage.removeItem('nodum_theme');
-                  document.documentElement.removeAttribute('data-theme');
-                } else {
-                  localStorage.setItem('nodum_theme', t.key);
-                  document.documentElement.setAttribute('data-theme', t.key);
-                }
-                window.location.reload();
-              }}
-              className={`flex flex-col items-center gap-2 p-3 rounded-xl border-2 transition-all ${
-                (!localStorage.getItem('nodum_theme') && t.key === 'menta') || localStorage.getItem('nodum_theme') === t.key
-                  ? 'border-[var(--accent)] bg-[var(--accent-light)]'
-                  : 'border-stone-200 hover:border-stone-300'
-              }`}
-            >
-              <div className="w-8 h-8 rounded-full" style={{ background: t.color }} />
-              <span className="text-xs text-stone-600 font-medium">{t.name}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Change password */}
       <div className={`${cx.card} p-4`}>
         <div className="flex items-center gap-2 mb-4">

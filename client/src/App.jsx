@@ -1,4 +1,5 @@
-import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { HashRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { useEffect } from 'react';
 import { AuthProvider } from './context/AuthContext';
 import { ToastProvider } from './context/ToastContext';
 import ProtectedRoute from './components/ProtectedRoute';
@@ -30,11 +31,20 @@ import FichaTecnicaPage from './pages/FichaTecnicaPage';
 import PedidosPage from './pages/PedidosPage';
 import EquipoPage from './pages/EquipoPage';
 
+function ScrollToTop() {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+  return null;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <ToastProvider>
         <HashRouter>
+          <ScrollToTop />
           <Routes>
             <Route path="/login" element={<LoginPage />} />
             <Route path="/onboarding" element={<OnboardingPage />} />

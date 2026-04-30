@@ -94,7 +94,7 @@ export default function Layout() {
     },
     {
       key: 'pl',
-      label: 'P&L',
+      label: 'Finanzas',
       icon: DollarSign,
       links: [
         { to: '/pl', label: 'Timeline', icon: Activity, perm: 'pl', end: true },

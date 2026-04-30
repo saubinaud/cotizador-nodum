@@ -129,7 +129,7 @@ router.get('/buscar-ruc/:ruc', async (req, res) => {
     }
 
     if (!data || (!data.razon_social && !data.direccion)) {
-      return res.status(404).json({ success: false, error: 'No se pudo consultar el RUC. Verifica que el RUC sea correcto o ingresa los datos manualmente.' });
+      return res.status(404).json({ success: false, error: 'No se encontró en la base pública de SUNAT. Si tu RUC es nuevo o está suspendido, ingresa los datos manualmente desde tu Ficha RUC (Clave SOL).' });
     }
 
     return res.json({

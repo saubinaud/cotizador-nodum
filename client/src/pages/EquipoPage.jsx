@@ -10,6 +10,9 @@ const ROL_INFO = {
   owner: { label: 'Dueño', icon: Crown, color: 'bg-amber-50 text-amber-700', desc: 'Acceso total' },
   manager: { label: 'Gerente', icon: ShieldCheck, color: 'bg-sky-50 text-sky-700', desc: 'Ventas, finanzas, productos' },
   cashier: { label: 'Cajero', icon: Store, color: 'bg-emerald-50 text-emerald-700', desc: 'Ventas y pedidos' },
+  vendedor: { label: 'Vendedor', icon: Store, color: 'bg-indigo-50 text-indigo-700', desc: 'Ventas, pedidos, clientes' },
+  repartidor: { label: 'Repartidor', icon: Store, color: 'bg-orange-50 text-orange-700', desc: 'Solo entregas' },
+  contador: { label: 'Contador', icon: ShieldCheck, color: 'bg-teal-50 text-teal-700', desc: 'Finanzas y reportes (solo lectura)' },
   kitchen: { label: 'Cocina', icon: ChefHat, color: 'bg-violet-50 text-violet-700', desc: 'Solo ve recetas' },
   viewer: { label: 'Visor', icon: Eye, color: 'bg-stone-100 text-stone-600', desc: 'Solo lectura' },
 };
@@ -126,6 +129,9 @@ export default function EquipoPage() {
                       options={[
                         { value: 'manager', label: 'Gerente' },
                         { value: 'cashier', label: 'Cajero' },
+                        { value: 'vendedor', label: 'Vendedor' },
+                        { value: 'repartidor', label: 'Repartidor' },
+                        { value: 'contador', label: 'Contador' },
                         { value: 'kitchen', label: 'Cocina' },
                         { value: 'viewer', label: 'Visor' },
                       ]}
@@ -200,6 +206,9 @@ export default function EquipoPage() {
                     options={[
                       { value: 'manager', label: 'Gerente — ventas, finanzas, productos' },
                       { value: 'cashier', label: 'Cajero — ventas y pedidos' },
+                      { value: 'vendedor', label: 'Vendedor — ventas, pedidos, clientes' },
+                      { value: 'repartidor', label: 'Repartidor — solo entregas' },
+                      { value: 'contador', label: 'Contador — finanzas (lectura)' },
                       { value: 'kitchen', label: 'Cocina — solo ve recetas' },
                       { value: 'viewer', label: 'Visor — solo lectura' },
                     ]}
