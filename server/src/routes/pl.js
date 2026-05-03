@@ -395,30 +395,6 @@ router.get('/periodos', async (req, res) => {
       'SELECT * FROM periodos WHERE empresa_id = $1 ORDER BY fecha_inicio DESC',
       [req.eid]
     );
-
-    // Auto-create current month periodo if missing (match by date range, not name)
-    const MESES_PL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
-    const now = new Date(Date.now() - 5*60*60*1000); // Lima time (UTC-5)
-    const y = now.getFullYear();
-    const m = now.getMonth();
-    const inicioStr = `${y}-${String(m+1).padStart(2,'0')}-01`;
-    const exists = result.rows.find(p => {
-      if (!p.fecha_inicio) return false;
-      const fi = typeof p.fecha_inicio === 'string' ? p.fecha_inicio : p.fecha_inicio.toISOString();
-      return fi.startsWith(inicioStr);
-    });
-    if (!exists && req.eid) {
-      const lastDay = new Date(y, m+1, 0).getDate();
-      const finStr = `${y}-${String(m+1).padStart(2,'0')}-${lastDay}`;
-      try {
-        const newP = await pool.query(
-          'INSERT INTO periodos (empresa_id, usuario_id, nombre, tipo, fecha_inicio, fecha_fin) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-          [req.eid, req.uid, `${MESES_PL[m]} ${y}`, 'mensual', inicioStr, finStr]
-        );
-        result.rows.unshift(newP.rows[0]);
-      } catch(e) { /* unique constraint idx_periodos_empresa_nombre prevents duplicates */ }
-    }
-
     return res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error('List periodos error:', err);
@@ -433,6 +409,15 @@ router.post('/periodos', async (req, res) => {
     if (!nombre || !fecha_inicio || !fecha_fin) {
       return res.status(400).json({ success: false, error: 'Nombre y fechas son requeridos' });
     }
+    // Check for duplicate periodo (same empresa + overlapping dates)
+    const dup = await pool.query(
+      'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio = $2',
+      [req.eid, fecha_inicio]
+    );
+    if (dup.rows.length > 0) {
+      return res.status(409).json({ success: false, error: 'Ya existe un periodo para ese rango de fechas.' });
+    }
+
     const result = await pool.query(
       'INSERT INTO periodos (usuario_id, empresa_id, nombre, tipo, fecha_inicio, fecha_fin) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
       [req.uid, req.eid, nombre, tipo || 'mensual', fecha_inicio, fecha_fin]
