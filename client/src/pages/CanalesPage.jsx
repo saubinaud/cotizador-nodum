@@ -330,7 +330,7 @@ export default function CanalesPage() {
       <div className="flex gap-1 flex-wrap mb-4">
         <button
           onClick={() => setActiveTab('directa')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
             activeTab === 'directa'
               ? 'bg-[#0A2F24] text-white'
               : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
@@ -343,7 +343,7 @@ export default function CanalesPage() {
           <button
             key={c.id}
             onClick={() => setActiveTab(String(c.id))}
-            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+            className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
               activeTab === String(c.id)
                 ? 'bg-[#0A2F24] text-white'
                 : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
@@ -356,7 +356,7 @@ export default function CanalesPage() {
 
         <button
           onClick={() => setActiveTab('zonas')}
-          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-all ${
+          className={`px-4 py-2 text-xs font-semibold rounded-lg transition-colors ${
             activeTab === 'zonas'
               ? 'bg-[#0A2F24] text-white'
               : 'bg-stone-100 text-stone-500 hover:bg-stone-200'

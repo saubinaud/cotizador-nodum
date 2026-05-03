@@ -59,7 +59,7 @@ function SidebarLink({ to, label, icon: Icon, onClick, collapsed, end, disabled 
       onClick={onClick}
       title={collapsed ? label : undefined}
       className={({ isActive }) =>
-        `flex items-center ${collapsed ? 'justify-center' : 'gap-2.5'} ${collapsed ? 'px-0 py-2.5' : 'px-3 py-2'} rounded-lg text-[13px] font-medium transition-all duration-150 ${
+        `flex items-center ${collapsed ? 'justify-center' : 'gap-2.5'} ${collapsed ? 'px-0 py-2.5' : 'px-3 py-2'} rounded-lg text-[13px] font-medium transition-colors duration-100 ${
           isActive
             ? 'bg-white/10 text-[#4ADE80]'
             : 'text-white/55 hover:text-white hover:bg-white/5'
@@ -315,7 +315,7 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-[#F4F6F5] flex">
       {/* Desktop sidebar */}
-      <aside className={`hidden lg:flex ${collapsed ? 'w-[68px]' : 'w-52'} flex-col bg-[#0A2F24] fixed inset-y-0 left-0 z-30 transition-all duration-200 overflow-hidden`}>
+      <aside className={`hidden lg:flex ${collapsed ? 'w-[68px]' : 'w-52'} flex-col bg-[#0A2F24] fixed inset-y-0 left-0 z-30 transition-[width,margin] duration-150 overflow-hidden`}>
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`, backgroundSize: '128px'}} />
         <div className="relative flex flex-col h-full">
           {renderSidebarContent(collapsed)}
@@ -342,7 +342,7 @@ export default function Layout() {
       )}
 
       {/* Main content — independent scroll */}
-      <div className={`flex-1 ${collapsed ? 'lg:ml-[68px]' : 'lg:ml-52'} transition-all duration-200 lg:h-screen lg:overflow-y-auto`}>
+      <div className={`flex-1 ${collapsed ? 'lg:ml-[68px]' : 'lg:ml-52'} transition-[width,margin] duration-150 lg:h-screen lg:overflow-y-auto`}>
         {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#0A2F24] sticky top-0 z-20">
           <button onClick={() => setOpen(true)} className="p-2 text-white/60 hover:text-white">

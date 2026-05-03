@@ -602,7 +602,7 @@ export default function PerdidasPage() {
         <div className="flex gap-1 p-1 bg-stone-100 rounded-lg w-fit">
           <button
             onClick={() => { setMainTab('mermas'); setSubTab('insumos'); }}
-            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all ${
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
               mainTab === 'mermas' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
             }`}
           >
@@ -610,7 +610,7 @@ export default function PerdidasPage() {
           </button>
           <button
             onClick={() => { setMainTab('desmedros'); setSubTab('productos'); }}
-            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all ${
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
               mainTab === 'desmedros' ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
             }`}
           >
@@ -635,7 +635,7 @@ export default function PerdidasPage() {
       <div className="flex gap-4 border-b border-stone-200 mt-4 mb-4">
         {subTabs.map(t => (
           <button key={t.key} onClick={() => setSubTab(t.key)}
-            className={`flex items-center gap-1.5 px-1 pb-3 text-sm font-medium border-b-2 transition-all ${
+            className={`flex items-center gap-1.5 px-1 pb-3 text-sm font-medium border-b-2 transition-colors ${
               subTab === t.key ? 'border-[var(--accent)] text-[var(--accent)]' : 'border-transparent text-stone-400 hover:text-stone-600'
             }`}
           >

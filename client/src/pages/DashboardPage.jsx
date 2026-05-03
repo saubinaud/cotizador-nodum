@@ -697,7 +697,7 @@ export default function DashboardPage() {
                   <button
                     key={i}
                     onClick={() => setSelectedVersion(h)}
-                    className="w-full text-left border-l-2 border-stone-200 hover:border-[var(--accent)] pl-3 py-2 rounded-r-lg hover:bg-stone-50 transition-all"
+                    className="w-full text-left border-l-2 border-stone-200 hover:border-[var(--accent)] pl-3 py-2 rounded-r-lg hover:bg-stone-50 transition-colors"
                   >
                     <div className="flex justify-between items-start">
                       <div>
@@ -888,7 +888,7 @@ export default function DashboardPage() {
 
                   return (
                     <button key={canal.id} onClick={() => toggleProductoCanal(canalesModal.id, canal.id, isIn)} disabled={savingCanal}
-                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-all text-left ${isIn ? 'bg-emerald-50 border border-emerald-200' : 'bg-stone-50 border border-stone-100 hover:border-stone-200'}`}>
+                      className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg transition-colors text-left ${isIn ? 'bg-emerald-50 border border-emerald-200' : 'bg-stone-50 border border-stone-100 hover:border-stone-200'}`}>
                       {isIn ? <CheckCircle size={18} className="text-emerald-500 shrink-0" /> : <Circle size={18} className="text-stone-300 shrink-0" />}
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-medium text-stone-800">{canal.nombre}</p>

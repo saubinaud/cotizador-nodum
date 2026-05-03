@@ -36,7 +36,7 @@ export default function CustomSelect({ options = [], value, onChange, placeholde
       <button
         type="button"
         onClick={handleToggle}
-        className={`w-full bg-white border border-stone-300 rounded-lg text-stone-800 text-left flex items-center justify-between focus:outline-none focus:border-stone-500 transition-colors duration-150 ${
+        className={`w-full bg-white border border-stone-300 rounded-lg text-stone-800 text-left flex items-center justify-between focus:outline-none focus:border-stone-500 transition-colors duration-100 ${
           compact ? 'px-2 py-1.5 text-xs gap-1' : 'px-4 py-2.5 text-sm gap-2'
         }`}
       >

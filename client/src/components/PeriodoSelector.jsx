@@ -66,7 +66,7 @@ export default function PeriodoSelector({ periodos = [], value, onChange, onCrea
                   onCreatePeriodo(selectedYear, i);
                 }
               }}
-              className={`px-2 py-1 rounded text-[11px] font-medium transition-all ${
+              className={`px-2 py-1 rounded text-[11px] font-medium transition-colors duration-100 ${
                 isSelected
                   ? 'bg-[var(--accent)] text-white'
                   : isCurrent && !isSelected

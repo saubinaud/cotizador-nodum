@@ -367,7 +367,7 @@ export default function PLCashflowPage() {
           { key: 'cuentas', label: 'Cuentas', icon: Wallet },
         ].map(t => (
           <button key={t.key} onClick={() => { setTab(t.key); if (t.key === 'arqueo') loadArqueo(arqueoFecha); }}
-            className={`px-4 py-2 text-sm font-semibold rounded-md transition-all flex items-center gap-1.5 ${
+            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors flex items-center gap-1.5 ${
               tab === t.key ? 'bg-white text-stone-900 shadow-sm' : 'text-stone-500 hover:text-stone-700'
             }`}>
             <t.icon size={14} />{t.label}

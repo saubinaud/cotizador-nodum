@@ -304,7 +304,7 @@ export default function AdminUsuariosPage() {
                             const state = getPermisoState(createForm.permisos, m.key);
                             return (
                               <button key={m.key} type="button" onClick={() => toggleCreatePermiso(m.key)}
-                                className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${PERM_COLORS[state]} border-transparent hover:border-stone-300`}
+                                className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-colors ${PERM_COLORS[state]} border-transparent hover:border-stone-300`}
                               >
                                 <span>{m.label}{m.requires ? ' *' : ''}</span>
                                 <span className="text-[10px] font-bold uppercase">{PERM_LABELS[state]}</span>
@@ -499,7 +499,7 @@ export default function AdminUsuariosPage() {
                       const state = getPermisoState(editPermisos.permisos, m.key);
                       return (
                         <button key={m.key} type="button" onClick={() => toggleEditPermiso(m.key)}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${PERM_COLORS[state]} hover:opacity-80 mb-1`}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-colors ${PERM_COLORS[state]} hover:opacity-80 mb-1`}
                         >
                           <span>{m.label}</span>
                           <span className="text-[10px] font-bold uppercase">{PERM_LABELS[state]}</span>

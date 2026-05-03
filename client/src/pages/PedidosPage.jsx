@@ -225,7 +225,7 @@ export default function PedidosPage() {
             { value: 'pagado', label: 'Pagado' },
           ].map(t => (
             <button key={t.value} onClick={() => setFiltroEstado(t.value)}
-              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+              className={`px-3 py-1.5 text-xs font-semibold rounded-lg transition-colors ${
                 filtroEstado === t.value ? 'bg-[#0A2F24] text-white' : 'bg-stone-100 text-stone-500 hover:bg-stone-200'
               }`}>
               {t.label}
@@ -385,7 +385,7 @@ export default function PedidosPage() {
                   {p.tipo_pago === 'contra_entrega' && (
                     <div className="h-1.5 bg-stone-100 rounded-full mb-3 overflow-hidden">
                       <div
-                        className="h-full bg-emerald-500 rounded-full transition-all"
+                        className="h-full bg-emerald-500 rounded-full transition-colors"
                         style={{ width: `${pctPaid}%` }}
                       />
                     </div>

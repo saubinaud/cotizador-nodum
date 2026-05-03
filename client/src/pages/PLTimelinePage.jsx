@@ -408,7 +408,7 @@ export default function PLTimelinePage() {
       {/* FAB for mobile */}
       <button
         onClick={() => { resetForm(); setModalOpen(true); }}
-        className="fixed bottom-6 right-6 w-14 h-14 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-full shadow-lg flex items-center justify-center transition-all duration-150 active:scale-95 lg:hidden z-20"
+        className="fixed bottom-6 right-6 w-14 h-14 bg-[var(--accent)] hover:bg-[var(--accent-hover)] text-white rounded-full shadow-lg flex items-center justify-center transition-colors duration-100 active:scale-95 lg:hidden z-20"
       >
         <Plus size={24} />
       </button>
