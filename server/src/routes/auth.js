@@ -226,6 +226,20 @@ router.put('/perfil', auth, async (req, res) => {
       return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
     }
 
+    // Sync empresa table with owner's profile changes
+    if (req.user.empresa_id && req.user.rol_empresa === 'owner') {
+      try {
+        await pool.query(
+          `UPDATE empresas SET
+            ruc = COALESCE($1, ruc), razon_social = COALESCE($2, razon_social),
+            nombre_comercial = COALESCE($3, nombre_comercial), igv_rate = COALESCE($4::numeric, igv_rate),
+            tipo_negocio = COALESCE($5, tipo_negocio), updated_at = NOW()
+           WHERE id = $6`,
+          [ruc || null, razon_social || null, nombre_comercial || null, igvDecimal, tipo_negocio || null, req.user.empresa_id]
+        );
+      } catch (_) {}
+    }
+
     // If IGV changed or tipo_negocio changed, cascade to all products
     const effectiveIgv = tipo_negocio === 'informal' ? 0 : igvDecimal;
     if (effectiveIgv != null) {
@@ -234,8 +248,8 @@ router.put('/perfil', auth, async (req, res) => {
           igv_rate = $1::numeric,
           precio_final = ROUND(precio_venta * (1 + $1::numeric), 4),
           updated_at = NOW()
-         WHERE usuario_id = $2`,
-        [effectiveIgv, req.user.id]
+         WHERE empresa_id = $2`,
+        [effectiveIgv, req.eid]
       );
     }
 

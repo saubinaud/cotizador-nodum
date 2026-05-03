@@ -9,8 +9,8 @@ router.use(auth);
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM canales_distribucion WHERE usuario_id = $1 AND activo = true ORDER BY orden, nombre',
-      [req.user.id]
+      'SELECT * FROM canales_distribucion WHERE empresa_id = $1 AND activo = true ORDER BY orden, nombre',
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -25,16 +25,16 @@ router.post('/', async (req, res) => {
     const { nombre, comision_pct, markup_tipo, markup_valor } = req.body;
     if (!nombre) return res.status(400).json({ success: false, error: 'Nombre requerido' });
     const result = await pool.query(
-      `INSERT INTO canales_distribucion (usuario_id, nombre, comision_pct, markup_tipo, markup_valor)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [req.user.id, nombre, parseFloat(comision_pct) || 0, markup_tipo || 'pct', parseFloat(markup_valor) || 0]
+      `INSERT INTO canales_distribucion (usuario_id, empresa_id, nombre, comision_pct, markup_tipo, markup_valor)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [req.uid, req.eid, nombre, parseFloat(comision_pct) || 0, markup_tipo || 'pct', parseFloat(markup_valor) || 0]
     );
     // Auto-generate prices for all existing products
     try {
       const comision = parseFloat(result.rows[0].comision_pct) || 0;
       const prods = await pool.query(
-        'SELECT id, precio_final FROM productos WHERE usuario_id = $1',
-        [req.user.id]
+        'SELECT id, precio_final FROM productos WHERE empresa_id = $1',
+        [req.eid]
       );
       for (const p of prods.rows) {
         const precioCanal = comision < 100
@@ -63,8 +63,8 @@ router.put('/:id', async (req, res) => {
         nombre = COALESCE($1, nombre), comision_pct = COALESCE($2, comision_pct),
         markup_tipo = COALESCE($3, markup_tipo), markup_valor = COALESCE($4, markup_valor),
         activo = COALESCE($5, activo)
-       WHERE id = $6 AND usuario_id = $7 RETURNING *`,
-      [nombre, comision_pct != null ? parseFloat(comision_pct) : null, markup_tipo, markup_valor != null ? parseFloat(markup_valor) : null, activo, req.params.id, req.user.id]
+       WHERE id = $6 AND empresa_id = $7 RETURNING *`,
+      [nombre, comision_pct != null ? parseFloat(comision_pct) : null, markup_tipo, markup_valor != null ? parseFloat(markup_valor) : null, activo, req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Canal no encontrado' });
 
@@ -72,7 +72,7 @@ router.put('/:id', async (req, res) => {
     if (comision_pct != null) {
       try {
         const newComision = parseFloat(result.rows[0].comision_pct) || 0;
-        const prods = await pool.query('SELECT id, precio_final FROM productos WHERE usuario_id = $1', [req.user.id]);
+        const prods = await pool.query('SELECT id, precio_final FROM productos WHERE empresa_id = $1', [req.eid]);
         for (const p of prods.rows) {
           const precioCanal = newComision < 100
             ? Math.round((parseFloat(p.precio_final) / (1 - newComision / 100)) * 100) / 100
@@ -95,7 +95,7 @@ router.put('/:id', async (req, res) => {
 // DELETE /api/canales/:id
 router.delete('/:id', async (req, res) => {
   try {
-    await pool.query('UPDATE canales_distribucion SET activo = false WHERE id = $1 AND usuario_id = $2', [req.params.id, req.user.id]);
+    await pool.query('UPDATE canales_distribucion SET activo = false WHERE id = $1 AND empresa_id = $2', [req.params.id, req.eid]);
     return res.json({ success: true, data: { message: 'Canal eliminado' } });
   } catch (err) {
     console.error('Delete canal error:', err);
@@ -107,16 +107,16 @@ router.delete('/:id', async (req, res) => {
 router.get('/precios/:productoId', async (req, res) => {
   try {
     const producto = await pool.query(
-      'SELECT id, nombre, precio_venta, precio_final FROM productos WHERE id = $1 AND usuario_id = $2',
-      [req.params.productoId, req.user.id]
+      'SELECT id, nombre, precio_venta, precio_final FROM productos WHERE id = $1 AND empresa_id = $2',
+      [req.params.productoId, req.eid]
     );
     if (producto.rows.length === 0) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
     const p = producto.rows[0];
     const precioTienda = parseFloat(p.precio_final) || 0;
 
     const canales = await pool.query(
-      'SELECT * FROM canales_distribucion WHERE usuario_id = $1 AND activo = true ORDER BY orden',
-      [req.user.id]
+      'SELECT * FROM canales_distribucion WHERE empresa_id = $1 AND activo = true ORDER BY orden',
+      [req.eid]
     );
 
     const overrides = await pool.query(
@@ -176,8 +176,8 @@ router.put('/precios/:productoId', async (req, res) => {
 router.get('/zonas', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM zonas_envio WHERE usuario_id = $1 AND activo = true ORDER BY orden, nombre',
-      [req.user.id]
+      'SELECT * FROM zonas_envio WHERE empresa_id = $1 AND activo = true ORDER BY orden, nombre',
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -192,8 +192,8 @@ router.post('/zonas', async (req, res) => {
     const { nombre, costo } = req.body;
     if (!nombre) return res.status(400).json({ success: false, error: 'Nombre requerido' });
     const result = await pool.query(
-      'INSERT INTO zonas_envio (usuario_id, nombre, costo) VALUES ($1, $2, $3) RETURNING *',
-      [req.user.id, nombre, parseFloat(costo) || 0]
+      'INSERT INTO zonas_envio (usuario_id, empresa_id, nombre, costo) VALUES ($1, $2, $3, $4) RETURNING *',
+      [req.uid, req.eid, nombre, parseFloat(costo) || 0]
     );
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -208,8 +208,8 @@ router.put('/zonas/:id', async (req, res) => {
     const { nombre, costo, activo } = req.body;
     const result = await pool.query(
       `UPDATE zonas_envio SET nombre = COALESCE($1, nombre), costo = COALESCE($2, costo), activo = COALESCE($3, activo)
-       WHERE id = $4 AND usuario_id = $5 RETURNING *`,
-      [nombre, costo != null ? parseFloat(costo) : null, activo, req.params.id, req.user.id]
+       WHERE id = $4 AND empresa_id = $5 RETURNING *`,
+      [nombre, costo != null ? parseFloat(costo) : null, activo, req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Zona no encontrada' });
     return res.json({ success: true, data: result.rows[0] });
@@ -222,7 +222,7 @@ router.put('/zonas/:id', async (req, res) => {
 // DELETE /api/canales/zonas/:id
 router.delete('/zonas/:id', async (req, res) => {
   try {
-    await pool.query('UPDATE zonas_envio SET activo = false WHERE id = $1 AND usuario_id = $2', [req.params.id, req.user.id]);
+    await pool.query('UPDATE zonas_envio SET activo = false WHERE id = $1 AND empresa_id = $2', [req.params.id, req.eid]);
     return res.json({ success: true, data: { message: 'Zona eliminada' } });
   } catch (err) {
     console.error('Delete zona error:', err);

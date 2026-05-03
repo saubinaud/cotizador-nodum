@@ -9,8 +9,8 @@ router.use(auth);
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM clientes WHERE usuario_id = $1 ORDER BY razon_social, num_doc',
-      [req.user.id]
+      'SELECT * FROM clientes WHERE empresa_id = $1 ORDER BY razon_social, num_doc',
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -26,8 +26,8 @@ router.get('/buscar', async (req, res) => {
     if (!q || q.length < 3) return res.json({ success: true, data: [] });
 
     const result = await pool.query(
-      `SELECT * FROM clientes WHERE usuario_id = $1 AND (num_doc ILIKE $2 OR razon_social ILIKE $2) ORDER BY razon_social LIMIT 10`,
-      [req.user.id, `%${q}%`]
+      `SELECT * FROM clientes WHERE empresa_id = $1 AND (num_doc ILIKE $2 OR razon_social ILIKE $2) ORDER BY razon_social LIMIT 10`,
+      [req.eid, `%${q}%`]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -45,7 +45,7 @@ router.post('/', async (req, res) => {
     // Upsert: update if exists, insert if not
     const existing = await pool.query(
       'SELECT id FROM clientes WHERE usuario_id = $1 AND num_doc = $2',
-      [req.user.id, num_doc]
+      [req.uid, num_doc]
     );
 
     let result;
@@ -58,9 +58,9 @@ router.post('/', async (req, res) => {
       );
     } else {
       result = await pool.query(
-        `INSERT INTO clientes (usuario_id, tipo_doc, num_doc, razon_social, direccion, email, telefono)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-        [req.user.id, tipo_doc || '1', num_doc, razon_social || null, direccion || null, email || null, telefono || null]
+        `INSERT INTO clientes (usuario_id, empresa_id, tipo_doc, num_doc, razon_social, direccion, email, telefono)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+        [req.uid, req.eid, tipo_doc || '1', num_doc, razon_social || null, direccion || null, email || null, telefono || null]
       );
     }
 
@@ -79,8 +79,8 @@ router.put('/:id', async (req, res) => {
       `UPDATE clientes SET
         tipo_doc = COALESCE($1, tipo_doc), num_doc = COALESCE($2, num_doc),
         razon_social = COALESCE($3, razon_social), direccion = $4, email = $5, telefono = $6
-       WHERE id = $7 AND usuario_id = $8 RETURNING *`,
-      [tipo_doc, num_doc, razon_social, direccion || null, email || null, telefono || null, req.params.id, req.user.id]
+       WHERE id = $7 AND empresa_id = $8 RETURNING *`,
+      [tipo_doc, num_doc, razon_social, direccion || null, email || null, telefono || null, req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Cliente no encontrado' });
     return res.json({ success: true, data: result.rows[0] });
@@ -94,8 +94,8 @@ router.put('/:id', async (req, res) => {
 router.delete('/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'DELETE FROM clientes WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params.id, req.user.id]
+      'DELETE FROM clientes WHERE id = $1 AND empresa_id = $2 RETURNING id',
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Cliente no encontrado' });
     return res.json({ success: true, data: { message: 'Cliente eliminado' } });

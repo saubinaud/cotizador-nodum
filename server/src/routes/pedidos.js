@@ -12,8 +12,8 @@ router.get('/', async (req, res) => {
     const { estado, limit: lim } = req.query;
     let query = `SELECT p.*, c.num_doc AS cliente_doc, c.razon_social AS cliente_nombre
      FROM pedidos p LEFT JOIN clientes c ON c.id = p.cliente_id
-     WHERE p.usuario_id = $1`;
-    const params = [req.user.id];
+     WHERE p.empresa_id = $1`;
+    const params = [req.eid];
     let idx = 2;
 
     if (estado) {
@@ -52,9 +52,9 @@ router.get('/pendientes', async (req, res) => {
     const result = await pool.query(
       `SELECT p.*, c.razon_social AS cliente_nombre
        FROM pedidos p LEFT JOIN clientes c ON c.id = p.cliente_id
-       WHERE p.usuario_id = $1 AND p.estado NOT IN ('pagado', 'cancelado')
+       WHERE p.empresa_id = $1 AND p.estado NOT IN ('pagado', 'cancelado')
        ORDER BY p.fecha_entrega_estimada ASC NULLS LAST`,
-      [req.user.id]
+      [req.eid]
     );
 
     const totalPendiente = result.rows.reduce((s, p) => s + parseFloat(p.monto_total) - parseFloat(p.monto_pagado), 0);
@@ -84,8 +84,8 @@ router.get('/:id', async (req, res) => {
     const pedido = await pool.query(
       `SELECT p.*, c.num_doc AS cliente_doc, c.razon_social AS cliente_nombre, c.telefono AS cliente_telefono
        FROM pedidos p LEFT JOIN clientes c ON c.id = p.cliente_id
-       WHERE p.id = $1 AND p.usuario_id = $2`,
-      [req.params.id, req.user.id]
+       WHERE p.id = $1 AND p.empresa_id = $2`,
+      [req.params.id, req.eid]
     );
     if (pedido.rows.length === 0) return res.status(404).json({ success: false, error: 'Pedido no encontrado' });
 
@@ -119,11 +119,11 @@ router.post('/', async (req, res) => {
     }
 
     const pedidoRes = await pool.query(
-      `INSERT INTO pedidos (usuario_id, cliente_id, descripcion, items_json, monto_total, tipo_pago, fecha_entrega_estimada, notas, created_by,
+      `INSERT INTO pedidos (usuario_id, empresa_id, cliente_id, descripcion, items_json, monto_total, tipo_pago, fecha_entrega_estimada, notas, created_by,
         tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
-      [req.user.id, cliente_id || null, descripcion, items ? JSON.stringify(items) : null,
-       parseFloat(monto_total), tipo_pago || 'contado', fecha_entrega_estimada || null, notas || null, req.user.id,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+      [req.uid, req.eid, cliente_id || null, descripcion, items ? JSON.stringify(items) : null,
+       parseFloat(monto_total), tipo_pago || 'contado', fecha_entrega_estimada || null, notas || null, req.uid,
        tipo_envio || null, parseFloat(costo_envio) || 0, zona_envio_id || null, direccion_envio || null, canal_id || null]
     );
     const pedido = pedidoRes.rows[0];
@@ -136,9 +136,9 @@ router.post('/', async (req, res) => {
       let transaccionId = null;
       try {
         const txRes = await pool.query(
-          `INSERT INTO transacciones (usuario_id, tipo, fecha, monto, monto_absoluto, descripcion, cuenta_id)
-           VALUES ($1, 'venta', CURRENT_DATE, $2, $2, $3, $4) RETURNING id`,
-          [req.user.id, adelantoMonto, `Adelanto pedido #${pedido.id}: ${descripcion}`, cuenta_id || null]
+          `INSERT INTO transacciones (usuario_id, empresa_id, tipo, fecha, monto, monto_absoluto, descripcion, cuenta_id)
+           VALUES ($1, $2, 'venta', CURRENT_DATE, $3, $3, $4, $5) RETURNING id`,
+          [req.uid, req.eid, adelantoMonto, `Adelanto pedido #${pedido.id}: ${descripcion}`, cuenta_id || null]
         );
         transaccionId = txRes.rows[0].id;
 
@@ -161,9 +161,9 @@ router.post('/', async (req, res) => {
       let transaccionId = null;
       try {
         const txRes = await pool.query(
-          `INSERT INTO transacciones (usuario_id, tipo, fecha, monto, monto_absoluto, descripcion, cuenta_id)
-           VALUES ($1, 'venta', CURRENT_DATE, $2, $2, $3, $4) RETURNING id`,
-          [req.user.id, montoTotal, `Pedido #${pedido.id}: ${descripcion}`, cuenta_id || null]
+          `INSERT INTO transacciones (usuario_id, empresa_id, tipo, fecha, monto, monto_absoluto, descripcion, cuenta_id)
+           VALUES ($1, $2, 'venta', CURRENT_DATE, $3, $3, $4, $5) RETURNING id`,
+          [req.uid, req.eid, montoTotal, `Pedido #${pedido.id}: ${descripcion}`, cuenta_id || null]
         );
         transaccionId = txRes.rows[0].id;
         if (cuenta_id) {
@@ -203,8 +203,8 @@ router.put('/:id', async (req, res) => {
         notas = COALESCE($2, notas),
         fecha_entrega_estimada = COALESCE($3, fecha_entrega_estimada),
         updated_at = NOW()
-       WHERE id = $4 AND usuario_id = $5 RETURNING *`,
-      [estado, notas, fecha_entrega_estimada, req.params.id, req.user.id]
+       WHERE id = $4 AND empresa_id = $5 RETURNING *`,
+      [estado, notas, fecha_entrega_estimada, req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Pedido no encontrado' });
 
@@ -225,8 +225,8 @@ router.post('/:id/entregar', async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE pedidos SET estado = 'entregado', fecha_entrega_real = NOW(), updated_at = NOW()
-       WHERE id = $1 AND usuario_id = $2 AND estado NOT IN ('cancelado', 'pagado') RETURNING *`,
-      [req.params.id, req.user.id]
+       WHERE id = $1 AND empresa_id = $2 AND estado NOT IN ('cancelado', 'pagado') RETURNING *`,
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Pedido no encontrado o ya finalizado' });
 
@@ -249,8 +249,8 @@ router.post('/:id/pagos', async (req, res) => {
     }
 
     const pedido = await pool.query(
-      'SELECT * FROM pedidos WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT * FROM pedidos WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (pedido.rows.length === 0) return res.status(404).json({ success: false, error: 'Pedido no encontrado' });
 
@@ -265,9 +265,9 @@ router.post('/:id/pagos', async (req, res) => {
     let transaccionId = null;
     try {
       const txRes = await pool.query(
-        `INSERT INTO transacciones (usuario_id, tipo, fecha, monto, monto_absoluto, descripcion, cuenta_id)
-         VALUES ($1, 'venta', CURRENT_DATE, $2, $2, $3, $4) RETURNING id`,
-        [req.user.id, montoP, `Pago ${tipo} pedido #${p.id}: ${p.descripcion}`, cuenta_id || null]
+        `INSERT INTO transacciones (usuario_id, empresa_id, tipo, fecha, monto, monto_absoluto, descripcion, cuenta_id)
+         VALUES ($1, $2, 'venta', CURRENT_DATE, $3, $3, $4, $5) RETURNING id`,
+        [req.uid, req.eid, montoP, `Pago ${tipo} pedido #${p.id}: ${p.descripcion}`, cuenta_id || null]
       );
       transaccionId = txRes.rows[0].id;
       if (cuenta_id) {
@@ -307,8 +307,8 @@ router.delete('/:id', async (req, res) => {
   try {
     const result = await pool.query(
       `UPDATE pedidos SET estado = 'cancelado', updated_at = NOW()
-       WHERE id = $1 AND usuario_id = $2 RETURNING *`,
-      [req.params.id, req.user.id]
+       WHERE id = $1 AND empresa_id = $2 RETURNING *`,
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Pedido no encontrado' });
 

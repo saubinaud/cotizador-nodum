@@ -32,11 +32,11 @@ async function auth(req, res, next) {
       } catch (_) {}
     }
 
-    // Helper: get the correct filter for data queries
-    // During transition: use empresa_id if available, else usuario_id
-    req.dataFilter = req.user.empresa_id
-      ? { column: 'empresa_id', value: req.user.empresa_id }
-      : { column: 'usuario_id', value: req.user.id };
+    // Shorthand for multi-tenant queries
+    // req.eid = empresa_id for data filtering (shared across team)
+    // req.uid = usuario_id for audit trail (who did what)
+    req.eid = req.user.empresa_id || req.user.id; // fallback to user.id if no empresa
+    req.uid = req.user.id;
 
     next();
   } catch (err) {

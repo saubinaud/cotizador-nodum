@@ -7,10 +7,10 @@ router.use(auth);
 
 // ==================== HELPERS ====================
 
-async function findPeriodo(usuarioId, fecha) {
+async function findPeriodo(empresaId, fecha) {
   const per = await pool.query(
-    'SELECT id FROM periodos WHERE usuario_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
-    [usuarioId, fecha]
+    'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+    [empresaId, fecha]
   );
   return per.rows[0]?.id || null;
 }
@@ -50,9 +50,9 @@ router.get('/mermas/insumos', async (req, res) => {
       `SELECT m.*, i.nombre AS insumo_nombre
        FROM mediciones_merma_insumo m
        JOIN insumos i ON i.id = m.insumo_id
-       WHERE i.usuario_id = $1
+       WHERE i.empresa_id = $1
        ORDER BY m.fecha DESC, m.created_at DESC`,
-      [req.user.id]
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -68,9 +68,9 @@ router.get('/mermas/insumos/:insumoId', async (req, res) => {
       `SELECT m.*, i.nombre AS insumo_nombre
        FROM mediciones_merma_insumo m
        JOIN insumos i ON i.id = m.insumo_id
-       WHERE m.insumo_id = $1 AND i.usuario_id = $2
+       WHERE m.insumo_id = $1 AND i.empresa_id = $2
        ORDER BY m.fecha DESC, m.created_at DESC LIMIT 10`,
-      [req.params.insumoId, req.user.id]
+      [req.params.insumoId, req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -88,13 +88,13 @@ router.post('/mermas/insumos', async (req, res) => {
     }
 
     // Verify ownership
-    const insumo = await pool.query('SELECT id FROM insumos WHERE id = $1 AND usuario_id = $2', [insumo_id, req.user.id]);
+    const insumo = await pool.query('SELECT id FROM insumos WHERE id = $1 AND empresa_id = $2', [insumo_id, req.eid]);
     if (insumo.rows.length === 0) return res.status(404).json({ success: false, error: 'Insumo no encontrado' });
 
     const result = await pool.query(
-      `INSERT INTO mediciones_merma_insumo (usuario_id, insumo_id, merma_pct, causa, fecha, notas)
-       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-      [req.user.id, insumo_id, merma_pct, causa || null, fecha, notas || null]
+      `INSERT INTO mediciones_merma_insumo (usuario_id, empresa_id, insumo_id, merma_pct, causa, fecha, notas)
+       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
+      [req.uid, req.eid, insumo_id, merma_pct, causa || null, fecha, notas || null]
     );
 
     // Recalculate average merma from last 5 measurements
@@ -114,8 +114,8 @@ router.delete('/mermas/insumos/:id', async (req, res) => {
     const existing = await pool.query(
       `SELECT m.id, m.insumo_id FROM mediciones_merma_insumo m
        JOIN insumos i ON i.id = m.insumo_id
-       WHERE m.id = $1 AND i.usuario_id = $2`,
-      [req.params.id, req.user.id]
+       WHERE m.id = $1 AND i.empresa_id = $2`,
+      [req.params.id, req.eid]
     );
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Medicion no encontrada' });
 
@@ -141,9 +141,9 @@ router.get('/mermas/preparaciones', async (req, res) => {
       `SELECT m.*, pp.nombre AS preparacion_nombre
        FROM mediciones_merma_preparacion m
        JOIN preparaciones_predeterminadas pp ON pp.id = m.preparacion_pred_id
-       WHERE pp.usuario_id = $1
+       WHERE pp.empresa_id = $1
        ORDER BY m.fecha DESC, m.created_at DESC`,
-      [req.user.id]
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -159,9 +159,9 @@ router.get('/mermas/preparaciones/:prepId', async (req, res) => {
       `SELECT m.*, pp.nombre AS preparacion_nombre
        FROM mediciones_merma_preparacion m
        JOIN preparaciones_predeterminadas pp ON pp.id = m.preparacion_pred_id
-       WHERE m.preparacion_pred_id = $1 AND pp.usuario_id = $2
+       WHERE m.preparacion_pred_id = $1 AND pp.empresa_id = $2
        ORDER BY m.fecha DESC, m.created_at DESC LIMIT 10`,
-      [req.params.prepId, req.user.id]
+      [req.params.prepId, req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -179,7 +179,7 @@ router.post('/mermas/preparaciones', async (req, res) => {
     }
 
     // Verify ownership
-    const prep = await pool.query('SELECT id FROM preparaciones_predeterminadas WHERE id = $1 AND usuario_id = $2', [preparacion_pred_id, req.user.id]);
+    const prep = await pool.query('SELECT id FROM preparaciones_predeterminadas WHERE id = $1 AND empresa_id = $2', [preparacion_pred_id, req.eid]);
     if (prep.rows.length === 0) return res.status(404).json({ success: false, error: 'Preparacion no encontrada' });
 
     // Auto-calculate merma_pct
@@ -207,8 +207,8 @@ router.delete('/mermas/preparaciones/:id', async (req, res) => {
     const existing = await pool.query(
       `SELECT m.id, m.preparacion_pred_id FROM mediciones_merma_preparacion m
        JOIN preparaciones_predeterminadas pp ON pp.id = m.preparacion_pred_id
-       WHERE m.id = $1 AND pp.usuario_id = $2`,
-      [req.params.id, req.user.id]
+       WHERE m.id = $1 AND pp.empresa_id = $2`,
+      [req.params.id, req.eid]
     );
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Medicion no encontrada' });
 
@@ -234,20 +234,20 @@ router.get('/desmedros/resumen', async (req, res) => {
 
     const [prodRes, prepRes, insRes, matRes] = await Promise.all([
       pool.query(
-        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_producto WHERE periodo_id = $1 AND usuario_id = $2',
-        [periodo_id, req.user.id]
+        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_producto WHERE periodo_id = $1 AND empresa_id = $2',
+        [periodo_id, req.eid]
       ),
       pool.query(
-        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_preparacion WHERE periodo_id = $1 AND usuario_id = $2',
-        [periodo_id, req.user.id]
+        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_preparacion WHERE periodo_id = $1 AND empresa_id = $2',
+        [periodo_id, req.eid]
       ),
       pool.query(
-        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_insumo WHERE periodo_id = $1 AND usuario_id = $2',
-        [periodo_id, req.user.id]
+        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_insumo WHERE periodo_id = $1 AND empresa_id = $2',
+        [periodo_id, req.eid]
       ),
       pool.query(
-        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_material WHERE periodo_id = $1 AND usuario_id = $2',
-        [periodo_id, req.user.id]
+        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_material WHERE periodo_id = $1 AND empresa_id = $2',
+        [periodo_id, req.eid]
       ),
     ]);
 
@@ -282,9 +282,9 @@ router.get('/desmedros/productos', async (req, res) => {
       `SELECT d.*, p.nombre AS producto_nombre, p.imagen_url AS producto_imagen
        FROM desmedros_producto d
        JOIN productos p ON p.id = d.producto_id
-       WHERE d.periodo_id = $1 AND d.usuario_id = $2
+       WHERE d.periodo_id = $1 AND d.empresa_id = $2
        ORDER BY d.fecha DESC, d.created_at DESC`,
-      [periodo_id, req.user.id]
+      [periodo_id, req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -302,20 +302,20 @@ router.post('/desmedros/productos', async (req, res) => {
     }
 
     // Lookup costo_neto snapshot
-    const prod = await pool.query('SELECT costo_neto FROM productos WHERE id = $1 AND usuario_id = $2', [producto_id, req.user.id]);
+    const prod = await pool.query('SELECT costo_neto FROM productos WHERE id = $1 AND empresa_id = $2', [producto_id, req.eid]);
     if (prod.rows.length === 0) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
     const costo_neto_snapshot = parseFloat(prod.rows[0].costo_neto) || 0;
 
     // Auto-assign periodo
     let pid = periodo_id;
-    if (!pid) pid = await findPeriodo(req.user.id, fecha);
+    if (!pid) pid = await findPeriodo(req.eid, fecha);
 
     const perdida_total = parseInt(unidades) * costo_neto_snapshot;
 
     const result = await pool.query(
-      `INSERT INTO desmedros_producto (usuario_id, producto_id, periodo_id, unidades, costo_neto_snapshot, perdida_total, causa, fecha, notas)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [req.user.id, producto_id, pid, unidades, costo_neto_snapshot, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
+      `INSERT INTO desmedros_producto (usuario_id, empresa_id, producto_id, periodo_id, unidades, costo_neto_snapshot, perdida_total, causa, fecha, notas)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [req.uid, req.eid, producto_id, pid, unidades, costo_neto_snapshot, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -329,8 +329,8 @@ router.post('/desmedros/productos', async (req, res) => {
 router.delete('/desmedros/productos/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'DELETE FROM desmedros_producto WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params.id, req.user.id]
+      'DELETE FROM desmedros_producto WHERE id = $1 AND empresa_id = $2 RETURNING id',
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Desmedro no encontrado' });
     return res.json({ success: true, data: { message: 'Desmedro eliminado' } });
@@ -352,9 +352,9 @@ router.get('/desmedros/preparaciones', async (req, res) => {
       `SELECT d.*, pp.nombre AS preparacion_nombre
        FROM desmedros_preparacion d
        JOIN preparaciones_predeterminadas pp ON pp.id = d.preparacion_pred_id
-       WHERE d.periodo_id = $1 AND d.usuario_id = $2
+       WHERE d.periodo_id = $1 AND d.empresa_id = $2
        ORDER BY d.fecha DESC, d.created_at DESC`,
-      [periodo_id, req.user.id]
+      [periodo_id, req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -372,19 +372,19 @@ router.post('/desmedros/preparaciones', async (req, res) => {
     }
 
     // Verify ownership
-    const prep = await pool.query('SELECT id FROM preparaciones_predeterminadas WHERE id = $1 AND usuario_id = $2', [preparacion_pred_id, req.user.id]);
+    const prep = await pool.query('SELECT id FROM preparaciones_predeterminadas WHERE id = $1 AND empresa_id = $2', [preparacion_pred_id, req.eid]);
     if (prep.rows.length === 0) return res.status(404).json({ success: false, error: 'Preparacion no encontrada' });
 
     // Auto-assign periodo
     let pid = null;
-    pid = await findPeriodo(req.user.id, fecha);
+    pid = await findPeriodo(req.eid, fecha);
 
     const perdida_total = parseFloat(costo_total_tanda);
 
     const result = await pool.query(
-      `INSERT INTO desmedros_preparacion (usuario_id, preparacion_pred_id, periodo_id, costo_total_tanda, perdida_total, causa, fecha, notas)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
-      [req.user.id, preparacion_pred_id, pid, costo_total_tanda, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
+      `INSERT INTO desmedros_preparacion (usuario_id, empresa_id, preparacion_pred_id, periodo_id, costo_total_tanda, perdida_total, causa, fecha, notas)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
+      [req.uid, req.eid, preparacion_pred_id, pid, costo_total_tanda, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -398,8 +398,8 @@ router.post('/desmedros/preparaciones', async (req, res) => {
 router.delete('/desmedros/preparaciones/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'DELETE FROM desmedros_preparacion WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params.id, req.user.id]
+      'DELETE FROM desmedros_preparacion WHERE id = $1 AND empresa_id = $2 RETURNING id',
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Desmedro no encontrado' });
     return res.json({ success: true, data: { message: 'Desmedro eliminado' } });
@@ -421,9 +421,9 @@ router.get('/desmedros/insumos', async (req, res) => {
       `SELECT d.*, i.nombre AS insumo_nombre
        FROM desmedros_insumo d
        JOIN insumos i ON i.id = d.insumo_id
-       WHERE d.periodo_id = $1 AND d.usuario_id = $2
+       WHERE d.periodo_id = $1 AND d.empresa_id = $2
        ORDER BY d.fecha DESC, d.created_at DESC`,
-      [periodo_id, req.user.id]
+      [periodo_id, req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -441,20 +441,20 @@ router.post('/desmedros/insumos', async (req, res) => {
     }
 
     // Lookup costo_base snapshot
-    const ins = await pool.query('SELECT costo_base FROM insumos WHERE id = $1 AND usuario_id = $2', [insumo_id, req.user.id]);
+    const ins = await pool.query('SELECT costo_base FROM insumos WHERE id = $1 AND empresa_id = $2', [insumo_id, req.eid]);
     if (ins.rows.length === 0) return res.status(404).json({ success: false, error: 'Insumo no encontrado' });
     const costo_unitario_snapshot = parseFloat(ins.rows[0].costo_base) || 0;
 
     // Auto-assign periodo
     let pid = null;
-    pid = await findPeriodo(req.user.id, fecha);
+    pid = await findPeriodo(req.eid, fecha);
 
     const perdida_total = parseFloat(cantidad) * costo_unitario_snapshot;
 
     const result = await pool.query(
-      `INSERT INTO desmedros_insumo (usuario_id, insumo_id, periodo_id, cantidad, unidad, costo_unitario_snapshot, perdida_total, causa, fecha, notas)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [req.user.id, insumo_id, pid, cantidad, unidad || null, costo_unitario_snapshot, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
+      `INSERT INTO desmedros_insumo (usuario_id, empresa_id, insumo_id, periodo_id, cantidad, unidad, costo_unitario_snapshot, perdida_total, causa, fecha, notas)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+      [req.uid, req.eid, insumo_id, pid, cantidad, unidad || null, costo_unitario_snapshot, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -468,8 +468,8 @@ router.post('/desmedros/insumos', async (req, res) => {
 router.delete('/desmedros/insumos/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'DELETE FROM desmedros_insumo WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params.id, req.user.id]
+      'DELETE FROM desmedros_insumo WHERE id = $1 AND empresa_id = $2 RETURNING id',
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Desmedro no encontrado' });
     return res.json({ success: true, data: { message: 'Desmedro eliminado' } });
@@ -491,9 +491,9 @@ router.get('/desmedros/materiales', async (req, res) => {
       `SELECT d.*, m.nombre AS material_nombre
        FROM desmedros_material d
        JOIN materiales m ON m.id = d.material_id
-       WHERE d.periodo_id = $1 AND d.usuario_id = $2
+       WHERE d.periodo_id = $1 AND d.empresa_id = $2
        ORDER BY d.fecha DESC, d.created_at DESC`,
-      [periodo_id, req.user.id]
+      [periodo_id, req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -512,8 +512,8 @@ router.post('/desmedros/materiales', async (req, res) => {
 
     // Lookup cost from materiales
     const mat = await pool.query(
-      'SELECT precio_presentacion, cantidad_presentacion FROM materiales WHERE id = $1 AND usuario_id = $2',
-      [material_id, req.user.id]
+      'SELECT precio_presentacion, cantidad_presentacion FROM materiales WHERE id = $1 AND empresa_id = $2',
+      [material_id, req.eid]
     );
     if (mat.rows.length === 0) return res.status(404).json({ success: false, error: 'Material no encontrado' });
 
@@ -523,14 +523,14 @@ router.post('/desmedros/materiales', async (req, res) => {
 
     // Auto-assign periodo
     let pid = null;
-    pid = await findPeriodo(req.user.id, fecha);
+    pid = await findPeriodo(req.eid, fecha);
 
     const perdida_total = parseFloat(cantidad) * costo_unitario_snapshot;
 
     const result = await pool.query(
-      `INSERT INTO desmedros_material (usuario_id, material_id, periodo_id, cantidad, costo_unitario_snapshot, perdida_total, causa, fecha, notas)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [req.user.id, material_id, pid, cantidad, Math.round(costo_unitario_snapshot * 100) / 100, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
+      `INSERT INTO desmedros_material (usuario_id, empresa_id, material_id, periodo_id, cantidad, costo_unitario_snapshot, perdida_total, causa, fecha, notas)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+      [req.uid, req.eid, material_id, pid, cantidad, Math.round(costo_unitario_snapshot * 100) / 100, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -544,8 +544,8 @@ router.post('/desmedros/materiales', async (req, res) => {
 router.delete('/desmedros/materiales/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'DELETE FROM desmedros_material WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params.id, req.user.id]
+      'DELETE FROM desmedros_material WHERE id = $1 AND empresa_id = $2 RETURNING id',
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Desmedro no encontrado' });
     return res.json({ success: true, data: { message: 'Desmedro eliminado' } });

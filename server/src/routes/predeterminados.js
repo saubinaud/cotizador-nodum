@@ -12,8 +12,8 @@ router.use(auth);
 router.get('/preparaciones', async (req, res) => {
   try {
     const prepsRes = await pool.query(
-      'SELECT * FROM preparaciones_predeterminadas WHERE usuario_id = $1 ORDER BY nombre ASC',
-      [req.user.id]
+      'SELECT * FROM preparaciones_predeterminadas WHERE empresa_id = $1 ORDER BY nombre ASC',
+      [req.eid]
     );
 
     const preps = [];
@@ -49,8 +49,8 @@ router.post('/preparaciones', async (req, res) => {
     await client.query('BEGIN');
 
     const result = await client.query(
-      'INSERT INTO preparaciones_predeterminadas (usuario_id, nombre, capacidad, unidad_capacidad) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.user.id, nombre, capacidad || null, unidad || null]
+      'INSERT INTO preparaciones_predeterminadas (usuario_id, empresa_id, nombre, capacidad, unidad_capacidad) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [req.uid, req.eid, nombre, capacidad || null, unidad || null]
     );
     const prep = result.rows[0];
 
@@ -82,8 +82,8 @@ router.put('/preparaciones/:id', async (req, res) => {
     const { nombre, insumos, capacidad, unidad } = req.body;
 
     const existing = await client.query(
-      'SELECT id FROM preparaciones_predeterminadas WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT id FROM preparaciones_predeterminadas WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Preparacion predeterminada no encontrada' });
@@ -124,8 +124,8 @@ router.put('/preparaciones/:id', async (req, res) => {
 router.delete('/preparaciones/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'DELETE FROM preparaciones_predeterminadas WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params.id, req.user.id]
+      'DELETE FROM preparaciones_predeterminadas WHERE id = $1 AND empresa_id = $2 RETURNING id',
+      [req.params.id, req.eid]
     );
 
     if (result.rows.length === 0) {
@@ -145,8 +145,8 @@ router.delete('/preparaciones/:id', async (req, res) => {
 router.get('/empaques', async (req, res) => {
   try {
     const empsRes = await pool.query(
-      'SELECT * FROM empaques_predeterminados WHERE usuario_id = $1 ORDER BY nombre ASC',
-      [req.user.id]
+      'SELECT * FROM empaques_predeterminados WHERE empresa_id = $1 ORDER BY nombre ASC',
+      [req.eid]
     );
 
     const empaques = [];
@@ -182,8 +182,8 @@ router.post('/empaques', async (req, res) => {
     await client.query('BEGIN');
 
     const result = await client.query(
-      'INSERT INTO empaques_predeterminados (usuario_id, nombre) VALUES ($1, $2) RETURNING *',
-      [req.user.id, nombre]
+      'INSERT INTO empaques_predeterminados (usuario_id, empresa_id, nombre) VALUES ($1, $2, $3) RETURNING *',
+      [req.uid, req.eid, nombre]
     );
     const emp = result.rows[0];
 
@@ -215,8 +215,8 @@ router.put('/empaques/:id', async (req, res) => {
     const { nombre, materiales } = req.body;
 
     const existing = await client.query(
-      'SELECT id FROM empaques_predeterminados WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT id FROM empaques_predeterminados WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Empaque predeterminado no encontrado' });
@@ -257,8 +257,8 @@ router.put('/empaques/:id', async (req, res) => {
 router.delete('/empaques/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'DELETE FROM empaques_predeterminados WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params.id, req.user.id]
+      'DELETE FROM empaques_predeterminados WHERE id = $1 AND empresa_id = $2 RETURNING id',
+      [req.params.id, req.eid]
     );
 
     if (result.rows.length === 0) {

@@ -73,8 +73,8 @@ router.get('/insumo-precios/:insumoId', async (req, res) => {
 router.get('/transacciones/balance', async (req, res) => {
   try {
     const { periodo_id } = req.query;
-    let where = 'WHERE t.usuario_id = $1';
-    const params = [req.user.id];
+    let where = 'WHERE t.empresa_id = $1';
+    const params = [req.eid];
     if (periodo_id) {
       where += ' AND t.periodo_id = $2';
       params.push(periodo_id);
@@ -106,8 +106,8 @@ router.get('/transacciones', async (req, res) => {
      FROM transacciones t
      LEFT JOIN productos p ON p.id = t.producto_id
      LEFT JOIN categorias_gasto cg ON cg.id = t.categoria_id
-     WHERE t.usuario_id = $1`;
-    const params = [req.user.id];
+     WHERE t.empresa_id = $1`;
+    const params = [req.eid];
     let paramIdx = 2;
 
     if (periodo_id) {
@@ -158,8 +158,8 @@ router.post('/transacciones', async (req, res) => {
     let pid = periodo_id;
     if (!pid) {
       const per = await pool.query(
-        'SELECT id FROM periodos WHERE usuario_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
-        [req.user.id, fecha]
+        'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+        [req.eid, fecha]
       );
       pid = per.rows[0]?.id || null;
     }
@@ -185,10 +185,10 @@ router.post('/transacciones', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, producto_id, cantidad, precio_unitario,
+      `INSERT INTO transacciones (usuario_id, empresa_id, periodo_id, tipo, fecha, producto_id, cantidad, precio_unitario,
         descuento, descuento_tipo, descuento_valor, categoria_id, monto, monto_absoluto, descripcion, nota)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
-      [req.user.id, pid, tipo, fecha, producto_id || null, cantidad || null, precio_unitario || null,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+      [req.uid, req.eid, pid, tipo, fecha, producto_id || null, cantidad || null, precio_unitario || null,
         tipo === 'venta' ? (montoAbs - (parseFloat(precio_unitario || 0) * parseInt(cantidad || 1))) * -1 : 0,
         descuento_tipo || 'none', descuento_valor || 0, categoria_id || null,
         monto, montoAbs, descripcion || null, nota || null]
@@ -197,8 +197,8 @@ router.post('/transacciones', async (req, res) => {
     // Also insert into legacy tables for backward compatibility
     if (tipo === 'venta' && pid) {
       await pool.query(
-        'INSERT INTO ventas (periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total) VALUES ($1,$2,$3,$4,$5,$6,$7)',
-        [pid, producto_id, fecha, cantidad || 1, precio_unitario || 0, 0, montoAbs]
+        'INSERT INTO ventas (empresa_id, periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total) VALUES ($1,$2,$3,$4,$5,$6,$7,$8)',
+        [req.eid, pid, producto_id, fecha, cantidad || 1, precio_unitario || 0, 0, montoAbs]
       ).catch(() => {});
     }
     if (tipo === 'gasto' && pid && categoria_id) {
@@ -218,7 +218,7 @@ router.post('/transacciones', async (req, res) => {
 // DELETE /api/pl/transacciones/:id
 router.delete('/transacciones/:id', async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM transacciones WHERE id = $1 AND usuario_id = $2 RETURNING id', [req.params.id, req.user.id]);
+    const result = await pool.query('DELETE FROM transacciones WHERE id = $1 AND empresa_id = $2 RETURNING id', [req.params.id, req.eid]);
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Transaccion no encontrada' });
     return res.json({ success: true, data: { message: 'Eliminada' } });
   } catch (err) {
@@ -235,7 +235,7 @@ router.get('/resumen', async (req, res) => {
     const { periodo_id } = req.query;
     if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
 
-    const periodo = await pool.query('SELECT * FROM periodos WHERE id = $1 AND usuario_id = $2', [periodo_id, req.user.id]);
+    const periodo = await pool.query('SELECT * FROM periodos WHERE id = $1 AND empresa_id = $2', [periodo_id, req.eid]);
     if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
 
     // Revenue
@@ -277,8 +277,8 @@ router.get('/resumen', async (req, res) => {
         COALESCE(SUM(ci.total), 0) AS compras_total
        FROM compras c
        LEFT JOIN compra_items ci ON ci.compra_id = c.id
-       WHERE c.periodo_id = $1 AND c.usuario_id = $2`,
-      [periodo_id, req.user.id]
+       WHERE c.periodo_id = $1 AND c.empresa_id = $2`,
+      [periodo_id, req.eid]
     );
     const comp = comprasRes.rows[0];
 
@@ -304,15 +304,15 @@ router.get('/resumen', async (req, res) => {
         COALESCE(SUM(CASE WHEN t.tipo = 'material' THEN t.total ELSE 0 END), 0) AS materiales,
         COALESCE(SUM(t.total), 0) AS total
        FROM (
-        SELECT 'producto' AS tipo, perdida_total AS total FROM desmedros_producto WHERE periodo_id = $1 AND usuario_id = $2
+        SELECT 'producto' AS tipo, perdida_total AS total FROM desmedros_producto WHERE periodo_id = $1 AND empresa_id = $2
         UNION ALL
-        SELECT 'preparacion', perdida_total FROM desmedros_preparacion WHERE periodo_id = $1 AND usuario_id = $2
+        SELECT 'preparacion', perdida_total FROM desmedros_preparacion WHERE periodo_id = $1 AND empresa_id = $2
         UNION ALL
-        SELECT 'insumo', perdida_total FROM desmedros_insumo WHERE periodo_id = $1 AND usuario_id = $2
+        SELECT 'insumo', perdida_total FROM desmedros_insumo WHERE periodo_id = $1 AND empresa_id = $2
         UNION ALL
-        SELECT 'material', perdida_total FROM desmedros_material WHERE periodo_id = $1 AND usuario_id = $2
+        SELECT 'material', perdida_total FROM desmedros_material WHERE periodo_id = $1 AND empresa_id = $2
        ) t`,
-      [periodo_id, req.user.id]
+      [periodo_id, req.eid]
     );
     const desmedros = desmedrosRes.rows[0];
     const desmedros_total = parseFloat(desmedros.total);
@@ -334,7 +334,7 @@ router.get('/resumen', async (req, res) => {
     const utilidad_operativa = utilidad_bruta - gastos_total - desmedros_total;
 
     // IGV calculation
-    const user = await pool.query('SELECT igv_rate, tipo_negocio FROM usuarios WHERE id = $1', [req.user.id]);
+    const user = await pool.query('SELECT igv_rate, tipo_negocio FROM empresas WHERE id = $1', [req.eid]);
     const igvRate = user.rows[0]?.tipo_negocio === 'informal' ? 0 : parseFloat(user.rows[0]?.igv_rate || 0);
     const impuestos = utilidad_operativa > 0 ? utilidad_operativa * igvRate : 0;
     const utilidad_neta = utilidad_operativa - impuestos;
@@ -392,8 +392,8 @@ router.get('/resumen', async (req, res) => {
 router.get('/periodos', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM periodos WHERE usuario_id = $1 ORDER BY fecha_inicio DESC',
-      [req.user.id]
+      'SELECT * FROM periodos WHERE empresa_id = $1 ORDER BY fecha_inicio DESC',
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -410,12 +410,12 @@ router.post('/periodos', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Nombre y fechas son requeridos' });
     }
     const result = await pool.query(
-      'INSERT INTO periodos (usuario_id, nombre, tipo, fecha_inicio, fecha_fin) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.user.id, nombre, tipo || 'mensual', fecha_inicio, fecha_fin]
+      'INSERT INTO periodos (usuario_id, empresa_id, nombre, tipo, fecha_inicio, fecha_fin) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [req.uid, req.eid, nombre, tipo || 'mensual', fecha_inicio, fecha_fin]
     );
 
     // Seed default expense categories if first period
-    const catCount = await pool.query('SELECT COUNT(*) FROM categorias_gasto WHERE usuario_id = $1', [req.user.id]);
+    const catCount = await pool.query('SELECT COUNT(*) FROM categorias_gasto WHERE empresa_id = $1', [req.eid]);
     if (parseInt(catCount.rows[0].count) === 0) {
       const defaultCats = [
         { nombre: 'Alquiler', tipo: 'fijo', recurrente: true, orden: 1 },
@@ -430,8 +430,8 @@ router.post('/periodos', async (req, res) => {
       ];
       for (const cat of defaultCats) {
         await pool.query(
-          'INSERT INTO categorias_gasto (usuario_id, nombre, tipo, recurrente, orden) VALUES ($1, $2, $3, $4, $5)',
-          [req.user.id, cat.nombre, cat.tipo, cat.recurrente, cat.orden]
+          'INSERT INTO categorias_gasto (usuario_id, empresa_id, nombre, tipo, recurrente, orden) VALUES ($1, $2, $3, $4, $5, $6)',
+          [req.uid, req.eid, cat.nombre, cat.tipo, cat.recurrente, cat.orden]
         );
       }
     }
@@ -448,8 +448,8 @@ router.put('/periodos/:id', async (req, res) => {
   try {
     const { nombre, estado } = req.body;
     const result = await pool.query(
-      'UPDATE periodos SET nombre = COALESCE($1, nombre), estado = COALESCE($2, estado) WHERE id = $3 AND usuario_id = $4 RETURNING *',
-      [nombre, estado, req.params.id, req.user.id]
+      'UPDATE periodos SET nombre = COALESCE($1, nombre), estado = COALESCE($2, estado) WHERE id = $3 AND empresa_id = $4 RETURNING *',
+      [nombre, estado, req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
     return res.json({ success: true, data: result.rows[0] });
@@ -462,7 +462,7 @@ router.put('/periodos/:id', async (req, res) => {
 // DELETE /api/pl/periodos/:id
 router.delete('/periodos/:id', async (req, res) => {
   try {
-    const result = await pool.query('DELETE FROM periodos WHERE id = $1 AND usuario_id = $2 RETURNING id', [req.params.id, req.user.id]);
+    const result = await pool.query('DELETE FROM periodos WHERE id = $1 AND empresa_id = $2 RETURNING id', [req.params.id, req.eid]);
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
     return res.json({ success: true, data: { message: 'Periodo eliminado' } });
   } catch (err) {
@@ -478,8 +478,8 @@ router.put('/periodos/:id/saldo-inicial', async (req, res) => {
     if (saldo_inicial == null) return res.status(400).json({ success: false, error: 'saldo_inicial requerido' });
 
     const result = await pool.query(
-      'UPDATE periodos SET saldo_inicial = $1, updated_at = NOW() WHERE id = $2 AND usuario_id = $3 RETURNING id, saldo_inicial',
-      [parseFloat(saldo_inicial), req.params.id, req.user.id]
+      'UPDATE periodos SET saldo_inicial = $1, updated_at = NOW() WHERE id = $2 AND empresa_id = $3 RETURNING id, saldo_inicial',
+      [parseFloat(saldo_inicial), req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
     return res.json({ success: true, data: result.rows[0] });
@@ -495,8 +495,8 @@ router.put('/periodos/:id/saldo-inicial', async (req, res) => {
 router.get('/categorias', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM categorias_gasto WHERE usuario_id = $1 AND activa = true ORDER BY orden, nombre',
-      [req.user.id]
+      'SELECT * FROM categorias_gasto WHERE empresa_id = $1 AND activa = true ORDER BY orden, nombre',
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -511,8 +511,8 @@ router.post('/categorias', async (req, res) => {
     const { nombre, tipo, recurrente, monto_default } = req.body;
     if (!nombre) return res.status(400).json({ success: false, error: 'Nombre requerido' });
     const result = await pool.query(
-      'INSERT INTO categorias_gasto (usuario_id, nombre, tipo, recurrente, monto_default) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.user.id, nombre, tipo || 'variable', recurrente || false, monto_default || null]
+      'INSERT INTO categorias_gasto (usuario_id, empresa_id, nombre, tipo, recurrente, monto_default) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [req.uid, req.eid, nombre, tipo || 'variable', recurrente || false, monto_default || null]
     );
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -529,8 +529,8 @@ router.put('/categorias/:id', async (req, res) => {
       `UPDATE categorias_gasto SET
         nombre = COALESCE($1, nombre), tipo = COALESCE($2, tipo),
         recurrente = COALESCE($3, recurrente), monto_default = $4, activa = COALESCE($5, activa)
-       WHERE id = $6 AND usuario_id = $7 RETURNING *`,
-      [nombre, tipo, recurrente, monto_default, activa, req.params.id, req.user.id]
+       WHERE id = $6 AND empresa_id = $7 RETURNING *`,
+      [nombre, tipo, recurrente, monto_default, activa, req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Categoria no encontrada' });
     return res.json({ success: true, data: result.rows[0] });
@@ -549,7 +549,7 @@ router.get('/ventas', async (req, res) => {
     if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
 
     // Verify period belongs to user
-    const periodo = await pool.query('SELECT id FROM periodos WHERE id = $1 AND usuario_id = $2', [periodo_id, req.user.id]);
+    const periodo = await pool.query('SELECT id FROM periodos WHERE id = $1 AND empresa_id = $2', [periodo_id, req.eid]);
     if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
 
     const result = await pool.query(
@@ -578,11 +578,11 @@ router.post('/ventas', async (req, res) => {
       return res.status(400).json({ success: false, error: 'periodo_id, producto_id, fecha y cantidad son requeridos' });
     }
 
-    const periodo = await pool.query('SELECT id FROM periodos WHERE id = $1 AND usuario_id = $2', [periodo_id, req.user.id]);
+    const periodo = await pool.query('SELECT id FROM periodos WHERE id = $1 AND empresa_id = $2', [periodo_id, req.eid]);
     if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
 
     // Get product price if not provided
-    const prod = await pool.query('SELECT precio_final, costo_neto FROM productos WHERE id = $1 AND usuario_id = $2', [producto_id, req.user.id]);
+    const prod = await pool.query('SELECT precio_final, costo_neto FROM productos WHERE id = $1 AND empresa_id = $2', [producto_id, req.eid]);
     if (prod.rows.length === 0) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
 
     const precio = precio_unitario || parseFloat(prod.rows[0].precio_final);
@@ -591,19 +591,19 @@ router.post('/ventas', async (req, res) => {
     const total = (precio * parseInt(cantidad)) - desc + costoEnvio;
 
     const result = await pool.query(
-      `INSERT INTO ventas (periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total, nota,
+      `INSERT INTO ventas (empresa_id, periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total, nota,
         tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
-      [periodo_id, producto_id, fecha, cantidad, precio, desc, total, nota || null,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
+      [req.eid, periodo_id, producto_id, fecha, cantidad, precio, desc, total, nota || null,
         tipo_envio || null, costoEnvio, zona_envio_id || null, direccion_envio || null, canal_id || null, cliente_id || null]
     );
 
     // Dual-write to transacciones for timeline (with cuenta_id for cash flow)
     try {
       await pool.query(
-        `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, producto_id, cantidad, precio_unitario, descuento, monto, monto_absoluto, descripcion, cuenta_id)
-         VALUES ($1, $2, 'venta', $3, $4, $5, $6, $7, $8, $8, $9, $10)`,
-        [req.user.id, periodo_id, fecha, producto_id, cantidad, precio, desc, total, nota || null, cuenta_id || null]
+        `INSERT INTO transacciones (usuario_id, empresa_id, periodo_id, tipo, fecha, producto_id, cantidad, precio_unitario, descuento, monto, monto_absoluto, descripcion, cuenta_id)
+         VALUES ($1, $2, $3, 'venta', $4, $5, $6, $7, $8, $9, $9, $10, $11)`,
+        [req.uid, req.eid, periodo_id, fecha, producto_id, cantidad, precio, desc, total, nota || null, cuenta_id || null]
       );
       // Update account balance if specified
       if (cuenta_id) {
@@ -654,7 +654,7 @@ router.put('/ventas/:id', async (req, res) => {
     const { cantidad, precio_unitario, descuento, nota, fecha, cliente_id, canal_id, cuenta_id,
             tipo_envio, costo_envio, zona_envio_id, direccion_envio } = req.body;
 
-    const existing = await pool.query('SELECT * FROM ventas WHERE id = $1', [req.params.id]);
+    const existing = await pool.query('SELECT * FROM ventas WHERE id = $1 AND empresa_id = $2', [req.params.id, req.eid]);
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Venta no encontrada' });
     const prev = existing.rows[0];
 
@@ -745,10 +745,10 @@ router.get('/gastos/resumen', async (req, res) => {
         COALESCE(SUM(g.monto), 0) AS total
        FROM categorias_gasto cg
        LEFT JOIN gastos g ON g.categoria_id = cg.id AND g.periodo_id = $1
-       WHERE cg.usuario_id = $2 AND cg.activa = true
+       WHERE cg.empresa_id = $2 AND cg.activa = true
        GROUP BY cg.id, cg.nombre, cg.tipo
        ORDER BY cg.orden, cg.nombre`,
-      [periodo_id, req.user.id]
+      [periodo_id, req.eid]
     );
 
     const fijos = result.rows.filter(r => r.categoria_tipo === 'fijo').reduce((s, r) => s + parseFloat(r.total), 0);
@@ -794,19 +794,19 @@ router.post('/gastos/copiar-recurrentes', async (req, res) => {
     if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
 
     // Get previous period
-    const currentPeriod = await pool.query('SELECT * FROM periodos WHERE id = $1 AND usuario_id = $2', [periodo_id, req.user.id]);
+    const currentPeriod = await pool.query('SELECT * FROM periodos WHERE id = $1 AND empresa_id = $2', [periodo_id, req.eid]);
     if (currentPeriod.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
 
     const prevPeriod = await pool.query(
-      'SELECT id FROM periodos WHERE usuario_id = $1 AND fecha_fin < $2 ORDER BY fecha_fin DESC LIMIT 1',
-      [req.user.id, currentPeriod.rows[0].fecha_inicio]
+      'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_fin < $2 ORDER BY fecha_fin DESC LIMIT 1',
+      [req.eid, currentPeriod.rows[0].fecha_inicio]
     );
 
     if (prevPeriod.rows.length === 0) {
       // No previous period — use category defaults
       const cats = await pool.query(
-        'SELECT id, monto_default FROM categorias_gasto WHERE usuario_id = $1 AND recurrente = true AND monto_default IS NOT NULL AND monto_default > 0',
-        [req.user.id]
+        'SELECT id, monto_default FROM categorias_gasto WHERE empresa_id = $1 AND recurrente = true AND monto_default IS NOT NULL AND monto_default > 0',
+        [req.eid]
       );
       let count = 0;
       for (const cat of cats.rows) {
@@ -860,9 +860,9 @@ router.post('/gastos', async (req, res) => {
     // Dual-write to transacciones for timeline
     try {
       await pool.query(
-        `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, categoria_id, monto, monto_absoluto, descripcion)
-         VALUES ($1, $2, 'gasto', $3, $4, $5, $6, $7)`,
-        [req.user.id, periodo_id, fecha, categoria_id, -parseFloat(monto), parseFloat(monto), descripcion || null]
+        `INSERT INTO transacciones (usuario_id, empresa_id, periodo_id, tipo, fecha, categoria_id, monto, monto_absoluto, descripcion)
+         VALUES ($1, $2, $3, 'gasto', $4, $5, $6, $7, $8)`,
+        [req.uid, req.eid, periodo_id, fecha, categoria_id, -parseFloat(monto), parseFloat(monto), descripcion || null]
       );
     } catch (_) {}
 
@@ -933,8 +933,8 @@ router.get('/compras/resumen', async (req, res) => {
         COALESCE(SUM(CASE WHEN ci.insumo_id IS NULL AND ci.material_id IS NULL THEN ci.total ELSE 0 END), 0) AS total_otros
        FROM compras c
        LEFT JOIN compra_items ci ON ci.compra_id = c.id
-       WHERE c.periodo_id = $1 AND c.usuario_id = $2`,
-      [periodo_id, req.user.id]
+       WHERE c.periodo_id = $1 AND c.empresa_id = $2`,
+      [periodo_id, req.eid]
     );
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -950,8 +950,8 @@ router.get('/compras', async (req, res) => {
     if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
 
     const compras = await pool.query(
-      'SELECT * FROM compras WHERE periodo_id = $1 AND usuario_id = $2 ORDER BY fecha DESC',
-      [periodo_id, req.user.id]
+      'SELECT * FROM compras WHERE periodo_id = $1 AND empresa_id = $2 ORDER BY fecha DESC',
+      [periodo_id, req.eid]
     );
 
     // Get items for each compra
@@ -991,8 +991,8 @@ router.post('/compras', async (req, res) => {
     const total = items.reduce((s, item) => s + (parseFloat(item.precio_unitario) * parseFloat(item.cantidad)), 0);
 
     const compraRes = await client.query(
-      'INSERT INTO compras (periodo_id, usuario_id, fecha, proveedor, nota, total) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [periodo_id, req.user.id, fecha, proveedor || null, nota || null, total]
+      'INSERT INTO compras (periodo_id, usuario_id, empresa_id, fecha, proveedor, nota, total) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
+      [periodo_id, req.uid, req.eid, fecha, proveedor || null, nota || null, total]
     );
     const compra = compraRes.rows[0];
 
@@ -1033,9 +1033,9 @@ router.post('/compras', async (req, res) => {
     // Dual-write to transacciones for timeline (with cuenta_id for cash flow)
     try {
       await pool.query(
-        `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, compra_id, monto, monto_absoluto, descripcion, cuenta_id)
-         VALUES ($1, $2, 'compra', $3, $4, $5, $6, $7, $8)`,
-        [req.user.id, periodo_id, fecha, compra.id, -total, total, proveedor || null, cuenta_id || null]
+        `INSERT INTO transacciones (usuario_id, empresa_id, periodo_id, tipo, fecha, compra_id, monto, monto_absoluto, descripcion, cuenta_id)
+         VALUES ($1, $2, $3, 'compra', $4, $5, $6, $7, $8, $9)`,
+        [req.uid, req.eid, periodo_id, fecha, compra.id, -total, total, proveedor || null, cuenta_id || null]
       );
       // Update account balance if specified
       if (cuenta_id) {
@@ -1059,8 +1059,8 @@ router.post('/compras', async (req, res) => {
 router.delete('/compras/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'DELETE FROM compras WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params.id, req.user.id]
+      'DELETE FROM compras WHERE id = $1 AND empresa_id = $2 RETURNING id',
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Compra no encontrada' });
 
@@ -1088,8 +1088,8 @@ router.get('/cashflow/metricas', async (req, res) => {
     if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
 
     const periodo = await pool.query(
-      'SELECT * FROM periodos WHERE id = $1 AND usuario_id = $2',
-      [periodo_id, req.user.id]
+      'SELECT * FROM periodos WHERE id = $1 AND empresa_id = $2',
+      [periodo_id, req.eid]
     );
     if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
     const per = periodo.rows[0];
@@ -1098,8 +1098,8 @@ router.get('/cashflow/metricas', async (req, res) => {
     // Current balance
     const balRes = await pool.query(
       `SELECT COALESCE(SUM(monto), 0)::float AS total_neto
-       FROM transacciones WHERE periodo_id = $1 AND usuario_id = $2 AND fecha <= CURRENT_DATE`,
-      [periodo_id, req.user.id]
+       FROM transacciones WHERE periodo_id = $1 AND empresa_id = $2 AND fecha <= CURRENT_DATE`,
+      [periodo_id, req.eid]
     );
     const balanceActual = saldoInicial + (balRes.rows[0]?.total_neto || 0);
 
@@ -1113,8 +1113,8 @@ router.get('/cashflow/metricas', async (req, res) => {
         COUNT(DISTINCT fecha)::int AS dias_con_actividad,
         COUNT(DISTINCT CASE WHEN monto > 0 THEN fecha END)::int AS dias_con_ingreso
       FROM transacciones
-      WHERE periodo_id = $1 AND usuario_id = $2
-    `, [periodo_id, req.user.id]);
+      WHERE periodo_id = $1 AND empresa_id = $2
+    `, [periodo_id, req.eid]);
     const m = metricsRes.rows[0];
 
     const diasTotales = Math.max(1, Math.ceil((new Date(per.fecha_fin) - new Date(per.fecha_inicio)) / 86400000) + 1);
@@ -1134,14 +1134,14 @@ router.get('/cashflow/metricas', async (req, res) => {
 
     // Comparison with previous period
     const prevPer = await pool.query(
-      'SELECT id, saldo_inicial FROM periodos WHERE usuario_id = $1 AND fecha_fin < $2 ORDER BY fecha_fin DESC LIMIT 1',
-      [req.user.id, per.fecha_inicio]
+      'SELECT id, saldo_inicial FROM periodos WHERE empresa_id = $1 AND fecha_fin < $2 ORDER BY fecha_fin DESC LIMIT 1',
+      [req.eid, per.fecha_inicio]
     );
     let comparacion = null;
     if (prevPer.rows.length > 0) {
       const prevBal = await pool.query(
-        `SELECT COALESCE(SUM(monto), 0)::float AS total FROM transacciones WHERE periodo_id = $1 AND usuario_id = $2`,
-        [prevPer.rows[0].id, req.user.id]
+        `SELECT COALESCE(SUM(monto), 0)::float AS total FROM transacciones WHERE periodo_id = $1 AND empresa_id = $2`,
+        [prevPer.rows[0].id, req.eid]
       );
       const prevBalance = (parseFloat(prevPer.rows[0].saldo_inicial) || 0) + (prevBal.rows[0]?.total || 0);
       comparacion = {
@@ -1185,8 +1185,8 @@ router.get('/cashflow/simulacion', async (req, res) => {
     const fechaCompra = fecha || new Date().toISOString().slice(0, 10);
 
     const periodo = await pool.query(
-      'SELECT * FROM periodos WHERE id = $1 AND usuario_id = $2',
-      [periodo_id, req.user.id]
+      'SELECT * FROM periodos WHERE id = $1 AND empresa_id = $2',
+      [periodo_id, req.eid]
     );
     if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
     const per = periodo.rows[0];
@@ -1194,8 +1194,8 @@ router.get('/cashflow/simulacion', async (req, res) => {
 
     // Current balance
     const balRes = await pool.query(
-      `SELECT COALESCE(SUM(monto), 0)::float AS total FROM transacciones WHERE periodo_id = $1 AND usuario_id = $2 AND fecha <= CURRENT_DATE`,
-      [periodo_id, req.user.id]
+      `SELECT COALESCE(SUM(monto), 0)::float AS total FROM transacciones WHERE periodo_id = $1 AND empresa_id = $2 AND fecha <= CURRENT_DATE`,
+      [periodo_id, req.eid]
     );
     const balanceHoy = saldoInicial + (balRes.rows[0]?.total || 0);
 
@@ -1205,8 +1205,8 @@ router.get('/cashflow/simulacion', async (req, res) => {
         COALESCE(SUM(CASE WHEN monto > 0 THEN monto ELSE 0 END) / GREATEST(COUNT(DISTINCT fecha), 1), 0)::float AS ingreso_diario,
         COALESCE(SUM(CASE WHEN monto < 0 THEN ABS(monto) ELSE 0 END) / GREATEST(COUNT(DISTINCT fecha), 1), 0)::float AS gasto_diario
        FROM transacciones
-       WHERE usuario_id = $1 AND fecha BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE`,
-      [req.user.id]
+       WHERE empresa_id = $1 AND fecha BETWEEN CURRENT_DATE - 30 AND CURRENT_DATE`,
+      [req.eid]
     );
     const ingresoDiario = avgRes.rows[0]?.ingreso_diario || 0;
     const gastoDiario = avgRes.rows[0]?.gasto_diario || 0;
@@ -1216,11 +1216,11 @@ router.get('/cashflow/simulacion', async (req, res) => {
     const recurrentesRes = await pool.query(
       `SELECT cg.nombre, cg.monto_default
        FROM categorias_gasto cg
-       WHERE cg.usuario_id = $1 AND cg.recurrente = true AND cg.monto_default > 0
+       WHERE cg.empresa_id = $1 AND cg.recurrente = true AND cg.monto_default > 0
          AND NOT EXISTS (
            SELECT 1 FROM gastos g WHERE g.categoria_id = cg.id AND g.periodo_id = $2
          )`,
-      [req.user.id, periodo_id]
+      [req.eid, periodo_id]
     );
     const gastosFijosPendientes = recurrentesRes.rows;
     const totalFijosPendientes = gastosFijosPendientes.reduce((s, r) => s + parseFloat(r.monto_default), 0);
@@ -1262,8 +1262,8 @@ router.get('/cashflow', async (req, res) => {
     if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
 
     const periodo = await pool.query(
-      'SELECT * FROM periodos WHERE id = $1 AND usuario_id = $2',
-      [periodo_id, req.user.id]
+      'SELECT * FROM periodos WHERE id = $1 AND empresa_id = $2',
+      [periodo_id, req.eid]
     );
     if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
     const per = periodo.rows[0];
@@ -1282,7 +1282,7 @@ router.get('/cashflow', async (req, res) => {
           SUM(CASE WHEN t.monto < 0 THEN ABS(t.monto) ELSE 0 END) AS salidas,
           SUM(t.monto) AS neto
         FROM transacciones t
-        WHERE t.periodo_id = $3 AND t.usuario_id = $4
+        WHERE t.periodo_id = $3 AND t.empresa_id = $4
         GROUP BY t.fecha
       )
       SELECT
@@ -1296,7 +1296,7 @@ router.get('/cashflow', async (req, res) => {
       FROM dias d
       LEFT JOIN diario di ON di.fecha = d.fecha
       ORDER BY d.fecha
-    `, [per.fecha_inicio, per.fecha_fin, periodo_id, req.user.id, saldoInicial]);
+    `, [per.fecha_inicio, per.fecha_fin, periodo_id, req.eid, saldoInicial]);
 
     // Summary
     const totalEntradas = result.rows.reduce((s, r) => s + r.entradas, 0);
@@ -1334,9 +1334,9 @@ router.get('/cashflow', async (req, res) => {
        FROM transacciones t
        LEFT JOIN productos p ON p.id = t.producto_id
        LEFT JOIN categorias_gasto cg ON cg.id = t.categoria_id
-       WHERE t.periodo_id = $1 AND t.usuario_id = $2
+       WHERE t.periodo_id = $1 AND t.empresa_id = $2
        ORDER BY t.fecha DESC, t.created_at DESC LIMIT 10`,
-      [periodo_id, req.user.id]
+      [periodo_id, req.eid]
     );
 
     return res.json({

@@ -12,10 +12,10 @@ router.use(auth);
 // POST /api/productos
 router.post('/', async (req, res) => {
   // Trial limit check
-  const planCheck = await pool.query('SELECT plan, trial_ends_at, max_productos FROM usuarios WHERE id = $1', [req.user.id]);
+  const planCheck = await pool.query('SELECT plan, trial_ends_at, max_productos FROM empresas WHERE id = $1', [req.eid]);
   const userPlan = planCheck.rows[0];
   if (userPlan?.plan === 'trial') {
-    const countRes = await pool.query('SELECT COUNT(*) FROM productos WHERE usuario_id = $1', [req.user.id]);
+    const countRes = await pool.query('SELECT COUNT(*) FROM productos WHERE empresa_id = $1', [req.eid]);
     const currentCount = parseInt(countRes.rows[0].count);
     const maxAllowed = parseInt(userPlan.max_productos) || 2;
     if (currentCount >= maxAllowed) {
@@ -42,10 +42,10 @@ router.post('/', async (req, res) => {
     await client.query('BEGIN');
 
     const prodRes = await client.query(
-      `INSERT INTO productos (usuario_id, nombre, margen, margen_porcion, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto, created_by)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO productos (usuario_id, empresa_id, nombre, margen, margen_porcion, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto, created_by)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING *`,
-      [req.user.id, nombre, margenDecimal, margenPorcionDecimal, igv_rate, imagen_url || null, tipo_presentacion || 'unidad', parseInt(unidades_por_producto) || 1, req.user.id]
+      [req.uid, req.eid, nombre, margenDecimal, margenPorcionDecimal, igv_rate, imagen_url || null, tipo_presentacion || 'unidad', parseInt(unidades_por_producto) || 1, req.uid]
     );
     const producto = prodRes.rows[0];
 
@@ -161,11 +161,11 @@ router.post('/', async (req, res) => {
       const precioFinalPorcion = round4(precioVentaPorcion * (1 + igv_rate));
 
       const uniRes = await client.query(
-        `INSERT INTO productos (usuario_id, nombre, margen, margen_porcion, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto, producto_padre_id,
+        `INSERT INTO productos (usuario_id, empresa_id, nombre, margen, margen_porcion, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto, producto_padre_id,
           costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final)
-         VALUES ($1, $2, $3, $4, $5, $6, 'unidad', 1, $7, $8, $9, $10, $11, $12)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, 'unidad', 1, $8, $9, $10, $11, $12, $13)
          RETURNING *`,
-        [req.user.id, nombre + ' (porcion)', margenPorcionVal, null, igv_rate, imagen_url || null, producto.id,
+        [req.uid, req.eid, nombre + ' (porcion)', margenPorcionVal, null, igv_rate, imagen_url || null, producto.id,
           costoPorcion, empaqueUnidad, costoNetoPorcion, precioVentaPorcion, precioFinalPorcion]
       );
       productoUnidad = uniRes.rows[0];
@@ -176,8 +176,8 @@ router.post('/', async (req, res) => {
     // Auto-calculate channel prices
     try {
       const canales = await pool.query(
-        'SELECT id, comision_pct FROM canales_distribucion WHERE usuario_id = $1 AND activo = true',
-        [req.user.id]
+        'SELECT id, comision_pct FROM canales_distribucion WHERE empresa_id = $1 AND activo = true',
+        [req.eid]
       );
       for (const canal of canales.rows) {
         const comision = parseFloat(canal.comision_pct) || 0;
@@ -192,7 +192,7 @@ router.post('/', async (req, res) => {
       }
     } catch (_) {}
 
-    logAudit({ userId: req.user.id, entidad: 'producto', entidadId: producto.id, accion: 'crear', descripcion: `Creo producto "${nombre}"` });
+    logAudit({ userId: req.uid, entidad: 'producto', entidadId: producto.id, accion: 'crear', descripcion: `Creo producto "${nombre}"` });
 
     return res.status(201).json({ success: true, data: { ...producto, ...costos, productoUnidad } });
   } catch (err) {
@@ -212,15 +212,15 @@ router.get('/', async (req, res) => {
               costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final,
               imagen_url, tipo_presentacion, unidades_por_producto, margen_porcion, producto_padre_id, created_at, updated_at
        FROM productos
-       WHERE usuario_id = $1
+       WHERE empresa_id = $1
        ORDER BY nombre ASC`,
-      [req.user.id]
+      [req.eid]
     );
     let productos = result.rows;
 
     // Trial limit: only first 2 products (by created_at ASC)
     if (req.user.plan === 'trial') {
-      const userRes = await pool.query('SELECT plan, trial_ends_at, max_productos FROM usuarios WHERE id = $1', [req.user.id]);
+      const userRes = await pool.query('SELECT plan, trial_ends_at, max_productos FROM empresas WHERE id = $1', [req.eid]);
       const u = userRes.rows[0];
       if (u && u.plan === 'trial') {
         const max = parseInt(u.max_productos) || 2;
@@ -253,10 +253,10 @@ router.get('/', async (req, res) => {
 router.get('/catalogs', async (req, res) => {
   try {
     const [insumos, materiales, prepsPred, empaquesPred] = await Promise.all([
-      pool.query('SELECT * FROM insumos WHERE usuario_id = $1 ORDER BY nombre', [req.user.id]),
-      pool.query('SELECT * FROM materiales WHERE usuario_id = $1 ORDER BY nombre', [req.user.id]),
+      pool.query('SELECT * FROM insumos WHERE empresa_id = $1 ORDER BY nombre', [req.eid]),
+      pool.query('SELECT * FROM materiales WHERE empresa_id = $1 ORDER BY nombre', [req.eid]),
       (async () => {
-        const preps = await pool.query('SELECT * FROM preparaciones_predeterminadas WHERE usuario_id = $1 ORDER BY nombre', [req.user.id]);
+        const preps = await pool.query('SELECT * FROM preparaciones_predeterminadas WHERE empresa_id = $1 ORDER BY nombre', [req.eid]);
         const result = [];
         for (const prep of preps.rows) {
           const ins = await pool.query(
@@ -270,7 +270,7 @@ router.get('/catalogs', async (req, res) => {
         return result;
       })(),
       (async () => {
-        const emps = await pool.query('SELECT * FROM empaques_predeterminados WHERE usuario_id = $1 ORDER BY nombre', [req.user.id]);
+        const emps = await pool.query('SELECT * FROM empaques_predeterminados WHERE empresa_id = $1 ORDER BY nombre', [req.eid]);
         const result = [];
         for (const emp of emps.rows) {
           const mats = await pool.query(
@@ -304,8 +304,8 @@ router.get('/catalogs', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const prodRes = await pool.query(
-      'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT * FROM productos WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (prodRes.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Producto no encontrado' });
@@ -365,8 +365,8 @@ router.put('/:id', async (req, res) => {
     const { nombre, margen, margen_porcion, preparaciones, materiales, imagen_url, tipo_presentacion, unidades_por_producto } = req.body;
 
     const existing = await client.query(
-      'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT * FROM productos WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Producto no encontrado' });
@@ -394,7 +394,7 @@ router.put('/:id', async (req, res) => {
         updated_by = $9,
         updated_at = NOW()
        WHERE id = $4`,
-      [nombre, margenDecimal, igv_rate, req.params.id, imagen_url, tipo_presentacion, unidades_por_producto ? parseInt(unidades_por_producto) : undefined, margenPorcionDecimal, req.user.id]
+      [nombre, margenDecimal, igv_rate, req.params.id, imagen_url, tipo_presentacion, unidades_por_producto ? parseInt(unidades_por_producto) : undefined, margenPorcionDecimal, req.uid]
     );
 
     let allInsumos = [];
@@ -564,10 +564,10 @@ router.put('/:id', async (req, res) => {
         );
       } else {
         await client.query(
-          `INSERT INTO productos (usuario_id, nombre, margen, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto, producto_padre_id,
+          `INSERT INTO productos (usuario_id, empresa_id, nombre, margen, igv_rate, imagen_url, tipo_presentacion, unidades_por_producto, producto_padre_id,
             costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final)
-           VALUES ($1, $2, $3, $4, $5, 'unidad', 1, $6, $7, $8, $9, $10, $11)`,
-          [req.user.id, nombre + ' (porcion)', margenPorcionVal, igv_rate, imagen_url, req.params.id, costoPorcion, empaqueUnidad, costoNetoPorcion, pvPorcion, pfPorcion]
+           VALUES ($1, $2, $3, $4, $5, $6, 'unidad', 1, $7, $8, $9, $10, $11, $12)`,
+          [req.uid, req.eid, nombre + ' (porcion)', margenPorcionVal, igv_rate, imagen_url, req.params.id, costoPorcion, empaqueUnidad, costoNetoPorcion, pvPorcion, pfPorcion]
         );
       }
     }
@@ -577,8 +577,8 @@ router.put('/:id', async (req, res) => {
     // Auto-calculate channel prices
     try {
       const canales = await pool.query(
-        'SELECT id, comision_pct FROM canales_distribucion WHERE usuario_id = $1 AND activo = true',
-        [req.user.id]
+        'SELECT id, comision_pct FROM canales_distribucion WHERE empresa_id = $1 AND activo = true',
+        [req.eid]
       );
       for (const canal of canales.rows) {
         const comision = parseFloat(canal.comision_pct) || 0;
@@ -593,7 +593,7 @@ router.put('/:id', async (req, res) => {
       }
     } catch (_) {}
 
-    logAudit({ userId: req.user.id, entidad: 'producto', entidadId: req.params.id, accion: 'editar', descripcion: `Edito producto "${nombre}"` });
+    logAudit({ userId: req.uid, entidad: 'producto', entidadId: req.params.id, accion: 'editar', descripcion: `Edito producto "${nombre}"` });
 
     return res.json({ success: true, data: { ...updatedProd.rows[0], ...costos } });
   } catch (err) {
@@ -610,18 +610,18 @@ router.get('/:id/ficha-tecnica', async (req, res) => {
   try {
     // 1. Get product with all fields
     const prodRes = await pool.query(
-      'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT * FROM productos WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (prodRes.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Producto no encontrado' });
     }
     const producto = prodRes.rows[0];
 
-    // 2. Get user settings for defaults
+    // 2. Get empresa settings for defaults
     const userRes = await pool.query(
-      'SELECT tarifa_mo_global, margen_minimo_global FROM usuarios WHERE id = $1',
-      [req.user.id]
+      'SELECT tarifa_mo_global, margen_minimo_global FROM empresas WHERE id = $1',
+      [req.eid]
     );
     const userSettings = userRes.rows[0];
 
@@ -649,8 +649,8 @@ router.get('/:id/ficha-tecnica', async (req, res) => {
       let prepMermaPct = 0;
       if (prep.nombre) {
         const predRes = await pool.query(
-          'SELECT merma_pct FROM preparaciones_predeterminadas WHERE usuario_id = $1 AND nombre = $2 LIMIT 1',
-          [req.user.id, prep.nombre]
+          'SELECT merma_pct FROM preparaciones_predeterminadas WHERE empresa_id = $1 AND nombre = $2 LIMIT 1',
+          [req.eid, prep.nombre]
         );
         if (predRes.rows.length > 0) {
           prepMermaPct = parseFloat(predRes.rows[0].merma_pct) || 0;
@@ -798,8 +798,8 @@ router.put('/:id/ficha-tecnica', async (req, res) => {
             cif_gas_unitario, cif_overhead_unitario, instrucciones_ensamble, instrucciones_prep } = req.body;
 
     const existing = await pool.query(
-      'SELECT id FROM productos WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT id FROM productos WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Producto no encontrado' });
@@ -852,8 +852,8 @@ router.delete('/:id', async (req, res) => {
   const client = await pool.connect();
   try {
     const existing = await client.query(
-      'SELECT id FROM productos WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT id FROM productos WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Producto no encontrado' });
@@ -872,7 +872,7 @@ router.delete('/:id', async (req, res) => {
 
     await client.query('COMMIT');
 
-    logAudit({ userId: req.user.id, entidad: 'producto', entidadId: req.params.id, accion: 'eliminar', descripcion: `Elimino producto #${req.params.id}` });
+    logAudit({ userId: req.uid, entidad: 'producto', entidadId: req.params.id, accion: 'eliminar', descripcion: `Elimino producto #${req.params.id}` });
 
     return res.json({ success: true, data: { message: 'Producto eliminado' } });
   } catch (err) {
@@ -889,8 +889,8 @@ router.post('/:id/duplicar', async (req, res) => {
   const client = await pool.connect();
   try {
     const original = await client.query(
-      'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT * FROM productos WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (original.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Producto no encontrado' });
@@ -900,11 +900,11 @@ router.post('/:id/duplicar', async (req, res) => {
     await client.query('BEGIN');
 
     const newProd = await client.query(
-      `INSERT INTO productos (usuario_id, nombre, margen, igv_rate,
+      `INSERT INTO productos (usuario_id, empresa_id, nombre, margen, igv_rate,
         costo_insumos, costo_empaque, costo_neto, precio_venta, precio_final, imagen_url)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING *`,
-      [req.user.id, prod.nombre + ' (copia)', prod.margen, prod.igv_rate,
+      [req.uid, req.eid, prod.nombre + ' (copia)', prod.margen, prod.igv_rate,
         prod.costo_insumos, prod.costo_empaque, prod.costo_neto, prod.precio_venta, prod.precio_final, prod.imagen_url]
     );
     const newId = newProd.rows[0].id;
@@ -964,8 +964,8 @@ router.post('/:id/restaurar/:version', async (req, res) => {
   try {
     // Verify ownership
     const existing = await client.query(
-      'SELECT * FROM productos WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT * FROM productos WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (existing.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Producto no encontrado' });

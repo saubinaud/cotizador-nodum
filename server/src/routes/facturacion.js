@@ -373,7 +373,7 @@ router.post('/emitir', async (req, res) => {
     // Get client data if provided
     let cliente = null;
     if (cliente_id) {
-      const clienteRes = await pool.query('SELECT * FROM clientes WHERE id = $1 AND usuario_id = $2', [cliente_id, req.user.id]);
+      const clienteRes = await pool.query('SELECT * FROM clientes WHERE id = $1 AND empresa_id = $2', [cliente_id, req.eid]);
       cliente = clienteRes.rows[0] || null;
     }
 
@@ -422,15 +422,15 @@ router.post('/emitir', async (req, res) => {
 
     // Save comprobante
     const compRes = await pool.query(
-      `INSERT INTO comprobantes (usuario_id, venta_id, transaccion_id, tipo_doc, serie, correlativo, fecha_emision,
+      `INSERT INTO comprobantes (usuario_id, empresa_id, venta_id, transaccion_id, tipo_doc, serie, correlativo, fecha_emision,
         cliente_tipo_doc, cliente_num_doc, cliente_razon_social, cliente_direccion,
         mto_oper_gravadas, mto_igv, mto_total, moneda,
         sunat_success, sunat_code, sunat_message, sunat_xml, sunat_cdr, sunat_hash,
         estado, detalle_json)
-       VALUES ($1, $2, $3, $4, $5, $6, (NOW() AT TIME ZONE 'America/Lima'), $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, (NOW() AT TIME ZONE 'America/Lima'), $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23)
        RETURNING *`,
       [
-        req.user.id, venta_id || null, transaccion_id || null,
+        req.uid, req.eid, venta_id || null, transaccion_id || null,
         tipo === 'factura' ? '01' : '03', serie, correlativo,
         cliente?.tipo_doc || '0', cliente?.num_doc || '00000000',
         cliente?.razon_social || 'VARIOS', cliente?.direccion || null,
@@ -477,8 +477,8 @@ router.post('/emitir', async (req, res) => {
 router.get('/pdf/:id', async (req, res) => {
   try {
     const comp = await pool.query(
-      'SELECT * FROM comprobantes WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT * FROM comprobantes WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (comp.rows.length === 0) return res.status(404).json({ success: false, error: 'Comprobante no encontrado' });
 
@@ -535,8 +535,8 @@ router.get('/comprobantes', async (req, res) => {
       FROM comprobantes c
       LEFT JOIN ventas v ON v.id = c.venta_id
       LEFT JOIN productos p ON p.id = v.producto_id
-      WHERE c.usuario_id = $1`;
-    const params = [req.user.id];
+      WHERE c.empresa_id = $1`;
+    const params = [req.eid];
     let idx = 2;
 
     if (periodo_id) {
@@ -571,8 +571,8 @@ router.get('/comprobantes', async (req, res) => {
 router.post('/anular/:id', async (req, res) => {
   try {
     const comp = await pool.query(
-      'SELECT * FROM comprobantes WHERE id = $1 AND usuario_id = $2 AND estado = $3',
-      [req.params.id, req.user.id, 'emitido']
+      'SELECT * FROM comprobantes WHERE id = $1 AND empresa_id = $2 AND estado = $3',
+      [req.params.id, req.eid, 'emitido']
     );
     if (comp.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Comprobante no encontrado o ya anulado' });
@@ -597,8 +597,8 @@ router.post('/anular/:id', async (req, res) => {
 router.delete('/comprobantes/rechazados', async (req, res) => {
   try {
     const result = await pool.query(
-      "DELETE FROM comprobantes WHERE usuario_id = $1 AND estado = 'error' RETURNING id",
-      [req.user.id]
+      "DELETE FROM comprobantes WHERE empresa_id = $1 AND estado = 'error' RETURNING id",
+      [req.eid]
     );
     const count = result.rows.length;
     if (count > 0) {
