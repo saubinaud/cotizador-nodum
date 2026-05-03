@@ -5,6 +5,7 @@ import { cx } from '../styles/tokens';
 import { formatCurrency, formatDate } from '../utils/format';
 import SearchableSelect from '../components/SearchableSelect';
 import CustomSelect from '../components/CustomSelect';
+import PeriodoSelector from '../components/PeriodoSelector';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   Plus, X, Trash2, ChevronDown, ChevronUp,
@@ -35,7 +36,10 @@ export default function PLComprasPage() {
 
   // Data
   const [periodos, setPeriodos] = useState([]);
-  const [periodoId, setPeriodoId] = useState(null);
+  const [periodo, setPeriodo] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
   const [compras, setCompras] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [insumos, setInsumos] = useState([]);
@@ -68,19 +72,19 @@ export default function PLComprasPage() {
       setInsumos(insRes.data || []);
       setMateriales(matRes.data || []);
       setCuentas((cuentasRes.data || []).map(c => ({ value: c.id, label: c.nombre })));
-      if (pers.length > 0) setPeriodoId(pers[0].id);
       setLoading(false);
     });
   }, []);
 
   // Load compras + resumen when periodo changes
-  const loadCompras = async (pid) => {
-    if (!pid) return;
+  const loadCompras = async (p) => {
+    if (!p?.year || !p?.month) return;
     setLoadingCompras(true);
     try {
+      const qs = `year=${p.year}&month=${p.month}`;
       const [comprasRes, resumenRes] = await Promise.all([
-        api.get(`/pl/compras?periodo_id=${pid}`),
-        api.get(`/pl/compras/resumen?periodo_id=${pid}`),
+        api.get(`/pl/compras?${qs}`),
+        api.get(`/pl/compras/resumen?${qs}`),
       ]);
       setCompras(comprasRes.data || []);
       setResumen(resumenRes.data || null);
@@ -92,13 +96,8 @@ export default function PLComprasPage() {
   };
 
   useEffect(() => {
-    if (periodoId) loadCompras(periodoId);
-  }, [periodoId]); // eslint-disable-line
-
-  const periodoOptions = useMemo(() =>
-    periodos.map((p) => ({ value: String(p.id), label: p.nombre })),
-    [periodos]
-  );
+    if (periodo) loadCompras(periodo);
+  }, [periodo]); // eslint-disable-line
 
   // Create first period
   const crearPrimerPeriodo = async () => {
@@ -107,8 +106,7 @@ export default function PLComprasPage() {
       const mp = currentMonthPeriod();
       const res = await api.post('/pl/periodos', mp);
       const nuevo = res.data;
-      setPeriodos([nuevo]);
-      setPeriodoId(nuevo.id);
+      setPeriodos((prev) => [...prev, nuevo]);
       toast.success('Periodo creado');
     } catch (err) {
       toast.error(err.message);
@@ -187,7 +185,6 @@ export default function PLComprasPage() {
     setSaving(true);
     try {
       await api.post('/pl/compras', {
-        periodo_id: periodoId,
         fecha: form.fecha,
         proveedor: form.proveedor || null,
         nota: form.nota || null,
@@ -203,7 +200,7 @@ export default function PLComprasPage() {
       });
       toast.success('Compra registrada');
       setModalOpen(false);
-      loadCompras(periodoId);
+      loadCompras(periodo);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -217,7 +214,7 @@ export default function PLComprasPage() {
     try {
       await api.del(`/pl/compras/${deleteTarget.id}`);
       toast.success('Compra eliminada');
-      loadCompras(periodoId);
+      loadCompras(periodo);
     } catch {
       toast.error('Error eliminando');
     } finally {
@@ -265,12 +262,10 @@ export default function PLComprasPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold text-stone-900">Compras</h1>
-          <CustomSelect
-            value={String(periodoId)}
-            onChange={(v) => setPeriodoId(parseInt(v))}
-            options={periodoOptions}
-            placeholder="Periodo"
-            className="w-48"
+          <PeriodoSelector
+            periodos={periodos}
+            value={periodo}
+            onChange={setPeriodo}
           />
         </div>
         <button onClick={openNewCompra} className={cx.btnPrimary + ' flex items-center gap-2'}>

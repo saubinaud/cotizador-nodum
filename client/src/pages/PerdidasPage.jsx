@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency, formatDate } from '../utils/format';
 import CustomSelect from '../components/CustomSelect';
+import PeriodoSelector from '../components/PeriodoSelector';
 import {
   Plus, Trash2, TrendingDown, AlertTriangle,
   Salad, ChefHat, Package, BoxSelect, X, Inbox,
@@ -45,7 +46,10 @@ export default function PerdidasPage() {
   const [catalogos, setCatalogos] = useState({ insumos: [], preparaciones: [], productos: [], materiales: [] });
 
   const [periodos, setPeriodos] = useState([]);
-  const [periodoId, setPeriodoId] = useState('');
+  const [periodo, setPeriodo] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
 
   const [resumen, setResumen] = useState(null);
   const [mermaStats, setMermaStats] = useState({ count: 0, avgPct: 0 });
@@ -69,8 +73,7 @@ export default function PerdidasPage() {
           materiales: (cats.materiales || []).map(m => ({ value: m.id, label: m.nombre, costo: parseFloat(m.precio_presentacion) / parseFloat(m.cantidad_presentacion) || 0 })),
         });
         const periodosList = Array.isArray(pers) ? pers : [];
-        setPeriodos(periodosList.map(p => ({ value: p.id, label: p.nombre })));
-        if (periodosList.length > 0) setPeriodoId(periodosList[0].id);
+        setPeriodos(periodosList);
       } catch (e) {
         toast.error('Error cargando catálogos');
       }
@@ -80,14 +83,14 @@ export default function PerdidasPage() {
 
   // --- Load items ---
   async function loadItems() {
-    if (mainTab === 'desmedros' && !periodoId) {
+    if (mainTab === 'desmedros' && !periodo) {
       setItems([]);
       return;
     }
     setLoading(true);
     try {
       const base = `/perdidas/${mainTab}/${subTab}`;
-      const path = mainTab === 'desmedros' && periodoId ? `${base}?periodo_id=${periodoId}` : base;
+      const path = mainTab === 'desmedros' && periodo ? `${base}?year=${periodo.year}&month=${periodo.month}` : base;
       const res = await api.get(path);
       const arr = res.data || res || [];
       setItems(Array.isArray(arr) ? arr : []);
@@ -106,15 +109,15 @@ export default function PerdidasPage() {
     }
   }
 
-  useEffect(() => { loadItems(); }, [mainTab, subTab, periodoId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { loadItems(); }, [mainTab, subTab, periodo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Load desmedro resumen ---
   useEffect(() => {
-    if (mainTab !== 'desmedros' || !periodoId) { setResumen(null); return; }
-    api.get(`/perdidas/desmedros/resumen?periodo_id=${periodoId}`)
+    if (mainTab !== 'desmedros' || !periodo) { setResumen(null); return; }
+    api.get(`/perdidas/desmedros/resumen?year=${periodo.year}&month=${periodo.month}`)
       .then(res => setResumen(res.data || res))
       .catch(() => setResumen(null));
-  }, [mainTab, periodoId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [mainTab, periodo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // --- Open form ---
   const openForm = () => {
@@ -620,14 +623,11 @@ export default function PerdidasPage() {
 
         {/* Period selector for desmedros */}
         {mainTab === 'desmedros' && periodos.length > 0 && (
-          <div className="w-56">
-            <CustomSelect
-              options={periodos}
-              value={periodoId}
-              onChange={setPeriodoId}
-              placeholder="Seleccionar periodo..."
-            />
-          </div>
+          <PeriodoSelector
+            periodos={periodos}
+            value={periodo}
+            onChange={setPeriodo}
+          />
         )}
       </div>
 

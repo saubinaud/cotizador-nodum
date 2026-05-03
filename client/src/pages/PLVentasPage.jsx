@@ -35,7 +35,7 @@ export default function PLVentasPage() {
 
   // Data
   const [periodos, setPeriodos] = useState([]);
-  const [periodoId, setPeriodoId] = useState(null);
+  const [periodo, setPeriodo] = useState(null);
   const [ventas, setVentas] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [productos, setProductos] = useState([]);
@@ -105,21 +105,22 @@ export default function PLVentasPage() {
       setVentaClientes((clientesRes.data || []).map(c => ({ value: c.id, label: `${c.num_doc} — ${c.razon_social || 'Sin nombre'}` })));
       setZonas(zonasRes.data || []);
       setCanales(canalesRes.data || []);
-      if (pers.length > 0) {
-        setPeriodoId(pers[0].id);
-      }
+      // Default to current month (Lima time)
+      const now = new Date(Date.now() - 5*60*60*1000);
+      setPeriodo({ year: now.getFullYear(), month: now.getMonth() + 1 });
       setLoading(false);
     });
   }, []);
 
   // Load ventas + resumen when periodo changes
-  const loadVentas = async (pid) => {
-    if (!pid) return;
+  const loadVentas = async (p) => {
+    if (!p) return;
     setLoadingVentas(true);
     try {
+      const qs = `year=${p.year}&month=${p.month}`;
       const [ventasRes, resumenRes] = await Promise.all([
-        api.get(`/pl/ventas?periodo_id=${pid}`),
-        api.get(`/pl/ventas/resumen?periodo_id=${pid}`),
+        api.get(`/pl/ventas?${qs}`),
+        api.get(`/pl/ventas/resumen?${qs}`),
       ]);
       setVentas(ventasRes.data || []);
       setResumen(resumenRes.data || null);
@@ -131,8 +132,8 @@ export default function PLVentasPage() {
   };
 
   useEffect(() => {
-    if (periodoId) loadVentas(periodoId);
-  }, [periodoId]); // eslint-disable-line
+    if (periodo) loadVentas(periodo);
+  }, [periodo]); // eslint-disable-line
 
   // Period options for CustomSelect
   const periodoOptions = useMemo(() =>
@@ -148,7 +149,8 @@ export default function PLVentasPage() {
       const res = await api.post('/pl/periodos', mp);
       const nuevo = res.data;
       setPeriodos([nuevo]);
-      setPeriodoId(nuevo.id);
+      const now = new Date();
+      setPeriodo({ year: now.getFullYear(), month: now.getMonth() + 1 });
       toast.success('Periodo creado');
     } catch (err) {
       toast.error(err.message);
@@ -287,7 +289,6 @@ export default function PLVentasPage() {
         toast.success('Venta actualizada');
       } else {
         await api.post('/pl/ventas', {
-          periodo_id: periodoId,
           producto_id: form.producto_id,
           fecha: form.fecha,
           cantidad: form.cantidad,
@@ -336,7 +337,7 @@ export default function PLVentasPage() {
       setZonaEnvioId('');
       setDireccionEnvio('');
       setCanalId('');
-      loadVentas(periodoId);
+      loadVentas(periodo);
     } catch (err) {
       toast.error(err.message);
     }
@@ -348,7 +349,7 @@ export default function PLVentasPage() {
     try {
       await api.del(`/pl/ventas/${deleteTarget.id}`);
       toast.success('Venta eliminada');
-      loadVentas(periodoId);
+      loadVentas(periodo);
     } catch {
       toast.error('Error eliminando');
     } finally {
@@ -389,7 +390,7 @@ export default function PLVentasPage() {
         toast.error(`SUNAT: ${data.sunat?.message || 'Error desconocido'}`);
       }
       setEmitirModal(null);
-      loadVentas(periodoId);
+      loadVentas(periodo);
     } catch (err) {
       toast.error(err.message || 'Error emitiendo');
     } finally {
@@ -445,8 +446,8 @@ export default function PLVentasPage() {
           <h1 className="text-xl font-bold text-stone-900">Ventas</h1>
           <PeriodoSelector
             periodos={periodos}
-            value={periodoId}
-            onChange={(v) => setPeriodoId(parseInt(v))}
+            value={periodo}
+            onChange={setPeriodo}
             onCreatePeriodo={async (year, month) => {
               const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
               const inicio = `${year}-${String(month+1).padStart(2,'0')}-01`;
@@ -456,7 +457,6 @@ export default function PLVentasPage() {
                 const res = await api.post('/pl/periodos', { nombre: `${MESES_FULL[month]} ${year}`, fecha_inicio: inicio, fecha_fin: fin });
                 const nuevo = res.data;
                 setPeriodos(prev => [nuevo, ...prev]);
-                setPeriodoId(nuevo.id);
               } catch(e) { toast.error(e.message); }
             }}
           />

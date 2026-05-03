@@ -1,19 +1,12 @@
 const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
+const { getDateRange } = require('../utils/dateRange');
 
 const router = express.Router();
 router.use(auth);
 
 // ==================== HELPERS ====================
-
-async function findPeriodo(empresaId, fecha) {
-  const per = await pool.query(
-    'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
-    [empresaId, fecha]
-  );
-  return per.rows[0]?.id || null;
-}
 
 async function recalcMermaInsumo(insumoId) {
   const res = await pool.query(
@@ -226,28 +219,27 @@ router.delete('/mermas/preparaciones/:id', async (req, res) => {
 
 // ==================== DESMEDRO DE PRODUCTOS ====================
 
-// GET /api/perdidas/desmedros/resumen?periodo_id=X — totals per type for P&L (MUST be before /:id-like routes)
+// GET /api/perdidas/desmedros/resumen?year=X&month=Y — totals per type for P&L (MUST be before /:id-like routes)
 router.get('/desmedros/resumen', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
     const [prodRes, prepRes, insRes, matRes] = await Promise.all([
       pool.query(
-        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_producto WHERE periodo_id = $1 AND empresa_id = $2',
-        [periodo_id, req.eid]
+        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_producto WHERE fecha >= $1 AND fecha <= $2 AND empresa_id = $3',
+        [start, end, req.eid]
       ),
       pool.query(
-        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_preparacion WHERE periodo_id = $1 AND empresa_id = $2',
-        [periodo_id, req.eid]
+        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_preparacion WHERE fecha >= $1 AND fecha <= $2 AND empresa_id = $3',
+        [start, end, req.eid]
       ),
       pool.query(
-        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_insumo WHERE periodo_id = $1 AND empresa_id = $2',
-        [periodo_id, req.eid]
+        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_insumo WHERE fecha >= $1 AND fecha <= $2 AND empresa_id = $3',
+        [start, end, req.eid]
       ),
       pool.query(
-        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_material WHERE periodo_id = $1 AND empresa_id = $2',
-        [periodo_id, req.eid]
+        'SELECT COALESCE(SUM(perdida_total), 0) AS total FROM desmedros_material WHERE fecha >= $1 AND fecha <= $2 AND empresa_id = $3',
+        [start, end, req.eid]
       ),
     ]);
 
@@ -272,19 +264,18 @@ router.get('/desmedros/resumen', async (req, res) => {
   }
 });
 
-// GET /api/perdidas/desmedros/productos?periodo_id=X
+// GET /api/perdidas/desmedros/productos?year=X&month=Y
 router.get('/desmedros/productos', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
     const result = await pool.query(
       `SELECT d.*, p.nombre AS producto_nombre, p.imagen_url AS producto_imagen
        FROM desmedros_producto d
        JOIN productos p ON p.id = d.producto_id
-       WHERE d.periodo_id = $1 AND d.empresa_id = $2
+       WHERE d.fecha >= $1 AND d.fecha <= $2 AND d.empresa_id = $3
        ORDER BY d.fecha DESC, d.created_at DESC`,
-      [periodo_id, req.eid]
+      [start, end, req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -296,7 +287,7 @@ router.get('/desmedros/productos', async (req, res) => {
 // POST /api/perdidas/desmedros/productos
 router.post('/desmedros/productos', async (req, res) => {
   try {
-    const { producto_id, periodo_id, unidades, causa, fecha, notas } = req.body;
+    const { producto_id, unidades, causa, fecha, notas } = req.body;
     if (!producto_id || !unidades || !fecha) {
       return res.status(400).json({ success: false, error: 'producto_id, unidades y fecha requeridos' });
     }
@@ -306,16 +297,22 @@ router.post('/desmedros/productos', async (req, res) => {
     if (prod.rows.length === 0) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
     const costo_neto_snapshot = parseFloat(prod.rows[0].costo_neto) || 0;
 
-    // Auto-assign periodo
-    let pid = periodo_id;
-    if (!pid) pid = await findPeriodo(req.eid, fecha);
+    // Auto-assign periodo for backward compat
+    let periodoId = null;
+    try {
+      const pRes = await pool.query(
+        'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+        [req.eid, fecha]
+      );
+      periodoId = pRes.rows[0]?.id || null;
+    } catch(_) {}
 
     const perdida_total = parseInt(unidades) * costo_neto_snapshot;
 
     const result = await pool.query(
       `INSERT INTO desmedros_producto (usuario_id, empresa_id, producto_id, periodo_id, unidades, costo_neto_snapshot, perdida_total, causa, fecha, notas)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [req.uid, req.eid, producto_id, pid, unidades, costo_neto_snapshot, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
+      [req.uid, req.eid, producto_id, periodoId, unidades, costo_neto_snapshot, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -342,19 +339,18 @@ router.delete('/desmedros/productos/:id', async (req, res) => {
 
 // ==================== DESMEDRO DE PREPARACIONES ====================
 
-// GET /api/perdidas/desmedros/preparaciones?periodo_id=X
+// GET /api/perdidas/desmedros/preparaciones?year=X&month=Y
 router.get('/desmedros/preparaciones', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
     const result = await pool.query(
       `SELECT d.*, pp.nombre AS preparacion_nombre
        FROM desmedros_preparacion d
        JOIN preparaciones_predeterminadas pp ON pp.id = d.preparacion_pred_id
-       WHERE d.periodo_id = $1 AND d.empresa_id = $2
+       WHERE d.fecha >= $1 AND d.fecha <= $2 AND d.empresa_id = $3
        ORDER BY d.fecha DESC, d.created_at DESC`,
-      [periodo_id, req.eid]
+      [start, end, req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -375,16 +371,22 @@ router.post('/desmedros/preparaciones', async (req, res) => {
     const prep = await pool.query('SELECT id FROM preparaciones_predeterminadas WHERE id = $1 AND empresa_id = $2', [preparacion_pred_id, req.eid]);
     if (prep.rows.length === 0) return res.status(404).json({ success: false, error: 'Preparacion no encontrada' });
 
-    // Auto-assign periodo
-    let pid = null;
-    pid = await findPeriodo(req.eid, fecha);
+    // Auto-assign periodo for backward compat
+    let periodoId = null;
+    try {
+      const pRes = await pool.query(
+        'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+        [req.eid, fecha]
+      );
+      periodoId = pRes.rows[0]?.id || null;
+    } catch(_) {}
 
     const perdida_total = parseFloat(costo_total_tanda);
 
     const result = await pool.query(
       `INSERT INTO desmedros_preparacion (usuario_id, empresa_id, preparacion_pred_id, periodo_id, costo_total_tanda, perdida_total, causa, fecha, notas)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *`,
-      [req.uid, req.eid, preparacion_pred_id, pid, costo_total_tanda, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
+      [req.uid, req.eid, preparacion_pred_id, periodoId, costo_total_tanda, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -411,19 +413,18 @@ router.delete('/desmedros/preparaciones/:id', async (req, res) => {
 
 // ==================== DESMEDRO DE INSUMOS ====================
 
-// GET /api/perdidas/desmedros/insumos?periodo_id=X
+// GET /api/perdidas/desmedros/insumos?year=X&month=Y
 router.get('/desmedros/insumos', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
     const result = await pool.query(
       `SELECT d.*, i.nombre AS insumo_nombre
        FROM desmedros_insumo d
        JOIN insumos i ON i.id = d.insumo_id
-       WHERE d.periodo_id = $1 AND d.empresa_id = $2
+       WHERE d.fecha >= $1 AND d.fecha <= $2 AND d.empresa_id = $3
        ORDER BY d.fecha DESC, d.created_at DESC`,
-      [periodo_id, req.eid]
+      [start, end, req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -445,16 +446,22 @@ router.post('/desmedros/insumos', async (req, res) => {
     if (ins.rows.length === 0) return res.status(404).json({ success: false, error: 'Insumo no encontrado' });
     const costo_unitario_snapshot = parseFloat(ins.rows[0].costo_base) || 0;
 
-    // Auto-assign periodo
-    let pid = null;
-    pid = await findPeriodo(req.eid, fecha);
+    // Auto-assign periodo for backward compat
+    let periodoId = null;
+    try {
+      const pRes = await pool.query(
+        'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+        [req.eid, fecha]
+      );
+      periodoId = pRes.rows[0]?.id || null;
+    } catch(_) {}
 
     const perdida_total = parseFloat(cantidad) * costo_unitario_snapshot;
 
     const result = await pool.query(
       `INSERT INTO desmedros_insumo (usuario_id, empresa_id, insumo_id, periodo_id, cantidad, unidad, costo_unitario_snapshot, perdida_total, causa, fecha, notas)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-      [req.uid, req.eid, insumo_id, pid, cantidad, unidad || null, costo_unitario_snapshot, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
+      [req.uid, req.eid, insumo_id, periodoId, cantidad, unidad || null, costo_unitario_snapshot, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });
@@ -481,19 +488,18 @@ router.delete('/desmedros/insumos/:id', async (req, res) => {
 
 // ==================== DESMEDRO DE MATERIALES ====================
 
-// GET /api/perdidas/desmedros/materiales?periodo_id=X
+// GET /api/perdidas/desmedros/materiales?year=X&month=Y
 router.get('/desmedros/materiales', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
     const result = await pool.query(
       `SELECT d.*, m.nombre AS material_nombre
        FROM desmedros_material d
        JOIN materiales m ON m.id = d.material_id
-       WHERE d.periodo_id = $1 AND d.empresa_id = $2
+       WHERE d.fecha >= $1 AND d.fecha <= $2 AND d.empresa_id = $3
        ORDER BY d.fecha DESC, d.created_at DESC`,
-      [periodo_id, req.eid]
+      [start, end, req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -521,16 +527,22 @@ router.post('/desmedros/materiales', async (req, res) => {
     const cantPres = parseFloat(mat.rows[0].cantidad_presentacion) || 1;
     const costo_unitario_snapshot = cantPres > 0 ? precio / cantPres : 0;
 
-    // Auto-assign periodo
-    let pid = null;
-    pid = await findPeriodo(req.eid, fecha);
+    // Auto-assign periodo for backward compat
+    let periodoId = null;
+    try {
+      const pRes = await pool.query(
+        'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+        [req.eid, fecha]
+      );
+      periodoId = pRes.rows[0]?.id || null;
+    } catch(_) {}
 
     const perdida_total = parseFloat(cantidad) * costo_unitario_snapshot;
 
     const result = await pool.query(
       `INSERT INTO desmedros_material (usuario_id, empresa_id, material_id, periodo_id, cantidad, costo_unitario_snapshot, perdida_total, causa, fecha, notas)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
-      [req.uid, req.eid, material_id, pid, cantidad, Math.round(costo_unitario_snapshot * 100) / 100, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
+      [req.uid, req.eid, material_id, periodoId, cantidad, Math.round(costo_unitario_snapshot * 100) / 100, Math.round(perdida_total * 100) / 100, causa || null, fecha, notas || null]
     );
 
     return res.status(201).json({ success: true, data: result.rows[0] });

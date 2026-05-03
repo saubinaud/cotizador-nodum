@@ -1,10 +1,10 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency } from '../utils/format';
-import CustomSelect from '../components/CustomSelect';
+import PeriodoSelector from '../components/PeriodoSelector';
 import {
   UtensilsCrossed, TrendingUp, TrendingDown, Percent,
   Receipt, ShoppingCart, Target, ArrowUpRight, ArrowDownRight,
@@ -37,7 +37,10 @@ export default function PLResumenPage() {
   const navigate = useNavigate();
 
   const [periodos, setPeriodos] = useState([]);
-  const [periodoId, setPeriodoId] = useState(null);
+  const [periodo, setPeriodo] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadingData, setLoadingData] = useState(false);
@@ -47,16 +50,15 @@ export default function PLResumenPage() {
     api.get('/pl/periodos').then((res) => {
       const pers = res.data || [];
       setPeriodos(pers);
-      if (pers.length > 0) setPeriodoId(pers[0].id);
       setLoading(false);
     }).catch(() => setLoading(false));
   }, []);
 
-  const loadResumen = async (pid) => {
-    if (!pid) return;
+  const loadResumen = async (p) => {
+    if (!p?.year || !p?.month) return;
     setLoadingData(true);
     try {
-      const res = await api.get(`/pl/resumen?periodo_id=${pid}`);
+      const res = await api.get(`/pl/resumen?year=${p.year}&month=${p.month}`);
       setData(res.data || null);
     } catch {
       toast.error('Error cargando resumen P&L');
@@ -66,13 +68,8 @@ export default function PLResumenPage() {
   };
 
   useEffect(() => {
-    if (periodoId) loadResumen(periodoId);
-  }, [periodoId]); // eslint-disable-line
-
-  const periodoOptions = useMemo(() =>
-    periodos.map((p) => ({ value: String(p.id), label: p.nombre })),
-    [periodos]
-  );
+    if (periodo) loadResumen(periodo);
+  }, [periodo]); // eslint-disable-line
 
   const crearPrimerPeriodo = async () => {
     setCreatingPeriodo(true);
@@ -80,8 +77,7 @@ export default function PLResumenPage() {
       const mp = currentMonthPeriod();
       const res = await api.post('/pl/periodos', mp);
       const nuevo = res.data;
-      setPeriodos([nuevo]);
-      setPeriodoId(nuevo.id);
+      setPeriodos((prev) => [...prev, nuevo]);
       toast.success('Periodo creado');
     } catch (err) {
       toast.error(err.message);
@@ -128,12 +124,10 @@ export default function PLResumenPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold text-stone-900">P&L — Estado de Resultados</h1>
-          <CustomSelect
-            value={String(periodoId)}
-            onChange={(v) => setPeriodoId(parseInt(v))}
-            options={periodoOptions}
-            placeholder="Periodo"
-            className="w-48"
+          <PeriodoSelector
+            periodos={periodos}
+            value={periodo}
+            onChange={setPeriodo}
           />
         </div>
       </div>

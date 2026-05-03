@@ -54,7 +54,7 @@ export default function PeriodoSelector({ periodos = [], value, onChange, onCrea
       <div className="flex flex-wrap gap-1">
         {MESES.map((mes, i) => {
           const periodo = monthMap[i];
-          const isSelected = periodo && String(periodo.id) === String(value);
+          const isSelected = value && value.year === selectedYear && value.month === i + 1;
           const isCurrent = selectedYear === currentYear && i === currentMonth;
           const isFuture = selectedYear > currentYear || (selectedYear === currentYear && i > currentMonth);
 
@@ -64,9 +64,11 @@ export default function PeriodoSelector({ periodos = [], value, onChange, onCrea
               disabled={isFuture}
               onClick={() => {
                 if (periodo) {
-                  onChange(String(periodo.id));
+                  onChange({ year: selectedYear, month: i + 1 });
                 } else if (onCreatePeriodo && !isFuture) {
-                  onCreatePeriodo(selectedYear, i);
+                  onCreatePeriodo(selectedYear, i).then(() => {
+                    onChange({ year: selectedYear, month: i + 1 });
+                  });
                 }
               }}
               className={`px-2 py-1 rounded text-[11px] font-medium transition-colors duration-100 ${

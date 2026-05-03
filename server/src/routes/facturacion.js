@@ -4,6 +4,7 @@ const auth = require('../middleware/auth');
 const { encryptCert, decryptCert, buildInvoiceJSON, round2 } = require('../utils/facturacion');
 const { logAudit } = require('../utils/audit');
 const { getSunatMessage } = require('../utils/sunat-codes');
+const { getDateRange } = require('../utils/dateRange');
 
 const router = express.Router();
 router.use(auth);
@@ -526,25 +527,18 @@ router.get('/pdf/:id', async (req, res) => {
 
 router.get('/comprobantes', async (req, res) => {
   try {
-    const { periodo_id, tipo_doc, limit: lim } = req.query;
+    const { tipo_doc, limit: lim } = req.query;
+    const { start, end } = await getDateRange(req);
     let query = `SELECT c.*,
       v.producto_id, v.cantidad AS venta_cantidad, v.fecha AS venta_fecha,
       p.nombre AS producto_nombre
       FROM comprobantes c
       LEFT JOIN ventas v ON v.id = c.venta_id
       LEFT JOIN productos p ON p.id = v.producto_id
-      WHERE c.empresa_id = $1`;
-    const params = [req.eid];
-    let idx = 2;
+      WHERE c.empresa_id = $1 AND c.fecha_emision BETWEEN $2 AND $3`;
+    const params = [req.eid, start, end];
+    let idx = 4;
 
-    if (periodo_id) {
-      const per = await pool.query('SELECT fecha_inicio, fecha_fin FROM periodos WHERE id = $1', [periodo_id]);
-      if (per.rows.length > 0) {
-        query += ` AND c.fecha_emision BETWEEN $${idx} AND $${idx + 1}`;
-        params.push(per.rows[0].fecha_inicio, per.rows[0].fecha_fin);
-        idx += 2;
-      }
-    }
     if (tipo_doc) {
       query += ` AND c.tipo_doc = $${idx++}`;
       params.push(tipo_doc);

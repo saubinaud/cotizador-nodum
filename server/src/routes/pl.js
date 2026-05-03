@@ -3,6 +3,7 @@ const pool = require('../models/db');
 const auth = require('../middleware/auth');
 const { aBase, getUnidadBase } = require('../utils/unidades');
 const { logAudit } = require('../utils/audit');
+const { getDateRange } = require('../utils/dateRange');
 
 /**
  * Recalculates WAC (Weighted Average Cost) for an insumo
@@ -27,6 +28,21 @@ async function recalcularWAC(insumoId) {
     [wac, insumoId]
   );
   return wac;
+}
+
+/**
+ * Auto-find periodo_id for a given fecha (for backward-compat writes).
+ */
+async function findPeriodoId(empresaId, fecha) {
+  let periodoId = null;
+  try {
+    const pRes = await pool.query(
+      'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+      [empresaId, fecha]
+    );
+    periodoId = pRes.rows[0]?.id || null;
+  } catch (_) {}
+  return periodoId;
 }
 
 const router = express.Router();
@@ -69,16 +85,10 @@ router.get('/insumo-precios/:insumoId', async (req, res) => {
 
 // ==================== TRANSACCIONES ====================
 
-// GET /api/pl/transacciones/balance?periodo_id=X — quick balance
+// GET /api/pl/transacciones/balance?year=2026&month=5 — quick balance
 router.get('/transacciones/balance', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    let where = 'WHERE t.empresa_id = $1';
-    const params = [req.eid];
-    if (periodo_id) {
-      where += ' AND t.periodo_id = $2';
-      params.push(periodo_id);
-    }
+    const { start, end } = await getDateRange(req);
     const result = await pool.query(
       `SELECT
         COALESCE(SUM(CASE WHEN t.tipo = 'venta' THEN t.monto_absoluto ELSE 0 END), 0) AS ingresos,
@@ -86,8 +96,9 @@ router.get('/transacciones/balance', async (req, res) => {
         COALESCE(SUM(CASE WHEN t.tipo = 'gasto' THEN t.monto_absoluto ELSE 0 END), 0) AS gastos,
         COALESCE(SUM(t.monto), 0) AS balance,
         COUNT(*) AS total_transacciones
-       FROM transacciones t ${where}`,
-      params
+       FROM transacciones t
+       WHERE t.empresa_id = $1 AND t.fecha >= $2 AND t.fecha <= $3`,
+      [req.eid, start, end]
     );
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -96,24 +107,21 @@ router.get('/transacciones/balance', async (req, res) => {
   }
 });
 
-// GET /api/pl/transacciones?periodo_id=X&tipo=venta — timeline
+// GET /api/pl/transacciones?year=2026&month=5&tipo=venta — timeline
 router.get('/transacciones', async (req, res) => {
   try {
-    const { periodo_id, tipo, limit: lim } = req.query;
+    const { tipo, limit: lim } = req.query;
+    const { start, end } = await getDateRange(req);
     let query = `SELECT t.*,
       p.nombre AS producto_nombre, p.imagen_url AS producto_imagen, p.costo_neto AS producto_costo_neto,
       cg.nombre AS categoria_nombre, cg.tipo AS categoria_tipo
      FROM transacciones t
      LEFT JOIN productos p ON p.id = t.producto_id
      LEFT JOIN categorias_gasto cg ON cg.id = t.categoria_id
-     WHERE t.empresa_id = $1`;
-    const params = [req.eid];
-    let paramIdx = 2;
+     WHERE t.empresa_id = $1 AND t.fecha >= $2 AND t.fecha <= $3`;
+    const params = [req.eid, start, end];
+    let paramIdx = 4;
 
-    if (periodo_id) {
-      query += ` AND t.periodo_id = $${paramIdx++}`;
-      params.push(periodo_id);
-    }
     if (tipo) {
       query += ` AND t.tipo = $${paramIdx++}`;
       params.push(tipo);
@@ -148,21 +156,14 @@ router.get('/transacciones', async (req, res) => {
 // POST /api/pl/transacciones — quick create any transaction
 router.post('/transacciones', async (req, res) => {
   try {
-    const { tipo, periodo_id, fecha, producto_id, cantidad, precio_unitario,
+    const { tipo, fecha, producto_id, cantidad, precio_unitario,
             descuento_tipo, descuento_valor, categoria_id, monto_absoluto,
             descripcion, nota } = req.body;
 
     if (!tipo || !fecha) return res.status(400).json({ success: false, error: 'tipo y fecha requeridos' });
 
-    // Auto-assign period if not provided
-    let pid = periodo_id;
-    if (!pid) {
-      const per = await pool.query(
-        'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
-        [req.eid, fecha]
-      );
-      pid = per.rows[0]?.id || null;
-    }
+    // Auto-find periodo for backward compat
+    const pid = await findPeriodoId(req.eid, fecha);
 
     let monto = 0;
     let montoAbs = 0;
@@ -229,14 +230,10 @@ router.delete('/transacciones/:id', async (req, res) => {
 
 // ==================== P&L RESUMEN ====================
 
-// GET /api/pl/resumen?periodo_id=X — full P&L calculation
+// GET /api/pl/resumen?year=2026&month=5 — full P&L calculation
 router.get('/resumen', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
-
-    const periodo = await pool.query('SELECT * FROM periodos WHERE id = $1 AND empresa_id = $2', [periodo_id, req.eid]);
-    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+    const { start, end } = await getDateRange(req);
 
     // Revenue
     const ventasRes = await pool.query(
@@ -245,8 +242,9 @@ router.get('/resumen', async (req, res) => {
         COALESCE(SUM(v.descuento), 0) AS descuentos,
         COALESCE(SUM(v.cantidad), 0) AS unidades_vendidas,
         COUNT(*) AS num_ventas
-       FROM ventas v WHERE v.periodo_id = $1`,
-      [periodo_id]
+       FROM ventas v
+       WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3`,
+      [req.eid, start, end]
     );
 
     // COGS from sales x product costs
@@ -255,8 +253,8 @@ router.get('/resumen', async (req, res) => {
         COALESCE(SUM(v.cantidad * p.costo_insumos), 0) AS cogs_insumos,
         COALESCE(SUM(v.cantidad * p.costo_empaque), 0) AS cogs_empaque
        FROM ventas v JOIN productos p ON p.id = v.producto_id
-       WHERE v.periodo_id = $1`,
-      [periodo_id]
+       WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3`,
+      [req.eid, start, end]
     );
 
     // Expenses
@@ -265,8 +263,8 @@ router.get('/resumen', async (req, res) => {
         COALESCE(SUM(CASE WHEN cg.tipo = 'fijo' THEN g.monto ELSE 0 END), 0) AS gastos_fijos,
         COALESCE(SUM(CASE WHEN cg.tipo = 'variable' THEN g.monto ELSE 0 END), 0) AS gastos_variables
        FROM gastos g JOIN categorias_gasto cg ON cg.id = g.categoria_id
-       WHERE g.periodo_id = $1`,
-      [periodo_id]
+       WHERE cg.empresa_id = $1 AND g.fecha >= $2 AND g.fecha <= $3`,
+      [req.eid, start, end]
     );
 
     // Real COGS from purchases
@@ -277,8 +275,8 @@ router.get('/resumen', async (req, res) => {
         COALESCE(SUM(ci.total), 0) AS compras_total
        FROM compras c
        LEFT JOIN compra_items ci ON ci.compra_id = c.id
-       WHERE c.periodo_id = $1 AND c.empresa_id = $2`,
-      [periodo_id, req.eid]
+       WHERE c.empresa_id = $1 AND c.fecha >= $2 AND c.fecha <= $3`,
+      [req.eid, start, end]
     );
     const comp = comprasRes.rows[0];
 
@@ -289,10 +287,10 @@ router.get('/resumen', async (req, res) => {
               SUM(v.cantidad * p.costo_neto) AS costo_total,
               SUM(v.total) - SUM(v.cantidad * p.costo_neto) AS utilidad
        FROM ventas v JOIN productos p ON p.id = v.producto_id
-       WHERE v.periodo_id = $1
+       WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3
        GROUP BY p.id, p.nombre, p.imagen_url
        ORDER BY ingresos DESC LIMIT 10`,
-      [periodo_id]
+      [req.eid, start, end]
     );
 
     // Desmedros (operational waste losses)
@@ -304,15 +302,15 @@ router.get('/resumen', async (req, res) => {
         COALESCE(SUM(CASE WHEN t.tipo = 'material' THEN t.total ELSE 0 END), 0) AS materiales,
         COALESCE(SUM(t.total), 0) AS total
        FROM (
-        SELECT 'producto' AS tipo, perdida_total AS total FROM desmedros_producto WHERE periodo_id = $1 AND empresa_id = $2
+        SELECT 'producto' AS tipo, perdida_total AS total FROM desmedros_producto WHERE empresa_id = $1 AND fecha >= $2 AND fecha <= $3
         UNION ALL
-        SELECT 'preparacion', perdida_total FROM desmedros_preparacion WHERE periodo_id = $1 AND empresa_id = $2
+        SELECT 'preparacion', perdida_total FROM desmedros_preparacion WHERE empresa_id = $1 AND fecha >= $2 AND fecha <= $3
         UNION ALL
-        SELECT 'insumo', perdida_total FROM desmedros_insumo WHERE periodo_id = $1 AND empresa_id = $2
+        SELECT 'insumo', perdida_total FROM desmedros_insumo WHERE empresa_id = $1 AND fecha >= $2 AND fecha <= $3
         UNION ALL
-        SELECT 'material', perdida_total FROM desmedros_material WHERE periodo_id = $1 AND empresa_id = $2
+        SELECT 'material', perdida_total FROM desmedros_material WHERE empresa_id = $1 AND fecha >= $2 AND fecha <= $3
        ) t`,
-      [periodo_id, req.eid]
+      [req.eid, start, end]
     );
     const desmedros = desmedrosRes.rows[0];
     const desmedros_total = parseFloat(desmedros.total);
@@ -348,7 +346,7 @@ router.get('/resumen', async (req, res) => {
     return res.json({
       success: true,
       data: {
-        periodo: periodo.rows[0],
+        rango: { start, end },
         ingresos: { brutos: ingresos_brutos, descuentos: descuentos_val, netos: ingresos_netos },
         cogs: { insumos: cogs_insumos, empaque: cogs_empaque, total: cogs_total },
         utilidad_bruta,
@@ -551,15 +549,10 @@ router.put('/categorias/:id', async (req, res) => {
 
 // ==================== VENTAS ====================
 
-// GET /api/pl/ventas?periodo_id=X
+// GET /api/pl/ventas?year=2026&month=5
 router.get('/ventas', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
-
-    // Verify period belongs to user
-    const periodo = await pool.query('SELECT id FROM periodos WHERE id = $1 AND empresa_id = $2', [periodo_id, req.eid]);
-    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+    const { start, end } = await getDateRange(req);
 
     const result = await pool.query(
       `SELECT v.*, p.nombre AS producto_nombre, p.costo_neto AS producto_costo_neto,
@@ -567,9 +560,9 @@ router.get('/ventas', async (req, res) => {
               p.imagen_url AS producto_imagen
        FROM ventas v
        JOIN productos p ON p.id = v.producto_id
-       WHERE v.periodo_id = $1
+       WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3
        ORDER BY v.fecha DESC, v.created_at DESC`,
-      [periodo_id]
+      [req.eid, start, end]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -581,14 +574,11 @@ router.get('/ventas', async (req, res) => {
 // POST /api/pl/ventas
 router.post('/ventas', async (req, res) => {
   try {
-    const { periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, nota, cuenta_id,
+    const { producto_id, fecha, cantidad, precio_unitario, descuento, nota, cuenta_id,
             tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id } = req.body;
-    if (!periodo_id || !producto_id || !fecha || !cantidad) {
-      return res.status(400).json({ success: false, error: 'periodo_id, producto_id, fecha y cantidad son requeridos' });
+    if (!producto_id || !fecha || !cantidad) {
+      return res.status(400).json({ success: false, error: 'producto_id, fecha y cantidad son requeridos' });
     }
-
-    const periodo = await pool.query('SELECT id FROM periodos WHERE id = $1 AND empresa_id = $2', [periodo_id, req.eid]);
-    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
 
     // Get product price if not provided
     const prod = await pool.query('SELECT precio_final, costo_neto FROM productos WHERE id = $1 AND empresa_id = $2', [producto_id, req.eid]);
@@ -599,11 +589,14 @@ router.post('/ventas', async (req, res) => {
     const costoEnvio = parseFloat(costo_envio) || 0;
     const total = (precio * parseInt(cantidad)) - desc + costoEnvio;
 
+    // Auto-find periodo for backward compat
+    const pid = await findPeriodoId(req.eid, fecha);
+
     const result = await pool.query(
       `INSERT INTO ventas (empresa_id, periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total, nota,
         tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
-      [req.eid, periodo_id, producto_id, fecha, cantidad, precio, desc, total, nota || null,
+      [req.eid, pid, producto_id, fecha, cantidad, precio, desc, total, nota || null,
         tipo_envio || null, costoEnvio, zona_envio_id || null, direccion_envio || null, canal_id || null, cliente_id || null]
     );
 
@@ -612,7 +605,7 @@ router.post('/ventas', async (req, res) => {
       await pool.query(
         `INSERT INTO transacciones (usuario_id, empresa_id, periodo_id, tipo, fecha, producto_id, cantidad, precio_unitario, descuento, monto, monto_absoluto, descripcion, cuenta_id)
          VALUES ($1, $2, $3, 'venta', $4, $5, $6, $7, $8, $9, $9, $10, $11)`,
-        [req.uid, req.eid, periodo_id, fecha, producto_id, cantidad, precio, desc, total, nota || null, cuenta_id || null]
+        [req.uid, req.eid, pid, fecha, producto_id, cantidad, precio, desc, total, nota || null, cuenta_id || null]
       );
       // Update account balance if specified
       if (cuenta_id) {
@@ -629,11 +622,10 @@ router.post('/ventas', async (req, res) => {
   }
 });
 
-// GET /api/pl/ventas/resumen?periodo_id=X — summary totals (MUST be before /:id)
+// GET /api/pl/ventas/resumen?year=2026&month=5 — summary totals (MUST be before /:id)
 router.get('/ventas/resumen', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
     const result = await pool.query(
       `SELECT
@@ -647,8 +639,8 @@ router.get('/ventas/resumen', async (req, res) => {
         COALESCE(SUM(v.cantidad), 0) AS unidades_vendidas
        FROM ventas v
        JOIN productos p ON p.id = v.producto_id
-       WHERE v.periodo_id = $1`,
-      [periodo_id]
+       WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3`,
+      [req.eid, start, end]
     );
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -718,15 +710,9 @@ router.delete('/ventas/:id', async (req, res) => {
       const v = venta.rows[0];
       try {
         await pool.query(
-          `DELETE FROM transacciones WHERE tipo = 'venta' AND producto_id = $1 AND fecha = $2 AND periodo_id = $3 AND monto_absoluto = $4 LIMIT 1`,
-          [v.producto_id, v.fecha, v.periodo_id, v.total]
-        ).catch(() => {
-          // PostgreSQL doesn't support LIMIT in DELETE, use ctid
-          pool.query(
-            `DELETE FROM transacciones WHERE ctid = (SELECT ctid FROM transacciones WHERE tipo = 'venta' AND producto_id = $1 AND fecha = $2 AND periodo_id = $3 AND monto_absoluto = $4 LIMIT 1)`,
-            [v.producto_id, v.fecha, v.periodo_id, v.total]
-          );
-        });
+          `DELETE FROM transacciones WHERE ctid = (SELECT ctid FROM transacciones WHERE tipo = 'venta' AND producto_id = $1 AND fecha = $2 AND monto_absoluto = $3 AND empresa_id = $4 LIMIT 1)`,
+          [v.producto_id, v.fecha, v.total, v.empresa_id]
+        );
       } catch (_) {}
     }
 
@@ -741,23 +727,22 @@ router.delete('/ventas/:id', async (req, res) => {
 
 // ==================== GASTOS ====================
 
-// GET /api/pl/gastos/resumen?periodo_id=X — summary by category
+// GET /api/pl/gastos/resumen?year=2026&month=5 — summary by category
 // PUT THIS BEFORE /:id ROUTES
 router.get('/gastos/resumen', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
     const result = await pool.query(
       `SELECT
         cg.id AS categoria_id, cg.nombre AS categoria_nombre, cg.tipo AS categoria_tipo,
         COALESCE(SUM(g.monto), 0) AS total
        FROM categorias_gasto cg
-       LEFT JOIN gastos g ON g.categoria_id = cg.id AND g.periodo_id = $1
-       WHERE cg.empresa_id = $2 AND cg.activa = true
+       LEFT JOIN gastos g ON g.categoria_id = cg.id AND g.fecha >= $1 AND g.fecha <= $2
+       WHERE cg.empresa_id = $3 AND cg.activa = true
        GROUP BY cg.id, cg.nombre, cg.tipo
        ORDER BY cg.orden, cg.nombre`,
-      [periodo_id, req.eid]
+      [start, end, req.eid]
     );
 
     const fijos = result.rows.filter(r => r.categoria_tipo === 'fijo').reduce((s, r) => s + parseFloat(r.total), 0);
@@ -775,19 +760,18 @@ router.get('/gastos/resumen', async (req, res) => {
   }
 });
 
-// GET /api/pl/gastos?periodo_id=X
+// GET /api/pl/gastos?year=2026&month=5
 router.get('/gastos', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
     const result = await pool.query(
       `SELECT g.*, cg.nombre AS categoria_nombre, cg.tipo AS categoria_tipo
        FROM gastos g
        JOIN categorias_gasto cg ON cg.id = g.categoria_id
-       WHERE g.periodo_id = $1
+       WHERE cg.empresa_id = $1 AND g.fecha >= $2 AND g.fecha <= $3
        ORDER BY g.fecha DESC, g.created_at DESC`,
-      [periodo_id]
+      [req.eid, start, end]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -796,23 +780,49 @@ router.get('/gastos', async (req, res) => {
   }
 });
 
-// POST /api/pl/gastos/copiar-recurrentes — copy recurring expenses from previous period
+// POST /api/pl/gastos/copiar-recurrentes — copy recurring expenses from previous month
 router.post('/gastos/copiar-recurrentes', async (req, res) => {
   try {
-    const { periodo_id } = req.body;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { fecha } = req.body;
+    // Determine target date range: use provided fecha or current month
+    let targetStart, targetEnd;
+    if (fecha) {
+      const d = new Date(fecha);
+      const y = d.getFullYear();
+      const m = d.getMonth() + 1;
+      targetStart = `${y}-${String(m).padStart(2, '0')}-01`;
+      const lastDay = new Date(y, m, 0).getDate();
+      targetEnd = `${y}-${String(m).padStart(2, '0')}-${lastDay}`;
+    } else {
+      // Also accept year/month query params or periodo_id via getDateRange
+      const range = await getDateRange(req);
+      targetStart = range.start;
+      targetEnd = range.end;
+    }
 
-    // Get previous period
-    const currentPeriod = await pool.query('SELECT * FROM periodos WHERE id = $1 AND empresa_id = $2', [periodo_id, req.eid]);
-    if (currentPeriod.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
+    // Compute previous month range
+    const targetDate = new Date(targetStart);
+    const prevMonth = targetDate.getMonth(); // 0-indexed, so this is already prev month
+    const prevYear = prevMonth === 0 ? targetDate.getFullYear() - 1 : targetDate.getFullYear();
+    const prevM = prevMonth === 0 ? 12 : prevMonth;
+    const prevStart = `${prevYear}-${String(prevM).padStart(2, '0')}-01`;
+    const prevLastDay = new Date(prevYear, prevM, 0).getDate();
+    const prevEnd = `${prevYear}-${String(prevM).padStart(2, '0')}-${prevLastDay}`;
 
-    const prevPeriod = await pool.query(
-      'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_fin < $2 ORDER BY fecha_fin DESC LIMIT 1',
-      [req.eid, currentPeriod.rows[0].fecha_inicio]
+    // Auto-find periodo for backward compat writes
+    const pid = await findPeriodoId(req.eid, targetStart);
+
+    // Try to find recurring expenses from previous month
+    const prevGastos = await pool.query(
+      `SELECT g.categoria_id, g.monto, g.descripcion
+       FROM gastos g
+       JOIN categorias_gasto cg ON cg.id = g.categoria_id
+       WHERE cg.empresa_id = $1 AND cg.recurrente = true AND g.fecha >= $2 AND g.fecha <= $3`,
+      [req.eid, prevStart, prevEnd]
     );
 
-    if (prevPeriod.rows.length === 0) {
-      // No previous period — use category defaults
+    if (prevGastos.rows.length === 0) {
+      // No previous month data — use category defaults
       const cats = await pool.query(
         'SELECT id, monto_default FROM categorias_gasto WHERE empresa_id = $1 AND recurrente = true AND monto_default IS NOT NULL AND monto_default > 0',
         [req.eid]
@@ -821,32 +831,24 @@ router.post('/gastos/copiar-recurrentes', async (req, res) => {
       for (const cat of cats.rows) {
         await pool.query(
           'INSERT INTO gastos (periodo_id, categoria_id, fecha, monto, descripcion) VALUES ($1, $2, $3, $4, $5)',
-          [periodo_id, cat.id, currentPeriod.rows[0].fecha_inicio, cat.monto_default, 'Gasto recurrente (default)']
+          [pid, cat.id, targetStart, cat.monto_default, 'Gasto recurrente (default)']
         );
         count++;
       }
       return res.json({ success: true, data: { copied: count, source: 'defaults' } });
     }
 
-    // Copy from previous period — only recurring categories
-    const prevGastos = await pool.query(
-      `SELECT g.categoria_id, g.monto, g.descripcion
-       FROM gastos g
-       JOIN categorias_gasto cg ON cg.id = g.categoria_id
-       WHERE g.periodo_id = $1 AND cg.recurrente = true`,
-      [prevPeriod.rows[0].id]
-    );
-
+    // Copy from previous month — only recurring categories
     let count = 0;
     for (const gasto of prevGastos.rows) {
       await pool.query(
         'INSERT INTO gastos (periodo_id, categoria_id, fecha, monto, descripcion) VALUES ($1, $2, $3, $4, $5)',
-        [periodo_id, gasto.categoria_id, currentPeriod.rows[0].fecha_inicio, gasto.monto, gasto.descripcion]
+        [pid, gasto.categoria_id, targetStart, gasto.monto, gasto.descripcion]
       );
       count++;
     }
 
-    return res.json({ success: true, data: { copied: count, source: 'previous_period' } });
+    return res.json({ success: true, data: { copied: count, source: 'previous_month' } });
   } catch (err) {
     console.error('Copy recurring error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });
@@ -856,14 +858,17 @@ router.post('/gastos/copiar-recurrentes', async (req, res) => {
 // POST /api/pl/gastos
 router.post('/gastos', async (req, res) => {
   try {
-    const { periodo_id, categoria_id, fecha, monto, descripcion } = req.body;
-    if (!periodo_id || !categoria_id || !fecha || !monto) {
-      return res.status(400).json({ success: false, error: 'periodo_id, categoria_id, fecha y monto son requeridos' });
+    const { categoria_id, fecha, monto, descripcion } = req.body;
+    if (!categoria_id || !fecha || !monto) {
+      return res.status(400).json({ success: false, error: 'categoria_id, fecha y monto son requeridos' });
     }
+
+    // Auto-find periodo for backward compat
+    const pid = await findPeriodoId(req.eid, fecha);
 
     const result = await pool.query(
       'INSERT INTO gastos (periodo_id, categoria_id, fecha, monto, descripcion) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [periodo_id, categoria_id, fecha, monto, descripcion || null]
+      [pid, categoria_id, fecha, monto, descripcion || null]
     );
 
     // Dual-write to transacciones for timeline
@@ -871,7 +876,7 @@ router.post('/gastos', async (req, res) => {
       await pool.query(
         `INSERT INTO transacciones (usuario_id, empresa_id, periodo_id, tipo, fecha, categoria_id, monto, monto_absoluto, descripcion)
          VALUES ($1, $2, $3, 'gasto', $4, $5, $6, $7, $8)`,
-        [req.uid, req.eid, periodo_id, fecha, categoria_id, -parseFloat(monto), parseFloat(monto), descripcion || null]
+        [req.uid, req.eid, pid, fecha, categoria_id, -parseFloat(monto), parseFloat(monto), descripcion || null]
       );
     } catch (_) {}
 
@@ -912,8 +917,8 @@ router.delete('/gastos/:id', async (req, res) => {
       const g = gasto.rows[0];
       try {
         await pool.query(
-          `DELETE FROM transacciones WHERE ctid = (SELECT ctid FROM transacciones WHERE tipo = 'gasto' AND categoria_id = $1 AND fecha = $2 AND periodo_id = $3 AND monto_absoluto = $4 LIMIT 1)`,
-          [g.categoria_id, g.fecha, g.periodo_id, g.monto]
+          `DELETE FROM transacciones WHERE ctid = (SELECT ctid FROM transacciones WHERE tipo = 'gasto' AND categoria_id = $1 AND fecha = $2 AND monto_absoluto = $3 LIMIT 1)`,
+          [g.categoria_id, g.fecha, g.monto]
         );
       } catch (_) {}
     }
@@ -927,11 +932,10 @@ router.delete('/gastos/:id', async (req, res) => {
 
 // ==================== COMPRAS ====================
 
-// GET /api/pl/compras/resumen?periodo_id=X
+// GET /api/pl/compras/resumen?year=2026&month=5
 router.get('/compras/resumen', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
     const result = await pool.query(
       `SELECT
@@ -942,8 +946,8 @@ router.get('/compras/resumen', async (req, res) => {
         COALESCE(SUM(CASE WHEN ci.insumo_id IS NULL AND ci.material_id IS NULL THEN ci.total ELSE 0 END), 0) AS total_otros
        FROM compras c
        LEFT JOIN compra_items ci ON ci.compra_id = c.id
-       WHERE c.periodo_id = $1 AND c.empresa_id = $2`,
-      [periodo_id, req.eid]
+       WHERE c.empresa_id = $1 AND c.fecha >= $2 AND c.fecha <= $3`,
+      [req.eid, start, end]
     );
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -952,15 +956,14 @@ router.get('/compras/resumen', async (req, res) => {
   }
 });
 
-// GET /api/pl/compras?periodo_id=X
+// GET /api/pl/compras?year=2026&month=5
 router.get('/compras', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
     const compras = await pool.query(
-      'SELECT * FROM compras WHERE periodo_id = $1 AND empresa_id = $2 ORDER BY fecha DESC',
-      [periodo_id, req.eid]
+      'SELECT * FROM compras WHERE empresa_id = $1 AND fecha >= $2 AND fecha <= $3 ORDER BY fecha DESC',
+      [req.eid, start, end]
     );
 
     // Get items for each compra
@@ -990,10 +993,13 @@ router.get('/compras', async (req, res) => {
 router.post('/compras', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { periodo_id, fecha, proveedor, nota, items, cuenta_id } = req.body;
-    if (!periodo_id || !fecha || !items || items.length === 0) {
-      return res.status(400).json({ success: false, error: 'periodo_id, fecha y al menos un item son requeridos' });
+    const { fecha, proveedor, nota, items, cuenta_id } = req.body;
+    if (!fecha || !items || items.length === 0) {
+      return res.status(400).json({ success: false, error: 'fecha y al menos un item son requeridos' });
     }
+
+    // Auto-find periodo for backward compat
+    const pid = await findPeriodoId(req.eid, fecha);
 
     await client.query('BEGIN');
 
@@ -1001,7 +1007,7 @@ router.post('/compras', async (req, res) => {
 
     const compraRes = await client.query(
       'INSERT INTO compras (periodo_id, usuario_id, empresa_id, fecha, proveedor, nota, total) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [periodo_id, req.uid, req.eid, fecha, proveedor || null, nota || null, total]
+      [pid, req.uid, req.eid, fecha, proveedor || null, nota || null, total]
     );
     const compra = compraRes.rows[0];
 
@@ -1044,7 +1050,7 @@ router.post('/compras', async (req, res) => {
       await pool.query(
         `INSERT INTO transacciones (usuario_id, empresa_id, periodo_id, tipo, fecha, compra_id, monto, monto_absoluto, descripcion, cuenta_id)
          VALUES ($1, $2, $3, 'compra', $4, $5, $6, $7, $8, $9)`,
-        [req.uid, req.eid, periodo_id, fecha, compra.id, -total, total, proveedor || null, cuenta_id || null]
+        [req.uid, req.eid, pid, fecha, compra.id, -total, total, proveedor || null, cuenta_id || null]
       );
       // Update account balance if specified
       if (cuenta_id) {
@@ -1090,25 +1096,24 @@ router.delete('/compras/:id', async (req, res) => {
 
 // ==================== CASHFLOW ====================
 
-// GET /api/pl/cashflow/metricas?periodo_id=X — velocity & health metrics
+// GET /api/pl/cashflow/metricas?year=2026&month=5 — velocity & health metrics
 router.get('/cashflow/metricas', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
-    const periodo = await pool.query(
-      'SELECT * FROM periodos WHERE id = $1 AND empresa_id = $2',
-      [periodo_id, req.eid]
+    // Look up saldo_inicial from matching periodo (if any)
+    const periodoRes = await pool.query(
+      'SELECT id, saldo_inicial, fecha_inicio, fecha_fin FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $3 ORDER BY fecha_inicio DESC LIMIT 1',
+      [req.eid, start, end]
     );
-    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
-    const per = periodo.rows[0];
-    const saldoInicial = parseFloat(per.saldo_inicial) || 0;
+    const per = periodoRes.rows[0];
+    const saldoInicial = per ? (parseFloat(per.saldo_inicial) || 0) : 0;
 
     // Current balance
     const balRes = await pool.query(
       `SELECT COALESCE(SUM(monto), 0)::float AS total_neto
-       FROM transacciones WHERE periodo_id = $1 AND empresa_id = $2 AND fecha <= CURRENT_DATE`,
-      [periodo_id, req.eid]
+       FROM transacciones WHERE empresa_id = $1 AND fecha >= $2 AND fecha <= $3 AND fecha <= CURRENT_DATE`,
+      [req.eid, start, end]
     );
     const balanceActual = saldoInicial + (balRes.rows[0]?.total_neto || 0);
 
@@ -1122,12 +1127,12 @@ router.get('/cashflow/metricas', async (req, res) => {
         COUNT(DISTINCT fecha)::int AS dias_con_actividad,
         COUNT(DISTINCT CASE WHEN monto > 0 THEN fecha END)::int AS dias_con_ingreso
       FROM transacciones
-      WHERE periodo_id = $1 AND empresa_id = $2
-    `, [periodo_id, req.eid]);
+      WHERE empresa_id = $1 AND fecha >= $2 AND fecha <= $3
+    `, [req.eid, start, end]);
     const m = metricsRes.rows[0];
 
-    const diasTotales = Math.max(1, Math.ceil((new Date(per.fecha_fin) - new Date(per.fecha_inicio)) / 86400000) + 1);
-    const diasTranscurridos = Math.max(1, Math.ceil((Math.min(Date.now(), new Date(per.fecha_fin).getTime()) - new Date(per.fecha_inicio).getTime()) / 86400000) + 1);
+    const diasTotales = Math.max(1, Math.ceil((new Date(end) - new Date(start)) / 86400000) + 1);
+    const diasTranscurridos = Math.max(1, Math.ceil((Math.min(Date.now(), new Date(end).getTime()) - new Date(start).getTime()) / 86400000) + 1);
 
     const promedioVentaDiaria = m.total_entradas / diasTranscurridos;
     const promedioGastoDiario = m.total_salidas / diasTranscurridos;
@@ -1141,20 +1146,29 @@ router.get('/cashflow/metricas', async (req, res) => {
     if (ratioCaja < 1.2 || (runway !== null && runway < 15)) health = 'atencion'; // amber
     if (ratioCaja < 0.8 || (runway !== null && runway < 7) || balanceActual < 0) health = 'critico'; // rose
 
-    // Comparison with previous period
-    const prevPer = await pool.query(
-      'SELECT id, saldo_inicial FROM periodos WHERE empresa_id = $1 AND fecha_fin < $2 ORDER BY fecha_fin DESC LIMIT 1',
-      [req.eid, per.fecha_inicio]
-    );
+    // Comparison with previous month
+    const startDate = new Date(start);
+    const prevMonth = startDate.getMonth(); // 0-indexed
+    const prevYear = prevMonth === 0 ? startDate.getFullYear() - 1 : startDate.getFullYear();
+    const prevM = prevMonth === 0 ? 12 : prevMonth;
+    const prevStart = `${prevYear}-${String(prevM).padStart(2, '0')}-01`;
+    const prevLastDay = new Date(prevYear, prevM, 0).getDate();
+    const prevEnd = `${prevYear}-${String(prevM).padStart(2, '0')}-${prevLastDay}`;
+
     let comparacion = null;
-    if (prevPer.rows.length > 0) {
-      const prevBal = await pool.query(
-        `SELECT COALESCE(SUM(monto), 0)::float AS total FROM transacciones WHERE periodo_id = $1 AND empresa_id = $2`,
-        [prevPer.rows[0].id, req.eid]
-      );
-      const prevBalance = (parseFloat(prevPer.rows[0].saldo_inicial) || 0) + (prevBal.rows[0]?.total || 0);
+    const prevPerRes = await pool.query(
+      'SELECT id, saldo_inicial FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $3 ORDER BY fecha_inicio DESC LIMIT 1',
+      [req.eid, prevStart, prevEnd]
+    );
+    const prevBal = await pool.query(
+      `SELECT COALESCE(SUM(monto), 0)::float AS total FROM transacciones WHERE empresa_id = $1 AND fecha >= $2 AND fecha <= $3`,
+      [req.eid, prevStart, prevEnd]
+    );
+    const prevSaldoInicial = prevPerRes.rows[0] ? (parseFloat(prevPerRes.rows[0].saldo_inicial) || 0) : 0;
+    const prevBalance = prevSaldoInicial + (prevBal.rows[0]?.total || 0);
+    if (prevBalance !== 0 || prevPerRes.rows.length > 0) {
       comparacion = {
-        periodo_anterior: prevPer.rows[0].id,
+        rango_anterior: { start: prevStart, end: prevEnd },
         balance_anterior: Math.round(prevBalance * 100) / 100,
         variacion_pct: prevBalance !== 0 ? Math.round(((balanceActual - prevBalance) / Math.abs(prevBalance)) * 1000) / 10 : 0,
       };
@@ -1163,6 +1177,7 @@ router.get('/cashflow/metricas', async (req, res) => {
     return res.json({
       success: true,
       data: {
+        rango: { start, end },
         balance_actual: Math.round(balanceActual * 100) / 100,
         promedio_venta_diaria: Math.round(promedioVentaDiaria * 100) / 100,
         promedio_gasto_diario: Math.round(promedioGastoDiario * 100) / 100,
@@ -1184,27 +1199,28 @@ router.get('/cashflow/metricas', async (req, res) => {
   }
 });
 
-// GET /api/pl/cashflow/simulacion?periodo_id=X&monto=2500&fecha=2026-05-01
+// GET /api/pl/cashflow/simulacion?year=2026&month=5&monto=2500&fecha=2026-05-01
 router.get('/cashflow/simulacion', async (req, res) => {
   try {
-    const { periodo_id, monto, fecha } = req.query;
-    if (!periodo_id || !monto) return res.status(400).json({ success: false, error: 'periodo_id y monto requeridos' });
+    const { monto, fecha } = req.query;
+    if (!monto) return res.status(400).json({ success: false, error: 'monto requerido' });
+
+    const { start, end } = await getDateRange(req);
 
     const montoCompra = parseFloat(monto);
     const fechaCompra = fecha || new Date().toISOString().slice(0, 10);
 
-    const periodo = await pool.query(
-      'SELECT * FROM periodos WHERE id = $1 AND empresa_id = $2',
-      [periodo_id, req.eid]
+    // Look up saldo_inicial from matching periodo (if any)
+    const periodoRes = await pool.query(
+      'SELECT id, saldo_inicial FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $3 ORDER BY fecha_inicio DESC LIMIT 1',
+      [req.eid, start, end]
     );
-    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
-    const per = periodo.rows[0];
-    const saldoInicial = parseFloat(per.saldo_inicial) || 0;
+    const saldoInicial = periodoRes.rows[0] ? (parseFloat(periodoRes.rows[0].saldo_inicial) || 0) : 0;
 
     // Current balance
     const balRes = await pool.query(
-      `SELECT COALESCE(SUM(monto), 0)::float AS total FROM transacciones WHERE periodo_id = $1 AND empresa_id = $2 AND fecha <= CURRENT_DATE`,
-      [periodo_id, req.eid]
+      `SELECT COALESCE(SUM(monto), 0)::float AS total FROM transacciones WHERE empresa_id = $1 AND fecha >= $2 AND fecha <= CURRENT_DATE`,
+      [req.eid, start]
     );
     const balanceHoy = saldoInicial + (balRes.rows[0]?.total || 0);
 
@@ -1221,15 +1237,15 @@ router.get('/cashflow/simulacion', async (req, res) => {
     const gastoDiario = avgRes.rows[0]?.gasto_diario || 0;
     const netoDiario = ingresoDiario - gastoDiario;
 
-    // Upcoming recurring expenses (not yet registered this period)
+    // Upcoming recurring expenses (not yet registered this date range)
     const recurrentesRes = await pool.query(
       `SELECT cg.nombre, cg.monto_default
        FROM categorias_gasto cg
        WHERE cg.empresa_id = $1 AND cg.recurrente = true AND cg.monto_default > 0
          AND NOT EXISTS (
-           SELECT 1 FROM gastos g WHERE g.categoria_id = cg.id AND g.periodo_id = $2
+           SELECT 1 FROM gastos g WHERE g.categoria_id = cg.id AND g.fecha >= $2 AND g.fecha <= $3
          )`,
-      [req.eid, periodo_id]
+      [req.eid, start, end]
     );
     const gastosFijosPendientes = recurrentesRes.rows;
     const totalFijosPendientes = gastosFijosPendientes.reduce((s, r) => s + parseFloat(r.monto_default), 0);
@@ -1264,19 +1280,17 @@ router.get('/cashflow/simulacion', async (req, res) => {
   }
 });
 
-// GET /api/pl/cashflow?periodo_id=X — daily running balance
+// GET /api/pl/cashflow?year=2026&month=5 — daily running balance
 router.get('/cashflow', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
-    if (!periodo_id) return res.status(400).json({ success: false, error: 'periodo_id requerido' });
+    const { start, end } = await getDateRange(req);
 
-    const periodo = await pool.query(
-      'SELECT * FROM periodos WHERE id = $1 AND empresa_id = $2',
-      [periodo_id, req.eid]
+    // Look up saldo_inicial from matching periodo (if any)
+    const periodoRes = await pool.query(
+      'SELECT id, saldo_inicial FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $3 ORDER BY fecha_inicio DESC LIMIT 1',
+      [req.eid, start, end]
     );
-    if (periodo.rows.length === 0) return res.status(404).json({ success: false, error: 'Periodo no encontrado' });
-    const per = periodo.rows[0];
-    const saldoInicial = parseFloat(per.saldo_inicial) || 0;
+    const saldoInicial = periodoRes.rows[0] ? (parseFloat(periodoRes.rows[0].saldo_inicial) || 0) : 0;
 
     // Daily cash flow with generate_series to fill zero-activity days
     const result = await pool.query(`
@@ -1291,7 +1305,7 @@ router.get('/cashflow', async (req, res) => {
           SUM(CASE WHEN t.monto < 0 THEN ABS(t.monto) ELSE 0 END) AS salidas,
           SUM(t.monto) AS neto
         FROM transacciones t
-        WHERE t.periodo_id = $3 AND t.empresa_id = $4
+        WHERE t.empresa_id = $3 AND t.fecha >= $1 AND t.fecha <= $2
         GROUP BY t.fecha
       )
       SELECT
@@ -1299,13 +1313,13 @@ router.get('/cashflow', async (req, res) => {
         COALESCE(di.entradas, 0)::float AS entradas,
         COALESCE(di.salidas, 0)::float AS salidas,
         COALESCE(di.neto, 0)::float AS neto,
-        ($5::numeric + SUM(COALESCE(di.neto, 0)) OVER (
+        ($4::numeric + SUM(COALESCE(di.neto, 0)) OVER (
           ORDER BY d.fecha ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
         ))::float AS balance
       FROM dias d
       LEFT JOIN diario di ON di.fecha = d.fecha
       ORDER BY d.fecha
-    `, [per.fecha_inicio, per.fecha_fin, periodo_id, req.eid, saldoInicial]);
+    `, [start, end, req.eid, saldoInicial]);
 
     // Summary
     const totalEntradas = result.rows.reduce((s, r) => s + r.entradas, 0);
@@ -1343,15 +1357,15 @@ router.get('/cashflow', async (req, res) => {
        FROM transacciones t
        LEFT JOIN productos p ON p.id = t.producto_id
        LEFT JOIN categorias_gasto cg ON cg.id = t.categoria_id
-       WHERE t.periodo_id = $1 AND t.empresa_id = $2
+       WHERE t.empresa_id = $1 AND t.fecha >= $2 AND t.fecha <= $3
        ORDER BY t.fecha DESC, t.created_at DESC LIMIT 10`,
-      [periodo_id, req.eid]
+      [req.eid, start, end]
     );
 
     return res.json({
       success: true,
       data: {
-        periodo: per,
+        rango: { start, end },
         saldo_inicial: saldoInicial,
         saldo_actual: Math.round(saldoHoy * 100) / 100,
         total_entradas: Math.round(totalEntradas * 100) / 100,

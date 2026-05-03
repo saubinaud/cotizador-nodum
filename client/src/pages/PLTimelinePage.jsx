@@ -95,7 +95,7 @@ export default function PLTimelinePage() {
 
   // Data
   const [periodos, setPeriodos] = useState([]);
-  const [periodoId, setPeriodoId] = useState(null);
+  const [periodo, setPeriodo] = useState(null);
   const [transacciones, setTransacciones] = useState([]);
   const [balance, setBalance] = useState(null);
   const [productos, setProductos] = useState([]);
@@ -140,7 +140,9 @@ export default function PLTimelinePage() {
       setPeriodos(pers);
       setProductos(prodRes.data || []);
       setCategorias(catRes.data || []);
-      if (pers.length > 0) setPeriodoId(pers[0].id);
+      // Default to current month (Lima time)
+      const now = new Date(Date.now() - 5*60*60*1000);
+      setPeriodo({ year: now.getFullYear(), month: now.getMonth() + 1 });
       setLoading(false);
     });
     api.get('/flujo/cuentas').then(r => setCuentas((r.data||[]).filter(c=>c.activo!==false).map(c=>({value:String(c.id),label:c.nombre})))).catch(()=>{});
@@ -148,14 +150,15 @@ export default function PLTimelinePage() {
   }, []);
 
   // Load transacciones + balance when periodo changes
-  const loadData = async (pid, tipo) => {
-    if (!pid) return;
+  const loadData = async (p, tipo) => {
+    if (!p) return;
     setLoadingTx(true);
     try {
+      const qs = `year=${p.year}&month=${p.month}`;
       const tipoParam = tipo ? `&tipo=${tipo}` : '';
       const [txRes, balRes] = await Promise.all([
-        api.get(`/pl/transacciones?periodo_id=${pid}${tipoParam}`),
-        api.get(`/pl/transacciones/balance?periodo_id=${pid}`),
+        api.get(`/pl/transacciones?${qs}${tipoParam}`),
+        api.get(`/pl/transacciones/balance?${qs}`),
       ]);
       setTransacciones(txRes.data || []);
       setBalance(balRes.data || null);
@@ -166,8 +169,8 @@ export default function PLTimelinePage() {
   };
 
   useEffect(() => {
-    if (periodoId) loadData(periodoId, filterTipo);
-  }, [periodoId, filterTipo]); // eslint-disable-line
+    if (periodo) loadData(periodo, filterTipo);
+  }, [periodo, filterTipo]); // eslint-disable-line
 
   // Group by date
   const grouped = useMemo(() => {
@@ -187,7 +190,8 @@ export default function PLTimelinePage() {
       const cp = currentMonthPeriod();
       const res = await api.post('/pl/periodos', cp);
       setPeriodos(prev => [res.data, ...prev]);
-      setPeriodoId(res.data.id);
+      const now = new Date();
+      setPeriodo({ year: now.getFullYear(), month: now.getMonth() + 1 });
       toast.success('Periodo creado');
     } catch (e) {
       toast.error(e.message);
@@ -201,7 +205,6 @@ export default function PLTimelinePage() {
     try {
       const body = {
         tipo: tipoNuevo,
-        periodo_id: periodoId,
         fecha: form.fecha,
         nota: form.nota || null,
       };
@@ -231,7 +234,7 @@ export default function PLTimelinePage() {
       toast.success('Transaccion registrada');
       setModalOpen(false);
       resetForm();
-      loadData(periodoId, filterTipo);
+      loadData(periodo, filterTipo);
     } catch (e) {
       toast.error(e.message);
     }
@@ -255,7 +258,7 @@ export default function PLTimelinePage() {
       await api.del(`/pl/transacciones/${deleteTarget.id}`);
       toast.success('Transaccion eliminada');
       setDeleteTarget(null);
-      loadData(periodoId, filterTipo);
+      loadData(periodo, filterTipo);
     } catch (e) {
       toast.error(e.message);
     }
@@ -322,8 +325,8 @@ export default function PLTimelinePage() {
         <div className="flex-1">
           <PeriodoSelector
             periodos={periodos}
-            value={periodoId}
-            onChange={(v) => setPeriodoId(parseInt(v))}
+            value={periodo}
+            onChange={setPeriodo}
             onCreatePeriodo={async (year, month) => {
               const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
               const inicio = `${year}-${String(month+1).padStart(2,'0')}-01`;
@@ -333,7 +336,6 @@ export default function PLTimelinePage() {
                 const res = await api.post('/pl/periodos', { nombre: `${MESES_FULL[month]} ${year}`, fecha_inicio: inicio, fecha_fin: fin });
                 const nuevo = res.data;
                 setPeriodos(prev => [nuevo, ...prev]);
-                setPeriodoId(nuevo.id);
                 toast.success('Periodo creado');
               } catch(e) { toast.error(e.message); }
             }}

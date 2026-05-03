@@ -38,7 +38,7 @@ export default function ComprobantesPage() {
 
   const [periodos, setPeriodos] = useState([]);
   const [rawPeriodos, setRawPeriodos] = useState([]);
-  const [periodoId, setPeriodoId] = useState(null);
+  const [periodo, setPeriodo] = useState(null);
   const [comprobantes, setComprobantes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [loadingData, setLoadingData] = useState(false);
@@ -75,7 +75,7 @@ export default function ComprobantesPage() {
       setRawPeriodos(pers);
       setPeriodos([{ value: '', label: 'Todos' }, ...pers.map(p => ({ value: String(p.id), label: p.nombre }))]);
       // Default: show all comprobantes (no period filter)
-      setPeriodoId('');
+      setPeriodo(null);
       setLoading(false);
     }).catch(() => {
       setLoading(false);
@@ -87,7 +87,7 @@ export default function ComprobantesPage() {
     setLoadingData(true);
     try {
       let path = '/facturacion/comprobantes?limit=100';
-      if (periodoId) path = `/facturacion/comprobantes?periodo_id=${periodoId}`;
+      if (periodo) path = `/facturacion/comprobantes?year=${periodo.year}&month=${periodo.month}`;
       if (tipoFilter) path += `&tipo_doc=${tipoFilter}`;
       const res = await api.get(path);
       setComprobantes(res.data || res || []);
@@ -100,7 +100,7 @@ export default function ComprobantesPage() {
 
   useEffect(() => {
     loadComprobantes();
-  }, [periodoId, tipoFilter]); // eslint-disable-line
+  }, [periodo, tipoFilter]); // eslint-disable-line
 
   // Summary
   const summary = useMemo(() => {
@@ -272,8 +272,8 @@ export default function ComprobantesPage() {
           {rawPeriodos.length > 0 && (
             <PeriodoSelector
               periodos={rawPeriodos}
-              value={periodoId}
-              onChange={setPeriodoId}
+              value={periodo}
+              onChange={setPeriodo}
               onCreatePeriodo={async (year, month) => {
                 const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
                 const inicio = `${year}-${String(month+1).padStart(2,'0')}-01`;
@@ -284,7 +284,6 @@ export default function ComprobantesPage() {
                   const nuevo = res.data;
                   setRawPeriodos(prev => [nuevo, ...prev]);
                   setPeriodos(prev => [prev[0], { value: String(nuevo.id), label: nuevo.nombre }, ...prev.slice(1)]);
-                  setPeriodoId(String(nuevo.id));
                 } catch(e) { toast.error(e.message); }
               }}
             />

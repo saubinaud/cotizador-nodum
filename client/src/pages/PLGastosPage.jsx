@@ -1,9 +1,10 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useApi } from '../hooks/useApi';
 import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency, formatDate } from '../utils/format';
 import CustomSelect from '../components/CustomSelect';
+import PeriodoSelector from '../components/PeriodoSelector';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   Plus, X, Trash2, Pencil, ChevronDown, ChevronUp,
@@ -32,7 +33,10 @@ export default function PLGastosPage() {
 
   // Data
   const [periodos, setPeriodos] = useState([]);
-  const [periodoId, setPeriodoId] = useState(null);
+  const [periodo, setPeriodo] = useState(() => {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1 };
+  });
   const [gastos, setGastos] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [categorias, setCategorias] = useState([]);
@@ -67,21 +71,19 @@ export default function PLGastosPage() {
       const pers = perRes.data || [];
       setPeriodos(pers);
       setCategorias(catRes.data || []);
-      if (pers.length > 0) {
-        setPeriodoId(pers[0].id);
-      }
       setLoading(false);
     });
   }, []);
 
   // Load gastos + resumen when periodo changes
-  const loadGastos = async (pid) => {
-    if (!pid) return;
+  const loadGastos = async (p) => {
+    if (!p?.year || !p?.month) return;
     setLoadingGastos(true);
     try {
+      const qs = `year=${p.year}&month=${p.month}`;
       const [gastosRes, resumenRes] = await Promise.all([
-        api.get(`/pl/gastos?periodo_id=${pid}`),
-        api.get(`/pl/gastos/resumen?periodo_id=${pid}`),
+        api.get(`/pl/gastos?${qs}`),
+        api.get(`/pl/gastos/resumen?${qs}`),
       ]);
       setGastos(gastosRes.data || []);
       setResumen(resumenRes.data || null);
@@ -93,8 +95,8 @@ export default function PLGastosPage() {
   };
 
   useEffect(() => {
-    if (periodoId) loadGastos(periodoId);
-  }, [periodoId]); // eslint-disable-line
+    if (periodo) loadGastos(periodo);
+  }, [periodo]); // eslint-disable-line
 
   // Reload categorias
   const reloadCategorias = async () => {
@@ -103,12 +105,6 @@ export default function PLGastosPage() {
       setCategorias(res.data || []);
     } catch { /* silent */ }
   };
-
-  // Period options for CustomSelect
-  const periodoOptions = useMemo(() =>
-    periodos.map((p) => ({ value: String(p.id), label: p.nombre })),
-    [periodos]
-  );
 
   // Category options for CustomSelect
   const categoriaOptions = useMemo(() =>
@@ -132,8 +128,7 @@ export default function PLGastosPage() {
       const mp = currentMonthPeriod();
       const res = await api.post('/pl/periodos', mp);
       const nuevo = res.data;
-      setPeriodos([nuevo]);
-      setPeriodoId(nuevo.id);
+      setPeriodos((prev) => [...prev, nuevo]);
       // Reload categorias (seed happens on first period creation)
       await reloadCategorias();
       toast.success('Periodo creado');
@@ -148,14 +143,14 @@ export default function PLGastosPage() {
   const copiarRecurrentes = async () => {
     setCopyingRecurrentes(true);
     try {
-      const res = await api.post('/pl/gastos/copiar-recurrentes', { periodo_id: periodoId });
+      const res = await api.post(`/pl/gastos/copiar-recurrentes?year=${periodo.year}&month=${periodo.month}`, {});
       const { copied, source } = res.data;
       if (copied === 0) {
         toast.info('No hay gastos recurrentes para copiar');
       } else {
         toast.success(`${copied} gasto(s) recurrente(s) copiado(s) (${source === 'defaults' ? 'valores por defecto' : 'periodo anterior'})`);
       }
-      loadGastos(periodoId);
+      loadGastos(periodo);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -203,7 +198,6 @@ export default function PLGastosPage() {
         toast.success('Gasto actualizado');
       } else {
         await api.post('/pl/gastos', {
-          periodo_id: periodoId,
           categoria_id: form.categoria_id,
           fecha: form.fecha,
           monto: form.monto,
@@ -212,7 +206,7 @@ export default function PLGastosPage() {
         toast.success('Gasto registrado');
       }
       setModalOpen(false);
-      loadGastos(periodoId);
+      loadGastos(periodo);
     } catch (err) {
       toast.error(err.message);
     }
@@ -224,7 +218,7 @@ export default function PLGastosPage() {
     try {
       await api.del(`/pl/gastos/${deleteTarget.id}`);
       toast.success('Gasto eliminado');
-      loadGastos(periodoId);
+      loadGastos(periodo);
     } catch {
       toast.error('Error eliminando');
     } finally {
@@ -275,7 +269,7 @@ export default function PLGastosPage() {
       }
       setCatModalOpen(false);
       await reloadCategorias();
-      if (periodoId) loadGastos(periodoId);
+      if (periodo) loadGastos(periodo);
     } catch (err) {
       toast.error(err.message);
     }
@@ -286,7 +280,7 @@ export default function PLGastosPage() {
       await api.put(`/pl/categorias/${cat.id}`, { activa: false });
       toast.success('Categoria desactivada');
       await reloadCategorias();
-      if (periodoId) loadGastos(periodoId);
+      if (periodo) loadGastos(periodo);
     } catch (err) {
       toast.error(err.message);
     }
@@ -338,12 +332,10 @@ export default function PLGastosPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold text-stone-900">Gastos</h1>
-          <CustomSelect
-            value={String(periodoId)}
-            onChange={(v) => setPeriodoId(parseInt(v))}
-            options={periodoOptions}
-            placeholder="Periodo"
-            className="w-48"
+          <PeriodoSelector
+            periodos={periodos}
+            value={periodo}
+            onChange={setPeriodo}
           />
         </div>
         <div className="flex items-center gap-2">

@@ -2,6 +2,7 @@ const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
 const { logAudit } = require('../utils/audit');
+const { getDateRange } = require('../utils/dateRange');
 
 const router = express.Router();
 router.use(auth);
@@ -273,24 +274,17 @@ router.delete('/movimientos/:id', async (req, res) => {
 
 // ==================== TRANSFERENCIAS ====================
 
-// GET /api/flujo/transferencias?periodo_id=X
+// GET /api/flujo/transferencias?year=2026&month=5 (or periodo_id for backward compat)
 router.get('/transferencias', async (req, res) => {
   try {
-    const { periodo_id } = req.query;
+    const { start, end } = await getDateRange(req);
     let query = `SELECT ft.*, co.nombre AS cuenta_origen_nombre, cd.nombre AS cuenta_destino_nombre
      FROM flujo_transferencias ft
      JOIN flujo_cuentas co ON co.id = ft.cuenta_origen_id
      JOIN flujo_cuentas cd ON cd.id = ft.cuenta_destino_id
-     WHERE ft.usuario_id = $1`;
-    const params = [req.user.id];
+     WHERE ft.usuario_id = $1 AND ft.fecha BETWEEN $2 AND $3`;
+    const params = [req.user.id, start, end];
 
-    if (periodo_id) {
-      const per = await pool.query('SELECT fecha_inicio, fecha_fin FROM periodos WHERE id = $1', [periodo_id]);
-      if (per.rows.length > 0) {
-        query += ` AND ft.fecha BETWEEN $2 AND $3`;
-        params.push(per.rows[0].fecha_inicio, per.rows[0].fecha_fin);
-      }
-    }
     query += ' ORDER BY ft.fecha DESC, ft.created_at DESC';
 
     const result = await pool.query(query, params);
