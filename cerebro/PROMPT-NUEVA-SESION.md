@@ -1,5 +1,5 @@
 # Prompt de Contexto para Nueva Sesión — Kudi
-> Última actualización: 3 mayo 2026, 01:30 AM Lima
+> Última actualización: 3 mayo 2026, 04:30 AM Lima
 
 Estoy trabajando en Kudi (antes Cotizador Nodum), una plataforma SaaS de costeo + finanzas + facturación para MYPEs productoras.
 
@@ -38,20 +38,28 @@ Estoy trabajando en Kudi (antes Cotizador Nodum), una plataforma SaaS de costeo 
 2. **20+ bugs corregidos** — ingredientes, recetas, cotizador, sidebar, comprobantes, ventas
 3. **Sidebar redesign** — Kudi siempre arriba, tree lines, collapse profesional
 4. **Menú reorganizado** — Catálogo / Ventas / Finanzas / Facturación
-5. **Tipo contribuyente** — selector único (18% / 10.5% / No paga IGV)
-6. **Login biométrico** — autocomplete para huella/Face ID
-7. **Empaque accordion** — mismo patrón que preparaciones, guardar como plantilla
-8. **Ventas edición completa** — todos los campos editables después de crear
+5. **Multi-tenant** — 135 queries migradas de usuario_id→empresa_id (37/37 tests PASS)
+6. **Eliminar periodo_id** — filtrado por year+month directo, PeriodoSelector component
+7. **SUNAT error codes** — 15+ códigos mapeados con mensajes humanos
+8. **Canales fix** — canal_id faltante en productos query
+9. **Rentabilidad** — NUEVO módulo: semáforo de márgenes + simulador de bundles
+10. **Animations** — transition-all→transition-colors, 150ms→100ms
+11. **Tipo contribuyente** — selector único (18% / 10.5% / No paga IGV)
+12. **Login biométrico** — autocomplete para huella/Face ID
 
-## PRÓXIMO PASO: Migración multi-tenant (empresa_id)
+## Estado actual
 
-Los routes del backend filtran por `usuario_id` pero deben filtrar por `empresa_id` para que team members compartan datos. Son 135 queries en 9 archivos. Plan detallado en `.claude/plans/twinkling-stargazing-aurora.md`.
+- **Multi-tenant**: COMPLETADO — req.eid en todos los routes, empresa_id en todas las tablas
+- **Periodos**: ELIMINADO como dependencia — filtrado por fecha directa, periodos opcionales
+- **Facturación**: Lycet self-hosted, S/0/mes, multi-empresa, timezone Lima
+- **Rentabilidad**: Semáforo verde/amarillo/rojo por producto + bundle simulator
 
-**Estado actual de empresa_id:**
-- Tabla `empresas` existe con 4 empresas
-- `empresa_id` en 26 tablas, datos 98% backfilled
-- Auth middleware tiene `req.dataFilter` y `req.eid` listos
-- Routes usan `usuario_id` — pendiente migrar
+## PENDIENTES para próxima sesión
+
+- **Fase 4 periodo_id**: Drop columna de INSERTs (mantener nullable por ahora)
+- **Comparador avanzado**: Evolucionar rentabilidad con tendencias históricas, alertas automáticas
+- **Canales UX**: Verificar pricing en producción
+- Validar SOL como sección independiente en comprobantes
 
 ## Patrones clave
 
