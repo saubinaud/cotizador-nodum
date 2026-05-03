@@ -1399,6 +1399,10 @@ async function runMigrations() {
     await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS cliente_id INTEGER REFERENCES clientes(id) ON DELETE SET NULL`);
     await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ DEFAULT NOW()`);
 
+    // Canales + zonas: empresa_id
+    await client.query(`ALTER TABLE canales_distribucion ADD COLUMN IF NOT EXISTS empresa_id INTEGER REFERENCES empresas(id)`);
+    await client.query(`ALTER TABLE zonas_envio ADD COLUMN IF NOT EXISTS empresa_id INTEGER REFERENCES empresas(id)`);
+
     // Facturación: sol_user/sol_pass + default produccion + company token
     await client.query(`ALTER TABLE facturacion_config ADD COLUMN IF NOT EXISTS sol_user VARCHAR(20)`);
     await client.query(`ALTER TABLE facturacion_config ADD COLUMN IF NOT EXISTS sol_pass VARCHAR(50)`);
