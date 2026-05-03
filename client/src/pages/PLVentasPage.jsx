@@ -5,6 +5,7 @@ import { cx } from '../styles/tokens';
 import { formatCurrency, formatDate } from '../utils/format';
 import SearchableSelect from '../components/SearchableSelect';
 import CustomSelect from '../components/CustomSelect';
+import PeriodoSelector from '../components/PeriodoSelector';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
   Plus, X, Trash2, Pencil, ChevronDown, ChevronUp,
@@ -442,12 +443,22 @@ export default function PLVentasPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-5">
         <div className="flex items-center gap-4">
           <h1 className="text-xl font-bold text-stone-900">Ventas</h1>
-          <CustomSelect
-            value={String(periodoId)}
+          <PeriodoSelector
+            periodos={periodos}
+            value={periodoId}
             onChange={(v) => setPeriodoId(parseInt(v))}
-            options={periodoOptions}
-            placeholder="Periodo"
-            className="w-48"
+            onCreatePeriodo={async (year, month) => {
+              const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+              const inicio = `${year}-${String(month+1).padStart(2,'0')}-01`;
+              const lastDay = new Date(year, month+1, 0).getDate();
+              const fin = `${year}-${String(month+1).padStart(2,'0')}-${lastDay}`;
+              try {
+                const res = await api.post('/pl/periodos', { nombre: `${MESES_FULL[month]} ${year}`, fecha_inicio: inicio, fecha_fin: fin });
+                const nuevo = res.data;
+                setPeriodos(prev => [nuevo, ...prev]);
+                setPeriodoId(nuevo.id);
+              } catch(e) { toast.error(e.message); }
+            }}
           />
         </div>
         <button onClick={openNewVenta} className={cx.btnPrimary + ' flex items-center gap-2'}>

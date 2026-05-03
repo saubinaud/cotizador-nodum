@@ -3,6 +3,7 @@ const pool = require('../models/db');
 const auth = require('../middleware/auth');
 const { encryptCert, decryptCert, buildInvoiceJSON, round2 } = require('../utils/facturacion');
 const { logAudit } = require('../utils/audit');
+const { getSunatMessage } = require('../utils/sunat-codes');
 
 const router = express.Router();
 router.use(auth);
@@ -285,14 +286,14 @@ router.post('/validar-sol', async (req, res) => {
     if (apiRes.xml && apiRes.hash) {
       // Check specific errors
       if (errCode === '0111') {
-        return res.json({ success: false, error: 'El usuario SOL no tiene perfil de emisión electrónica. Crea un usuario secundario en SUNAT con permiso de emisión.' });
+        return res.json({ success: false, error: getSunatMessage('0111') });
       }
       // Any other SUNAT response (including rejections for correlativo 0) means auth works
       return res.json({ success: true, data: { message: 'Acceso SOL validado. Ya puedes emitir comprobantes.' } });
     }
 
     // No XML = connection/signing failed
-    return res.json({ success: false, error: apiRes.error || 'No se pudo conectar con SUNAT. Verifica tus credenciales SOL.' });
+    return res.json({ success: false, error: getSunatMessage('HTTP', apiRes.error || 'No se pudo conectar con SUNAT. Verifica tus credenciales SOL.') });
   } catch (err) {
     console.error('Validar SOL error:', err);
     return res.status(500).json({ success: false, error: 'Error validando credenciales' });
@@ -409,13 +410,10 @@ router.post('/emitir', async (req, res) => {
 
     if (!sunatMessage && typeof srError === 'object' && srError.message) {
       sunatCode = srError.code || null;
-      sunatMessage = srError.message;
-      if (srError.code === '0111') {
-        sunatMessage = 'SUNAT rechazó: El usuario SOL no tiene perfil de emisión electrónica. Crea un usuario secundario en SUNAT SOL con permiso de emisión electrónica.';
-      }
+      sunatMessage = getSunatMessage(srError.code, srError.message);
     }
     if (!sunatMessage && apiRes.error) {
-      sunatMessage = apiRes.error;
+      sunatMessage = getSunatMessage('HTTP', apiRes.error);
     }
 
     console.log('[facturacion] SUNAT result:', { success: isSuccess, code: sunatCode, message: sunatMessage });

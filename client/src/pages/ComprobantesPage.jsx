@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency, formatDate } from '../utils/format';
 import CustomSelect from '../components/CustomSelect';
+import PeriodoSelector from '../components/PeriodoSelector';
 import ConfirmDialog, { PromptDialog } from '../components/ConfirmDialog';
 import { useAuth } from '../context/AuthContext';
 import {
@@ -36,6 +37,7 @@ export default function ComprobantesPage() {
   const { user } = useAuth();
 
   const [periodos, setPeriodos] = useState([]);
+  const [rawPeriodos, setRawPeriodos] = useState([]);
   const [periodoId, setPeriodoId] = useState(null);
   const [comprobantes, setComprobantes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,6 +72,7 @@ export default function ComprobantesPage() {
     loadConfig();
     api.get('/pl/periodos').then(res => {
       const pers = res.data || res || [];
+      setRawPeriodos(pers);
       setPeriodos([{ value: '', label: 'Todos' }, ...pers.map(p => ({ value: String(p.id), label: p.nombre }))]);
       // Default: show all comprobantes (no period filter)
       setPeriodoId('');
@@ -266,13 +269,24 @@ export default function ComprobantesPage() {
           <h1 className="text-xl font-bold text-stone-900">Comprobantes</h1>
         </div>
         <div className="flex items-center gap-3">
-          {periodos.length > 0 && (
-            <CustomSelect
+          {rawPeriodos.length > 0 && (
+            <PeriodoSelector
+              periodos={rawPeriodos}
               value={periodoId}
               onChange={setPeriodoId}
-              options={periodos}
-              placeholder="Periodo"
-              className="w-48"
+              onCreatePeriodo={async (year, month) => {
+                const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+                const inicio = `${year}-${String(month+1).padStart(2,'0')}-01`;
+                const lastDay = new Date(year, month+1, 0).getDate();
+                const fin = `${year}-${String(month+1).padStart(2,'0')}-${lastDay}`;
+                try {
+                  const res = await api.post('/pl/periodos', { nombre: `${MESES_FULL[month]} ${year}`, fecha_inicio: inicio, fecha_fin: fin });
+                  const nuevo = res.data;
+                  setRawPeriodos(prev => [nuevo, ...prev]);
+                  setPeriodos(prev => [prev[0], { value: String(nuevo.id), label: nuevo.nombre }, ...prev.slice(1)]);
+                  setPeriodoId(String(nuevo.id));
+                } catch(e) { toast.error(e.message); }
+              }}
             />
           )}
           <CustomSelect

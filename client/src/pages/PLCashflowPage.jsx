@@ -100,6 +100,7 @@ export default function PLCashflowPage() {
 
   // Flujo de Caja
   const [anio, setAnio] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(null); // null = all months, 0-11 = specific month
   const [gridData, setGridData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -333,6 +334,7 @@ export default function PLCashflowPage() {
   // ── Derived data ─────────────────────────────────────────
 
   const meses = gridData?.meses || [];
+  const displayMeses = selectedMonth !== null ? meses.filter((_, i) => i === selectedMonth) : meses;
   const gridCategorias = gridData?.categorias || [];
 
   const seccionOpts = [
@@ -384,14 +386,33 @@ export default function PLCashflowPage() {
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
-                <button onClick={() => setAnio(a => a - 1)} className={cx.btnGhost}><ChevronLeft size={16} /></button>
+                <button onClick={() => { setAnio(a => a - 1); setSelectedMonth(null); }} className={cx.btnGhost}><ChevronLeft size={16} /></button>
                 <span className="text-sm font-bold text-stone-800 w-12 text-center">{anio}</span>
-                <button onClick={() => setAnio(a => a + 1)} className={cx.btnGhost}><ChevronRight size={16} /></button>
+                <button onClick={() => { setAnio(a => a + 1); setSelectedMonth(null); }} className={cx.btnGhost}><ChevronRight size={16} /></button>
               </div>
               <button onClick={() => openMovForm()} className={cx.btnPrimary + ' flex items-center gap-2'}>
                 <Plus size={16} /> Movimiento
               </button>
             </div>
+          </div>
+
+          {/* Month filter */}
+          <div className="flex flex-wrap gap-1 mb-4">
+            <button
+              onClick={() => setSelectedMonth(null)}
+              className={`px-2 py-1 rounded text-[11px] font-medium ${selectedMonth === null ? 'bg-[var(--accent)] text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+            >
+              Año
+            </button>
+            {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'].map((m, i) => (
+              <button
+                key={i}
+                onClick={() => setSelectedMonth(i)}
+                className={`px-2 py-1 rounded text-[11px] font-medium ${selectedMonth === i ? 'bg-[var(--accent)] text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+              >
+                {m}
+              </button>
+            ))}
           </div>
 
           {loading ? (
@@ -410,7 +431,7 @@ export default function PLCashflowPage() {
                   <thead>
                     <tr className="border-b border-stone-200">
                       <th className="sticky left-0 bg-white z-10 px-4 py-3 text-left text-stone-400 text-[11px] font-semibold uppercase tracking-wider min-w-[200px]">Concepto</th>
-                      {meses.map(m => (
+                      {displayMeses.map(m => (
                         <th key={m.periodo.id} className="px-4 py-3 text-right text-stone-400 text-[11px] font-semibold uppercase tracking-wider min-w-[120px]">
                           {m.periodo.nombre}
                         </th>
@@ -422,13 +443,13 @@ export default function PLCashflowPage() {
                     {/* SALDO INICIAL */}
                     <tr className="bg-stone-50 border-b border-stone-200">
                       <td className="sticky left-0 bg-stone-50 z-10 px-4 py-3 font-bold text-stone-900">SALDO INICIAL</td>
-                      {meses.map(m => (
+                      {displayMeses.map(m => (
                         <td key={m.periodo.id} className="px-4 py-3 text-right font-bold text-stone-900">
                           {formatCurrency(m.saldo_inicial)}
                         </td>
                       ))}
                       <td className="px-4 py-3 text-right font-bold text-stone-900 bg-stone-100">
-                        {meses.length > 0 ? formatCurrency(meses[0].saldo_inicial) : '-'}
+                        {displayMeses.length > 0 ? formatCurrency(displayMeses[0].saldo_inicial) : '-'}
                       </td>
                     </tr>
 
@@ -436,57 +457,57 @@ export default function PLCashflowPage() {
                     <SectionHeader label="I. ACTIVIDADES OPERATIVAS" />
                     <SubHeader label="Ingresos" />
                     {gridCategorias.filter(c => c.seccion === 'operativo' && c.tipo === 'ingreso').map(cat => (
-                      <CategoryRow key={cat.id} cat={cat} meses={meses} />
+                      <CategoryRow key={cat.id} cat={cat} meses={displayMeses} />
                     ))}
-                    <LegacyRow label="Ventas (sin clasificar)" tipo="venta" meses={meses} />
-                    <TotalRow label="TOTAL INGRESOS" values={meses.map(m => m.totales?.ingresos_operativos || 0)} color="emerald" />
+                    <LegacyRow label="Ventas (sin clasificar)" tipo="venta" meses={displayMeses} />
+                    <TotalRow label="TOTAL INGRESOS" values={displayMeses.map(m => m.totales?.ingresos_operativos || 0)} color="emerald" />
 
                     <SubHeader label="Egresos" />
                     {gridCategorias.filter(c => c.seccion === 'operativo' && c.tipo === 'egreso').map(cat => (
-                      <CategoryRow key={cat.id} cat={cat} meses={meses} />
+                      <CategoryRow key={cat.id} cat={cat} meses={displayMeses} />
                     ))}
-                    <LegacyRow label="Gastos (sin clasificar)" tipo="gasto" meses={meses} />
-                    <LegacyRow label="Compras (sin clasificar)" tipo="compra" meses={meses} />
-                    <TotalRow label="TOTAL EGRESOS" values={meses.map(m => m.totales?.egresos_operativos || 0)} color="stone" negative />
-                    <TotalRow label="FLUJO NETO OPERATIVO" values={meses.map(m => m.totales?.flujo_operativo || 0)} color="bold" />
+                    <LegacyRow label="Gastos (sin clasificar)" tipo="gasto" meses={displayMeses} />
+                    <LegacyRow label="Compras (sin clasificar)" tipo="compra" meses={displayMeses} />
+                    <TotalRow label="TOTAL EGRESOS" values={displayMeses.map(m => m.totales?.egresos_operativos || 0)} color="stone" negative />
+                    <TotalRow label="FLUJO NETO OPERATIVO" values={displayMeses.map(m => m.totales?.flujo_operativo || 0)} color="bold" />
 
                     {/* II. ACTIVIDADES DE INVERSION */}
                     <SectionHeader label="II. ACTIVIDADES DE INVERSION" />
                     {gridCategorias.filter(c => c.seccion === 'inversion').map(cat => (
-                      <CategoryRow key={cat.id} cat={cat} meses={meses} />
+                      <CategoryRow key={cat.id} cat={cat} meses={displayMeses} />
                     ))}
-                    <TotalRow label="FLUJO NETO INVERSION" values={meses.map(m => m.totales?.flujo_inversion || 0)} color="bold" />
+                    <TotalRow label="FLUJO NETO INVERSION" values={displayMeses.map(m => m.totales?.flujo_inversion || 0)} color="bold" />
 
                     {/* III. ACTIVIDADES DE FINANCIAMIENTO */}
                     <SectionHeader label="III. ACTIVIDADES DE FINANCIAMIENTO" />
                     {gridCategorias.filter(c => c.seccion === 'financiamiento').map(cat => (
-                      <CategoryRow key={cat.id} cat={cat} meses={meses} />
+                      <CategoryRow key={cat.id} cat={cat} meses={displayMeses} />
                     ))}
-                    <TotalRow label="FLUJO NETO FINANCIAMIENTO" values={meses.map(m => m.totales?.flujo_financiamiento || 0)} color="bold" />
+                    <TotalRow label="FLUJO NETO FINANCIAMIENTO" values={displayMeses.map(m => m.totales?.flujo_financiamiento || 0)} color="bold" />
 
                     {/* FLUJO NETO DEL PERIODO */}
                     <tr className="border-t-2 border-stone-300 bg-stone-50">
                       <td className="sticky left-0 bg-stone-50 z-10 px-4 py-3 font-bold text-stone-900">FLUJO NETO DEL PERIODO</td>
-                      {meses.map(m => (
+                      {displayMeses.map(m => (
                         <td key={m.periodo.id} className={`px-4 py-3 text-right font-bold ${(m.totales?.flujo_neto || 0) >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
                           {formatCurrency(m.totales?.flujo_neto || 0)}
                         </td>
                       ))}
                       <td className="px-4 py-3 text-right font-bold text-stone-900 bg-stone-100">
-                        {formatCurrency(meses.reduce((s, m) => s + (m.totales?.flujo_neto || 0), 0))}
+                        {formatCurrency(displayMeses.reduce((s, m) => s + (m.totales?.flujo_neto || 0), 0))}
                       </td>
                     </tr>
 
                     {/* SALDO FINAL */}
                     <tr className="bg-stone-100 border-t border-stone-300">
                       <td className="sticky left-0 bg-stone-100 z-10 px-4 py-3 font-bold text-stone-900">SALDO FINAL</td>
-                      {meses.map(m => (
+                      {displayMeses.map(m => (
                         <td key={m.periodo.id} className={`px-4 py-3 text-right font-bold text-lg ${(m.saldo_final || 0) >= 0 ? 'text-stone-900' : 'text-rose-600'}`}>
                           {formatCurrency(m.saldo_final)}
                         </td>
                       ))}
                       <td className="px-4 py-3 text-right font-bold text-lg text-stone-900 bg-stone-200">
-                        {meses.length > 0 ? formatCurrency(meses[meses.length - 1].saldo_final) : '-'}
+                        {displayMeses.length > 0 ? formatCurrency(displayMeses[displayMeses.length - 1].saldo_final) : '-'}
                       </td>
                     </tr>
                   </tbody>

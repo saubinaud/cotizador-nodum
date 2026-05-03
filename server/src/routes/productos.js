@@ -233,7 +233,7 @@ router.get('/', async (req, res) => {
     // Attach channel prices
     for (const p of productos) {
       const channelPrices = await pool.query(
-        `SELECT pcp.precio_override, cd.nombre AS canal_nombre, cd.comision_pct
+        `SELECT pcp.canal_id, pcp.precio_override, cd.nombre AS canal_nombre, cd.comision_pct
          FROM producto_canal_precio pcp
          JOIN canales_distribucion cd ON cd.id = pcp.canal_id AND cd.activo = true
          WHERE pcp.producto_id = $1`,
@@ -341,7 +341,7 @@ router.get('/:id', async (req, res) => {
 
     // Attach channel prices
     const channelPrices = await pool.query(
-      `SELECT pcp.precio_override, cd.nombre AS canal_nombre, cd.comision_pct
+      `SELECT pcp.canal_id, pcp.precio_override, cd.nombre AS canal_nombre, cd.comision_pct
        FROM producto_canal_precio pcp
        JOIN canales_distribucion cd ON cd.id = pcp.canal_id AND cd.activo = true
        WHERE pcp.producto_id = $1`,

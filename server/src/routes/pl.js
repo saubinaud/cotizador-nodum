@@ -395,6 +395,27 @@ router.get('/periodos', async (req, res) => {
       'SELECT * FROM periodos WHERE empresa_id = $1 ORDER BY fecha_inicio DESC',
       [req.eid]
     );
+
+    // Auto-create current month periodo if missing
+    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    const now = new Date(Date.now() - 5*60*60*1000); // Lima time (UTC-5)
+    const monthName = MESES[now.getMonth()] + ' ' + now.getFullYear();
+    const exists = result.rows.find(p => p.nombre === monthName);
+    if (!exists && req.eid) {
+      const y = now.getFullYear();
+      const m = now.getMonth();
+      const inicio = `${y}-${String(m+1).padStart(2,'0')}-01`;
+      const lastDay = new Date(y, m+1, 0).getDate();
+      const fin = `${y}-${String(m+1).padStart(2,'0')}-${lastDay}`;
+      try {
+        const newP = await pool.query(
+          'INSERT INTO periodos (empresa_id, usuario_id, nombre, tipo, fecha_inicio, fecha_fin) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
+          [req.eid, req.uid, monthName, 'mensual', inicio, fin]
+        );
+        result.rows.unshift(newP.rows[0]);
+      } catch(e) { /* ignore if already exists */ }
+    }
+
     return res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error('List periodos error:', err);

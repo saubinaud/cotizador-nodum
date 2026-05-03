@@ -4,6 +4,7 @@ import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency, formatDate } from '../utils/format';
 import CustomSelect from '../components/CustomSelect';
+import PeriodoSelector from '../components/PeriodoSelector';
 import SearchableSelect from '../components/SearchableSelect';
 import ConfirmDialog from '../components/ConfirmDialog';
 import {
@@ -121,8 +122,12 @@ export default function PLTimelinePage() {
     nota: '',
     descuento_tipo: 'none',
     descuento_valor: '',
+    cuenta_id: '',
+    cliente_id: '',
   });
   const [submitting, setSubmitting] = useState(false);
+  const [cuentas, setCuentas] = useState([]);
+  const [ventaClientes, setVentaClientes] = useState([]);
 
   // Load initial data
   useEffect(() => {
@@ -138,6 +143,8 @@ export default function PLTimelinePage() {
       if (pers.length > 0) setPeriodoId(pers[0].id);
       setLoading(false);
     });
+    api.get('/flujo/cuentas').then(r => setCuentas((r.data||[]).filter(c=>c.activo!==false).map(c=>({value:String(c.id),label:c.nombre})))).catch(()=>{});
+    api.get('/clientes').then(r => setVentaClientes((r.data||[]).map(c=>({value:String(c.id),label:`${c.num_doc} - ${c.razon_social}`})))).catch(()=>{});
   }, []);
 
   // Load transacciones + balance when periodo changes
@@ -206,6 +213,8 @@ export default function PLTimelinePage() {
         body.precio_unitario = form.precio_unitario ? parseFloat(form.precio_unitario) : null;
         body.descuento_tipo = form.descuento_tipo;
         body.descuento_valor = form.descuento_valor ? parseFloat(form.descuento_valor) : 0;
+        body.cuenta_id = form.cuenta_id || null;
+        body.cliente_id = form.cliente_id || null;
       } else if (tipoNuevo === 'gasto') {
         if (!form.categoria_id) { toast.error('Selecciona una categoria'); setSubmitting(false); return; }
         if (!form.monto_absoluto) { toast.error('Ingresa el monto'); setSubmitting(false); return; }
@@ -234,6 +243,7 @@ export default function PLTimelinePage() {
       producto_id: null, fecha: todayStr(), cantidad: 1, precio_unitario: '',
       categoria_id: null, monto_absoluto: '', descripcion: '', nota: '',
       descuento_tipo: 'none', descuento_valor: '',
+      cuenta_id: '', cliente_id: '',
     });
     setTipoNuevo('venta');
   };
@@ -308,13 +318,25 @@ export default function PLTimelinePage() {
       </div>
 
       {/* Period selector + filter */}
-      <div className="flex gap-3 mb-4">
+      <div className="flex gap-3 mb-4 items-start">
         <div className="flex-1">
-          <CustomSelect
-            options={periodoOptions}
+          <PeriodoSelector
+            periodos={periodos}
             value={periodoId}
-            onChange={setPeriodoId}
-            placeholder="Periodo..."
+            onChange={(v) => setPeriodoId(parseInt(v))}
+            onCreatePeriodo={async (year, month) => {
+              const MESES_FULL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+              const inicio = `${year}-${String(month+1).padStart(2,'0')}-01`;
+              const lastDay = new Date(year, month+1, 0).getDate();
+              const fin = `${year}-${String(month+1).padStart(2,'0')}-${lastDay}`;
+              try {
+                const res = await api.post('/pl/periodos', { nombre: `${MESES_FULL[month]} ${year}`, fecha_inicio: inicio, fecha_fin: fin });
+                const nuevo = res.data;
+                setPeriodos(prev => [nuevo, ...prev]);
+                setPeriodoId(nuevo.id);
+                toast.success('Periodo creado');
+              } catch(e) { toast.error(e.message); }
+            }}
           />
         </div>
         <div className="w-32">
@@ -500,6 +522,28 @@ export default function PLTimelinePage() {
                       </div>
                     )}
                   </div>
+                  {cuentas.length > 0 && (
+                    <div className="mb-4">
+                      <label className={cx.label}>Cuenta</label>
+                      <CustomSelect
+                        options={[{value:'',label:'Sin especificar'}, ...cuentas]}
+                        value={form.cuenta_id}
+                        onChange={v => setForm(f=>({...f, cuenta_id:v}))}
+                        placeholder="Cuenta..."
+                      />
+                    </div>
+                  )}
+                  {ventaClientes.length > 0 && (
+                    <div className="mb-4">
+                      <label className={cx.label}>Cliente</label>
+                      <CustomSelect
+                        options={[{value:'',label:'Sin cliente'}, ...ventaClientes]}
+                        value={form.cliente_id}
+                        onChange={v => setForm(f=>({...f, cliente_id:v}))}
+                        placeholder="Cliente..."
+                      />
+                    </div>
+                  )}
                 </>
               )}
 
