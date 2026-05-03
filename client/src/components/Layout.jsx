@@ -90,6 +90,7 @@ export default function Layout() {
         { to: '/materiales', label: t.materiales || 'Materiales', icon: Package, perm: 'materiales' },
         { to: '/preparaciones-predeterminadas', label: t.prep_pred || 'Recetas base', icon: ChefHat, perm: 'preparaciones' },
         { to: '/empaques-predeterminados', label: 'Empaques predet.', icon: BoxSelect, perm: 'empaques' },
+        { to: '/analisis', label: 'Rentabilidad', icon: TrendingUp, perm: 'dashboard' },
         { to: '/canales', label: 'Canales y Envio', icon: Truck, perm: 'canales' },
       ],
     },

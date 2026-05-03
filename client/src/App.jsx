@@ -31,6 +31,7 @@ import FichaTecnicaPage from './pages/FichaTecnicaPage';
 import PedidosPage from './pages/PedidosPage';
 import EquipoPage from './pages/EquipoPage';
 import CanalesPage from './pages/CanalesPage';
+import AnalisisPage from './pages/AnalisisPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -79,6 +80,7 @@ export default function App() {
               <Route path="/pedidos" element={<PedidosPage />} />
               <Route path="/comprobantes" element={<ComprobantesPage />} />
               <Route path="/ficha-tecnica/:id" element={<FichaTecnicaPage />} />
+              <Route path="/analisis" element={<AnalisisPage />} />
               <Route path="/canales" element={<CanalesPage />} />
               <Route path="/equipo" element={<EquipoPage />} />
               <Route path="/perfil" element={<PerfilPage />} />
