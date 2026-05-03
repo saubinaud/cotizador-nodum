@@ -24,9 +24,12 @@ export default function PeriodoSelector({ periodos = [], value, onChange, onCrea
     const map = {};
     periodos.forEach(p => {
       if (!p.fecha_inicio) return;
-      const d = new Date(p.fecha_inicio);
-      if (d.getFullYear() === selectedYear) {
-        map[d.getMonth()] = p;
+      // Parse as local date (YYYY-MM-DD) — avoid UTC shift
+      const parts = String(p.fecha_inicio).slice(0, 10).split('-');
+      const year = parseInt(parts[0]);
+      const month = parseInt(parts[1]) - 1; // 0-indexed
+      if (year === selectedYear) {
+        map[month] = p;
       }
     });
     return map;
