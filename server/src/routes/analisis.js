@@ -57,15 +57,26 @@ router.get('/rentabilidad', async (req, res) => {
     const totalUnidades = Object.values(sales).reduce((sum, s) => sum + s.unidades, 0);
     const totalRevenue = Object.values(sales).reduce((sum, s) => sum + s.revenue, 0);
 
-    // 5. Margin minimum from empresas table (default 33)
+    // 5. Margin minimum: empresa override → giro benchmark → 33% default
     let margenMinimoGlobal = 33;
+    let nombreRubro = null;
+    let margenRubro = null;
     try {
-      const { rows: [empresa] } = await pool.query(
-        `SELECT margen_minimo FROM empresas WHERE id = $1`,
+      const { rows: [emp] } = await pool.query(
+        `SELECT e.margen_minimo_global, e.giro_negocio_id, g.margen_minimo as margen_giro, g.nombre as giro_nombre
+         FROM empresas e
+         LEFT JOIN giros_negocio g ON g.id = e.giro_negocio_id
+         WHERE e.id = $1`,
         [empresaId]
       );
-      if (empresa && empresa.margen_minimo != null) {
-        margenMinimoGlobal = parseFloat(empresa.margen_minimo);
+      if (emp) {
+        nombreRubro = emp.giro_nombre || null;
+        margenRubro = emp.margen_giro ? parseFloat(emp.margen_giro) : null;
+        if (emp.margen_minimo_global && parseFloat(emp.margen_minimo_global) > 0) {
+          margenMinimoGlobal = parseFloat(emp.margen_minimo_global);
+        } else if (margenRubro) {
+          margenMinimoGlobal = margenRubro;
+        }
       }
     } catch (_) { /* use default */ }
 
@@ -127,6 +138,9 @@ router.get('/rentabilidad', async (req, res) => {
       productos_verde: resultado.filter(p => p.semaforo === 'verde').length,
       productos_amarillo: resultado.filter(p => p.semaforo === 'amarillo').length,
       productos_rojo: resultado.filter(p => p.semaforo === 'rojo').length,
+      margen_minimo_usado: margenMinimoGlobal,
+      nombre_rubro: nombreRubro,
+      margen_rubro: margenRubro,
     };
 
     res.json({ success: true, data: { productos: resultado, resumen } });

@@ -100,11 +100,12 @@ export default function AnalisisPage() {
     }
   };
 
+  const r = data?.resumen || {};
   const summaryCards = [
-    { label: 'Verde', count: data?.resumen?.verde ?? 0, color: 'bg-emerald-50 text-emerald-600', icon: CheckCircle },
-    { label: 'Amarillo', count: data?.resumen?.amarillo ?? 0, color: 'bg-amber-50 text-amber-600', icon: MinusCircle },
-    { label: 'Rojo', count: data?.resumen?.rojo ?? 0, color: 'bg-rose-50 text-rose-600', icon: AlertTriangle },
-    { label: 'Gastos fijos', count: data?.resumen?.gastos_fijos, color: 'bg-stone-50 text-stone-600', icon: TrendingDown, isCurrency: true },
+    { label: 'Verde', count: r.productos_verde ?? 0, color: 'bg-emerald-50 text-emerald-600', icon: CheckCircle },
+    { label: 'Amarillo', count: r.productos_amarillo ?? 0, color: 'bg-amber-50 text-amber-600', icon: MinusCircle },
+    { label: 'Rojo', count: r.productos_rojo ?? 0, color: 'bg-rose-50 text-rose-600', icon: AlertTriangle },
+    { label: r.nombre_rubro ? `Min. ${r.nombre_rubro}` : 'Margen mínimo', count: `${r.margen_minimo_usado || 33}%`, color: 'bg-stone-50 text-stone-600', icon: TrendingDown },
   ];
 
   const columns = [
