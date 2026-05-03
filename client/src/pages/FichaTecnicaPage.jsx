@@ -11,6 +11,25 @@ import {
 } from 'lucide-react';
 import { useTerminos } from '../context/TerminosContext';
 
+function Section({ title, number, isOpen, onToggle, children }) {
+  return (
+    <div className={`${cx.card} overflow-hidden`}>
+      <button
+        onClick={onToggle}
+        className="w-full flex items-center justify-between p-4 lg:cursor-default"
+      >
+        <h3 className="text-sm font-semibold text-stone-900">{title}</h3>
+        <span className="lg:hidden">
+          {isOpen ? <ChevronUp size={16} className="text-stone-400" /> : <ChevronDown size={16} className="text-stone-400" />}
+        </span>
+      </button>
+      <div className={`${isOpen ? 'block' : 'hidden lg:block'} px-4 pb-4`}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
 export default function FichaTecnicaPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -96,25 +115,10 @@ export default function FichaTecnicaPage() {
 
   const ef = (field, value) => setEditForm(f => ({ ...f, [field]: value }));
 
-  function Section({ title, number, children }) {
-    const isOpen = openSections[number] !== false;
-    return (
-      <div className={`${cx.card} overflow-hidden`}>
-        <button
-          onClick={() => setOpenSections(s => ({ ...s, [number]: !isOpen }))}
-          className="w-full flex items-center justify-between p-4 lg:cursor-default"
-        >
-          <h3 className="text-sm font-semibold text-stone-900">{title}</h3>
-          <span className="lg:hidden">
-            {isOpen ? <ChevronUp size={16} className="text-stone-400" /> : <ChevronDown size={16} className="text-stone-400" />}
-          </span>
-        </button>
-        <div className={`${isOpen ? 'block' : 'hidden lg:block'} px-4 pb-4`}>
-          {children}
-        </div>
-      </div>
-    );
-  }
+  const sectionProps = (number) => ({
+    isOpen: openSections[number] !== false,
+    onToggle: () => setOpenSections(s => ({ ...s, [number]: s[number] === false ? true : false })),
+  });
 
   function EditInput({ value, onChange, placeholder, type = 'number', suffix }) {
     return (
@@ -203,7 +207,7 @@ export default function FichaTecnicaPage() {
 
       <div className="space-y-3">
         {/* Section 1 — Identificacion */}
-        <Section title="1. Identificacion" number={1}>
+        <Section title="1. Identificacion" number={1} {...sectionProps(1)}>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             <Field label="Nombre" value={producto.nombre} />
             <Field label="Codigo" value={`#${String(producto.id).padStart(4, '0')}`} />
@@ -220,7 +224,7 @@ export default function FichaTecnicaPage() {
         </Section>
 
         {/* Section 2 — Produccion */}
-        <Section title="2. Produccion" number={2}>
+        <Section title="2. Produccion" number={2} {...sectionProps(2)}>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
             <Field label="Tamano tanda" value={`${producto.unidades_por_producto || 1} unidades`} />
             <Field
@@ -250,7 +254,7 @@ export default function FichaTecnicaPage() {
         </Section>
 
         {/* Section 3 — Ingredientes por preparacion */}
-        <Section title="3. Ingredientes por preparacion" number={3}>
+        <Section title="3. Ingredientes por preparacion" number={3} {...sectionProps(3)}>
           {preparaciones.map((prep, pi) => (
             <div key={prep.id} className="mb-5 last:mb-0">
               <div className="flex items-center justify-between mb-2">
@@ -302,7 +306,7 @@ export default function FichaTecnicaPage() {
 
         {/* Section 4 — Mermas de preparacion */}
         {hasMermaPrep && (
-          <Section title="4. Mermas de preparacion" number={4}>
+          <Section title="4. Mermas de preparacion" number={4} {...sectionProps(4)}>
             <div className="border border-stone-100 rounded-lg overflow-hidden">
               <table className="w-full text-sm">
                 <thead>
@@ -332,7 +336,7 @@ export default function FichaTecnicaPage() {
         )}
 
         {/* Section 5 — Food Cost */}
-        <Section title={`${hasMermaPrep ? '5' : '4'}. Food Cost`} number={5}>
+        <Section title={`${hasMermaPrep ? '5' : '4'}. Food Cost`} number={5} {...sectionProps(5)}>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-stone-500">Insumos ensamblados (con mermas)</span>
@@ -362,7 +366,7 @@ export default function FichaTecnicaPage() {
         </Section>
 
         {/* Section 6 — Mano de obra */}
-        <Section title={`${hasMermaPrep ? '6' : '5'}. Mano de obra`} number={6}>
+        <Section title={`${hasMermaPrep ? '6' : '5'}. Mano de obra`} number={6} {...sectionProps(6)}>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-stone-500 flex items-center gap-1"><Clock size={14} /> Tiempo activo</span>
@@ -387,7 +391,7 @@ export default function FichaTecnicaPage() {
         </Section>
 
         {/* Section 7 — CIF */}
-        <Section title={`${hasMermaPrep ? '7' : '6'}. CIF (Costos indirectos)`} number={7}>
+        <Section title={`${hasMermaPrep ? '7' : '6'}. CIF (Costos indirectos)`} number={7} {...sectionProps(7)}>
           <div className="space-y-3">
             <Field
               label="Gas / electricidad por unidad"
@@ -412,7 +416,7 @@ export default function FichaTecnicaPage() {
         </Section>
 
         {/* Section 8 — Costo neto */}
-        <Section title={`${hasMermaPrep ? '8' : '7'}. Costo neto`} number={8}>
+        <Section title={`${hasMermaPrep ? '8' : '7'}. Costo neto`} number={8} {...sectionProps(8)}>
           <div className="space-y-2">
             <div className="flex justify-between text-sm">
               <span className="text-stone-500">Food cost</span>
@@ -445,7 +449,7 @@ export default function FichaTecnicaPage() {
         </Section>
 
         {/* Section 9 — Precio de venta */}
-        <Section title={`${hasMermaPrep ? '9' : '8'}. Precio de venta`} number={9}>
+        <Section title={`${hasMermaPrep ? '9' : '8'}. Precio de venta`} number={9} {...sectionProps(9)}>
           <div className="space-y-2">
             <Field
               label={`Margen minimo objetivo (${producto.margen_minimo_override ? 'producto' : 'global'})`}
@@ -486,7 +490,7 @@ export default function FichaTecnicaPage() {
 
         {/* Section 10 — Precios por canal */}
         {data.precios_canal && data.precios_canal.length > 0 && (
-          <Section title={`${hasMermaPrep ? '10' : '9'}. Precios por canal`} number={10}>
+          <Section title={`${hasMermaPrep ? '10' : '9'}. Precios por canal`} number={10} {...sectionProps(10)}>
             <div className="space-y-2">
               {data.precios_canal.map((cp, i) => {
                 const comision = parseFloat(cp.comision_pct) || 0;
@@ -532,7 +536,7 @@ export default function FichaTecnicaPage() {
         )}
 
         {/* Section 11 — Instrucciones */}
-        <Section title={`${hasMermaPrep ? (data.precios_canal?.length > 0 ? '11' : '10') : (data.precios_canal?.length > 0 ? '10' : '9')}. Instrucciones`} number={11}>
+        <Section title={`${hasMermaPrep ? (data.precios_canal?.length > 0 ? '11' : '10') : (data.precios_canal?.length > 0 ? '10' : '9')}. Instrucciones`} number={11} {...sectionProps(11)}>
           <div className="space-y-4">
             {preparaciones.map((prep, pi) => (
               <div key={prep.id}>

@@ -357,7 +357,7 @@ export default function DashboardPage() {
         const productosUnidad = filtered.filter((p) => p.tipo_presentacion !== 'entero');
 
         const renderGalleryGrid = (prods) => (
-          <div className={`grid ${mobileColumns === 2 ? 'grid-cols-2' : 'grid-cols-1'} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3 sm:gap-4`}>
+          <div className={`grid ${mobileColumns === 2 ? 'grid-cols-2' : 'grid-cols-1'} sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3`}>
             {prods.map((p) => (
               <div key={p.id} className={`${cx.cardHover} overflow-hidden group relative`} onClick={() => !p.locked && handleDetail(p)}>
                 {p.locked && (

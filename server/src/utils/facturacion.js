@@ -95,8 +95,9 @@ function buildInvoiceJSON({ tipo, venta, productos, usuario, config, cliente }) 
     ? String(config.correlativo_factura + 1)
     : String(config.correlativo_boleta + 1);
 
+  // Use the user's IGV rate (18% standard, 10.5% for restaurants/restauración)
   const igvRate = parseFloat(usuario.igv_rate) || 0.18;
-  const igvPct = igvRate * 100; // 18
+  const igvPct = round2(igvRate * 100);
 
   // Build details from venta items
   const items = Array.isArray(productos) ? productos : [productos];
@@ -137,7 +138,12 @@ function buildInvoiceJSON({ tipo, venta, productos, usuario, config, cliente }) 
     tipoDoc,
     serie,
     correlativo,
-    fechaEmision: new Date().toISOString().replace('Z', '-05:00'), // Peru timezone
+    fechaEmision: (() => {
+      // Peru is UTC-5 — convert UTC to Lima time
+      const now = new Date();
+      const lima = new Date(now.getTime() - 5 * 60 * 60 * 1000);
+      return lima.toISOString().replace(/\.\d{3}Z$/, '-05:00');
+    })(),
     tipoMoneda: 'PEN',
 
     formaPago: { moneda: 'PEN', tipo: 'Contado' },

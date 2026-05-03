@@ -291,7 +291,7 @@ export default function PrepPredPage() {
               <thead>
                 <tr>
                   <th className={cx.th + ' w-2/5'}>Insumo</th>
-                  <th className={cx.th + ' w-1/6'}>Cantidad</th>
+                  <th className={cx.th + ' w-1/5'}>Cantidad / U.M.</th>
                   <th className={cx.th + ' w-1/6'}>Costo Unit.</th>
                   <th className={cx.th + ' w-1/6 text-right'}>Subtotal</th>
                   <th className={cx.th + ' w-10'}></th>
@@ -321,7 +321,7 @@ export default function PrepPredPage() {
                           value={ins.uso_unidad || ins.unidad_medida || ''}
                           onChange={(v) => updateInsumo(ins._id, 'uso_unidad', v)}
                           options={getUnidadesCompatibles(ins.unidad_medida).map(u => ({ value: u, label: u }))}
-                          className="w-14"
+                          className="w-16" compact
                         />
                       </div>
                     </td>
@@ -367,7 +367,7 @@ export default function PrepPredPage() {
                         value={ins.uso_unidad || ins.unidad_medida || ''}
                         onChange={(v) => updateInsumo(ins._id, 'uso_unidad', v)}
                         options={getUnidadesCompatibles(ins.unidad_medida).map(u => ({ value: u, label: u }))}
-                        className="w-14"
+                        className="w-16" compact
                       />
                     </div>
                   </div>

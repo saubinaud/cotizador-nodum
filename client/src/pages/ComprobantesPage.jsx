@@ -4,10 +4,10 @@ import { useToast } from '../context/ToastContext';
 import { cx } from '../styles/tokens';
 import { formatCurrency, formatDate } from '../utils/format';
 import CustomSelect from '../components/CustomSelect';
-import ConfirmDialog from '../components/ConfirmDialog';
+import ConfirmDialog, { PromptDialog } from '../components/ConfirmDialog';
 import { useAuth } from '../context/AuthContext';
 import {
-  FileText, Receipt, Eye, Ban, DollarSign,
+  FileText, Receipt, Eye, Ban, DollarSign, Trash2,
   Settings, Upload, CheckCircle, Circle, AlertTriangle, Search,
 } from 'lucide-react';
 
@@ -18,6 +18,8 @@ const TIPO_DOC_OPTIONS = [
 ];
 
 const TIPO_LABELS = { '01': 'Factura', '03': 'Boleta' };
+
+const ESTADO_LABELS = { emitido: 'Aceptado SUNAT', anulado: 'Anulado', error: 'Rechazado' };
 
 function estadoBadge(estado) {
   switch (estado) {
@@ -40,6 +42,10 @@ export default function ComprobantesPage() {
   const [loadingData, setLoadingData] = useState(false);
   const [tipoFilter, setTipoFilter] = useState('');
   const [anularTarget, setAnularTarget] = useState(null);
+  const [deleteRechazados, setDeleteRechazados] = useState(false);
+  const [certFile, setCertFile] = useState(null);
+  const [certPasswordPrompt, setCertPasswordPrompt] = useState(false);
+  const [solValidation, setSolValidation] = useState(null);
 
   // Facturacion config state
   const [config, setConfig] = useState(null);
@@ -64,8 +70,9 @@ export default function ComprobantesPage() {
     loadConfig();
     api.get('/pl/periodos').then(res => {
       const pers = res.data || res || [];
-      setPeriodos(pers.map(p => ({ value: String(p.id), label: p.nombre })));
-      if (pers.length > 0) setPeriodoId(String(pers[0].id));
+      setPeriodos([{ value: '', label: 'Todos' }, ...pers.map(p => ({ value: String(p.id), label: p.nombre }))]);
+      // Default: show all comprobantes (no period filter)
+      setPeriodoId('');
       setLoading(false);
     }).catch(() => {
       setLoading(false);
@@ -74,10 +81,10 @@ export default function ComprobantesPage() {
 
   // Load comprobantes when periodo or filter changes
   const loadComprobantes = async () => {
-    if (!periodoId) return;
     setLoadingData(true);
     try {
-      let path = `/facturacion/comprobantes?periodo_id=${periodoId}`;
+      let path = '/facturacion/comprobantes?limit=100';
+      if (periodoId) path = `/facturacion/comprobantes?periodo_id=${periodoId}`;
       if (tipoFilter) path += `&tipo_doc=${tipoFilter}`;
       const res = await api.get(path);
       setComprobantes(res.data || res || []);
@@ -89,20 +96,21 @@ export default function ComprobantesPage() {
   };
 
   useEffect(() => {
-    if (periodoId) loadComprobantes();
+    loadComprobantes();
   }, [periodoId, tipoFilter]); // eslint-disable-line
 
   // Summary
   const summary = useMemo(() => {
-    let total = 0, facturas = 0, boletas = 0;
+    let total = 0, facturas = 0, boletas = 0, rechazados = 0;
     comprobantes.forEach(c => {
+      if (c.estado === 'error') { rechazados++; return; }
       if (c.estado !== 'anulado') {
-        total += parseFloat(c.total) || 0;
+        total += parseFloat(c.mto_total) || 0;
         if (c.tipo_doc === '01') facturas++;
         if (c.tipo_doc === '03') boletas++;
       }
     });
-    return { total, facturas, boletas };
+    return { total, facturas, boletas, rechazados };
   }, [comprobantes]);
 
   // View PDF
@@ -203,7 +211,15 @@ export default function ComprobantesPage() {
   async function handleCertUpload(e) {
     const file = e.target.files?.[0];
     if (!file) return;
-    const password = window.prompt('Ingresa la contraseña del certificado (déjalo vacío si no tiene):') ?? '';
+    setCertFile(file);
+    setCertPasswordPrompt(true);
+  }
+
+  async function uploadCertWithPassword(password) {
+    setCertPasswordPrompt(false);
+    const file = certFile;
+    setCertFile(null);
+    if (!file) return;
     setUploadingCert(true);
     try {
       const reader = new FileReader();
@@ -392,11 +408,11 @@ export default function ComprobantesPage() {
               </div>
               <div className="p-3 bg-amber-50 rounded-lg mt-2">
                 <p className="text-xs text-amber-700 mb-2 font-medium">Credenciales SOL (requerido para emisión)</p>
-                <p className="text-[10px] text-amber-600 mb-2">El mismo usuario y clave con los que entras a SUNAT SOL</p>
+                <p className="text-[10px] text-amber-600 mb-2">Usuario secundario SUNAT con permiso de emisión electrónica</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className={cx.label}>Usuario SOL</label>
-                    <input type="text" value={configForm.sol_user || ''} onChange={e => setConfigForm(p => ({...p, sol_user: e.target.value}))} className={cx.input} placeholder="USUARIO01" />
+                    <input type="text" value={configForm.sol_user || ''} onChange={e => setConfigForm(p => ({...p, sol_user: e.target.value.toUpperCase()}))} className={cx.input} placeholder="USUARIO01" />
                   </div>
                   <div>
                     <label className={cx.label}>Contraseña SOL</label>
@@ -404,11 +420,41 @@ export default function ComprobantesPage() {
                   </div>
                 </div>
               </div>
+              {solValidation && (
+                <div className={`p-3 rounded-lg mt-2 text-sm ${solValidation.ok ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'}`}>
+                  {solValidation.message}
+                </div>
+              )}
               <div className="flex gap-2 mt-3">
                 <button onClick={handleSaveConfig} disabled={savingConfig} className={cx.btnPrimary + ' text-sm'}>
                   {savingConfig ? 'Guardando...' : 'Guardar'}
                 </button>
-                <button onClick={() => setEditingConfig(false)} className={cx.btnGhost + ' text-sm'}>Cancelar</button>
+                <button
+                  onClick={async () => {
+                    // Save first, then validate
+                    setSolValidation(null);
+                    setSavingConfig(true);
+                    try {
+                      await api.put('/facturacion/config', configForm);
+                      const res = await api.post('/facturacion/validar-sol');
+                      if (res.data?.message) {
+                        setSolValidation({ ok: true, message: res.data.message });
+                      } else {
+                        setSolValidation({ ok: false, message: res.error || 'No se pudo validar' });
+                      }
+                    } catch (err) {
+                      setSolValidation({ ok: false, message: err.message || 'Error validando credenciales' });
+                    } finally {
+                      setSavingConfig(false);
+                      loadConfig();
+                    }
+                  }}
+                  disabled={savingConfig || !configForm.sol_user || !configForm.sol_pass}
+                  className={cx.btnSecondary + ' text-sm flex items-center gap-1'}
+                >
+                  {savingConfig ? 'Validando...' : <><CheckCircle size={14} /> Validar SOL</>}
+                </button>
+                <button onClick={() => { setEditingConfig(false); setSolValidation(null); }} className={cx.btnGhost + ' text-sm'}>Cancelar</button>
               </div>
             </div>
           ) : (
@@ -487,6 +533,18 @@ export default function ComprobantesPage() {
         </div>
       </div>
 
+      {summary.rechazados > 0 && (
+        <div className="flex items-center justify-between bg-rose-50 border border-rose-200 rounded-xl px-4 py-3 mb-5">
+          <span className="text-sm text-rose-700">{summary.rechazados} comprobante{summary.rechazados > 1 ? 's' : ''} rechazado{summary.rechazados > 1 ? 's' : ''}</span>
+          <button
+            onClick={() => setDeleteRechazados(true)}
+            className={cx.btnDanger + ' flex items-center gap-1 text-xs'}
+          >
+            <Trash2 size={13} /> Limpiar rechazados
+          </button>
+        </div>
+      )}
+
       {/* Table */}
       {loadingData ? (
         <div className="space-y-4">
@@ -506,6 +564,7 @@ export default function ComprobantesPage() {
                 <tr className="border-b border-stone-100">
                   <th className={cx.th}>Serie-Correlativo</th>
                   <th className={cx.th}>Tipo</th>
+                  <th className={cx.th}>Producto</th>
                   <th className={cx.th}>Cliente</th>
                   <th className={cx.th + ' text-right'}>Total</th>
                   <th className={cx.th}>Estado</th>
@@ -520,10 +579,11 @@ export default function ComprobantesPage() {
                       {c.serie}-{c.correlativo}
                     </td>
                     <td className={cx.td + ' text-stone-600'}>{TIPO_LABELS[c.tipo_doc] || c.tipo_doc}</td>
-                    <td className={cx.td + ' text-stone-600 text-xs'}>{c.cliente_razon_social || c.razon_social || '-'}</td>
-                    <td className={cx.td + ' text-right font-semibold text-stone-900'}>{formatCurrency(c.total)}</td>
+                    <td className={cx.td + ' text-stone-600 text-xs'}>{c.producto_nombre || '-'}</td>
+                    <td className={cx.td + ' text-stone-600 text-xs'}>{c.cliente_razon_social || '-'}</td>
+                    <td className={cx.td + ' text-right font-semibold text-stone-900'}>{formatCurrency(c.mto_total)}</td>
                     <td className={cx.td}>
-                      <span className={estadoBadge(c.estado)}>{c.estado}</span>
+                      <span className={estadoBadge(c.estado)}>{ESTADO_LABELS[c.estado] || c.estado}</span>
                     </td>
                     <td className={cx.td + ' text-stone-500'}>{formatDate(c.fecha_emision || c.created_at)}</td>
                     <td className={cx.td}>
@@ -557,12 +617,13 @@ export default function ComprobantesPage() {
                       {TIPO_LABELS[c.tipo_doc] || c.tipo_doc} &middot; {formatDate(c.fecha_emision || c.created_at)}
                     </p>
                   </div>
-                  <span className={estadoBadge(c.estado)}>{c.estado}</span>
+                  <span className={estadoBadge(c.estado)}>{ESTADO_LABELS[c.estado] || c.estado}</span>
                 </div>
                 <div className="flex items-center justify-between mt-2">
                   <div>
-                    <p className="text-xs text-stone-500 truncate">{c.cliente_razon_social || c.razon_social || '-'}</p>
-                    <p className="text-sm font-semibold text-stone-900 mt-0.5">{formatCurrency(c.total)}</p>
+                    {c.producto_nombre && <p className="text-xs text-stone-700 font-medium">{c.producto_nombre}</p>}
+                    <p className="text-xs text-stone-500 truncate">{c.cliente_razon_social || '-'}</p>
+                    <p className="text-sm font-semibold text-stone-900 mt-0.5">{formatCurrency(c.mto_total)}</p>
                   </div>
                   <div className="flex gap-1">
                     <button onClick={() => viewPdf(c.id)} className={cx.btnGhost + ' text-xs flex items-center gap-1'}>
@@ -588,6 +649,35 @@ export default function ComprobantesPage() {
         message={`Estas seguro de anular el comprobante ${anularTarget?.serie}-${anularTarget?.correlativo}?`}
         onConfirm={handleAnular}
         onCancel={() => setAnularTarget(null)}
+        confirmText="Anular"
+      />
+
+      {/* Confirm delete rechazados */}
+      <ConfirmDialog
+        open={deleteRechazados}
+        title="Limpiar rechazados"
+        message={`Se eliminaran ${summary.rechazados} comprobantes rechazados. Esta accion no se puede deshacer.`}
+        confirmText="Eliminar rechazados"
+        onConfirm={async () => {
+          setDeleteRechazados(false);
+          try {
+            const res = await api.del('/facturacion/comprobantes/rechazados');
+            toast.success(res.data?.message || 'Rechazados eliminados');
+            loadComprobantes();
+          } catch (err) { toast.error(err.message); }
+        }}
+        onCancel={() => setDeleteRechazados(false)}
+      />
+
+      {/* Cert password prompt */}
+      <PromptDialog
+        open={certPasswordPrompt}
+        title="Contraseña del certificado"
+        message="Ingresa la contraseña del archivo .p12 (dejalo vacio si no tiene)."
+        placeholder="Contraseña"
+        confirmText="Subir certificado"
+        onConfirm={(pw) => uploadCertWithPassword(pw)}
+        onCancel={() => { setCertPasswordPrompt(false); setCertFile(null); }}
       />
     </div>
   );

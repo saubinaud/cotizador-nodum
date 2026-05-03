@@ -51,17 +51,15 @@ router.post('/', async (req, res) => {
 
     const nombreNorm = nombre.trim().charAt(0).toUpperCase() + nombre.trim().slice(1).toLowerCase();
 
-    // Check for exact duplicate (same name + same presentation)
+    // Check for duplicate name (DB has UNIQUE constraint on usuario_id + nombre)
     const dup = await pool.query(
-      `SELECT id FROM insumos
-       WHERE LOWER(nombre) = LOWER($1) AND usuario_id = $2
-       AND cantidad_presentacion = $3 AND unidad_medida = $4`,
-      [nombreNorm, req.user.id, cantidad_presentacion, unidad_medida || 'g']
+      `SELECT id FROM insumos WHERE LOWER(nombre) = LOWER($1) AND usuario_id = $2`,
+      [nombreNorm, req.user.id]
     );
     if (dup.rows.length > 0) {
       return res.status(409).json({
         success: false,
-        error: `Ya existe "${nombreNorm}" con la misma presentacion (${cantidad_presentacion} ${unidad_medida || 'g'})`,
+        error: `Ya existe un insumo llamado "${nombreNorm}". Usa otro nombre o edita el existente.`,
       });
     }
 
@@ -80,6 +78,9 @@ router.post('/', async (req, res) => {
 
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
+    if (err.constraint === 'insumos_usuario_id_nombre_key') {
+      return res.status(409).json({ success: false, error: 'Ya existe un insumo con ese nombre.' });
+    }
     console.error('Create insumo error:', err);
     return res.status(500).json({ success: false, error: 'Error interno del servidor' });
   }
@@ -158,9 +159,18 @@ router.delete('/:id', async (req, res) => {
       [req.params.id, req.user.id]
     );
     if (parseInt(usageProductos.rows[0].count) > 0) {
+      // Get product names for helpful message
+      const prodNames = await pool.query(
+        `SELECT DISTINCT prod.nombre FROM producto_prep_insumos ppi
+         JOIN producto_preparaciones pp ON pp.id = ppi.producto_preparacion_id
+         JOIN productos prod ON prod.id = pp.producto_id
+         WHERE ppi.insumo_id = $1 AND prod.usuario_id = $2 LIMIT 3`,
+        [req.params.id, req.user.id]
+      );
+      const nombres = prodNames.rows.map(r => r.nombre).join(', ');
       return res.status(409).json({
         success: false,
-        error: 'No se puede eliminar: el insumo esta en uso en productos',
+        error: `Este insumo esta en uso en: ${nombres}. Retiralo de esos productos antes de eliminarlo.`,
       });
     }
 
@@ -172,9 +182,16 @@ router.delete('/:id', async (req, res) => {
       [req.params.id, req.user.id]
     );
     if (parseInt(usagePred.rows[0].count) > 0) {
+      const predNames = await pool.query(
+        `SELECT DISTINCT pp.nombre FROM prep_pred_insumos ppi
+         JOIN preparaciones_predeterminadas pp ON pp.id = ppi.preparacion_pred_id
+         WHERE ppi.insumo_id = $1 AND pp.usuario_id = $2 LIMIT 3`,
+        [req.params.id, req.user.id]
+      );
+      const nombres = predNames.rows.map(r => r.nombre).join(', ');
       return res.status(409).json({
         success: false,
-        error: 'No se puede eliminar: el insumo esta en uso en preparaciones predeterminadas',
+        error: `Este insumo esta en uso en recetas: ${nombres}. Retiralo de esas recetas antes de eliminarlo.`,
       });
     }
 

@@ -257,58 +257,33 @@ export default function OnboardingPage() {
           </div>
 
           <div>
-            <label className={cx.label}>Tipo de negocio</label>
+            <label className={cx.label}>Tipo de contribuyente</label>
             <CustomSelect
-              value={form.tipo_negocio}
+              value={form.tipo_negocio === 'informal' ? 'no_igv' : `formal_${form.igv_rate}`}
               onChange={(val) => {
-                setForm((prev) => ({
-                  ...prev,
-                  tipo_negocio: val,
-                  ...(val === 'informal' ? { igv_rate: '0' } : { igv_rate: '18' }),
-                }));
+                if (val === 'no_igv') {
+                  setForm(prev => ({ ...prev, tipo_negocio: 'informal', igv_rate: '0' }));
+                } else if (val === 'formal_10.5') {
+                  setForm(prev => ({ ...prev, tipo_negocio: 'formal', igv_rate: '10.5' }));
+                } else {
+                  setForm(prev => ({ ...prev, tipo_negocio: 'formal', igv_rate: '18' }));
+                }
               }}
               options={[
-                { value: 'formal', label: 'Formal (paga IGV)' },
-                { value: 'informal', label: 'Informal (no paga IGV)' },
+                { value: 'formal_18', label: 'Formal (IGV 18%)' },
+                { value: 'formal_10.5', label: 'Formal (IGV 10.5%)' },
+                { value: 'no_igv', label: 'No paga IGV' },
               ]}
             />
           </div>
-
-          {form.tipo_negocio !== 'informal' && (
-            <div>
-              <label className={cx.label}>Tasa IGV</label>
-              <div className="flex gap-4 mt-1">
-                <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="igv_rate"
-                    value="18"
-                    checked={form.igv_rate === '18'}
-                    onChange={handleChange('igv_rate')}
-                    className="accent-[var(--accent)]"
-                  />
-                  18%
-                </label>
-                <label className="flex items-center gap-2 text-sm text-stone-600 cursor-pointer">
-                  <input
-                    type="radio"
-                    name="igv_rate"
-                    value="10.5"
-                    checked={form.igv_rate === '10.5'}
-                    onChange={handleChange('igv_rate')}
-                    className="accent-[var(--accent)]"
-                  />
-                  10.5%
-                </label>
-              </div>
-            </div>
-          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className={cx.label}>Contrasena</label>
               <input
                 type="password"
+                name="new-password"
+                autoComplete="new-password"
                 value={form.password}
                 onChange={handleChange('password')}
                 className={cx.input}

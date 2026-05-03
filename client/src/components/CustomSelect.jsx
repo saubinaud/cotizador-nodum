@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { ChevronDown } from 'lucide-react';
 
 export default function CustomSelect({ options = [], value, onChange, placeholder = 'Seleccionar...', className = '', compact = false }) {
   const [open, setOpen] = useState(false);
+  const [flipUp, setFlipUp] = useState(false);
   const ref = useRef(null);
+  const dropdownRef = useRef(null);
 
   useEffect(() => {
     function handleClick(e) {
@@ -13,13 +15,27 @@ export default function CustomSelect({ options = [], value, onChange, placeholde
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
 
+  // Flip detection: check if dropdown would overflow viewport bottom
+  const checkFlip = useCallback(() => {
+    if (!ref.current) return;
+    const rect = ref.current.getBoundingClientRect();
+    const dropdownHeight = Math.min(options.length * (compact ? 28 : 36) + 8, 200);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    setFlipUp(spaceBelow < dropdownHeight && rect.top > dropdownHeight);
+  }, [options.length, compact]);
+
+  const handleToggle = () => {
+    if (!open) checkFlip();
+    setOpen(!open);
+  };
+
   const selected = options.find((o) => o.value === value);
 
   return (
     <div ref={ref} className={`relative ${className}`}>
       <button
         type="button"
-        onClick={() => setOpen(!open)}
+        onClick={handleToggle}
         className={`w-full bg-white border border-stone-300 rounded-lg text-stone-800 text-left flex items-center justify-between focus:outline-none focus:border-stone-500 transition-colors duration-150 ${
           compact ? 'px-2 py-1.5 text-xs gap-1' : 'px-4 py-2.5 text-sm gap-2'
         }`}
@@ -31,7 +47,12 @@ export default function CustomSelect({ options = [], value, onChange, placeholde
       </button>
 
       {open && (
-        <div className={`absolute z-[60] mt-1 bg-white border border-stone-200 rounded-lg shadow-lg overflow-hidden ${compact ? 'min-w-[80px]' : 'w-full'}`}>
+        <div
+          ref={dropdownRef}
+          className={`absolute z-[9999] bg-white border border-stone-200 rounded-lg shadow-lg overflow-hidden ${compact ? 'min-w-[80px]' : 'w-full'} ${
+            flipUp ? 'bottom-full mb-1' : 'top-full mt-1'
+          }`}
+        >
           <div className="max-h-48 overflow-y-auto py-1">
             {options.map((o) => (
               <button

@@ -8,6 +8,7 @@ import { cx } from '../styles/tokens';
 import { formatCurrency, precioComercial, preciosRecomendados } from '../utils/format';
 import SearchableSelect from '../components/SearchableSelect';
 import CustomSelect from '../components/CustomSelect';
+import { PromptDialog } from '../components/ConfirmDialog';
 import {
   Plus,
   Trash2,
@@ -161,6 +162,8 @@ export default function CotizadorPage() {
   const [imagenUrl, setImagenUrl] = useState('');
   const [preparaciones, setPreparaciones] = useState([emptyPreparacion()]);
   const [materiales, setMateriales] = useState([]);
+  const [selectedEmpaquePred, setSelectedEmpaquePred] = useState({});
+  const [empaqueCollapsed, setEmpaqueCollapsed] = useState({});
   const [margen, setMargen] = useState(50);
   const [margenPorcion, setMargenPorcion] = useState(50);
   // igv_rate in DB is decimal (0.18), hook expects integer (18)
@@ -369,6 +372,34 @@ export default function CotizadorPage() {
     }
   };
 
+  const [saveEmpaquePrompt, setSaveEmpaquePrompt] = useState(null); // { tipo }
+
+  const saveEmpaqueAsPredeterminado = (tipo) => {
+    const mats = materiales.filter(m => (m.empaque_tipo || 'entero') === tipo);
+    if (mats.length === 0 || !mats.some(m => m.material_id)) {
+      toast.error('Agrega al menos un material primero');
+      return;
+    }
+    setSaveEmpaquePrompt({ tipo });
+  };
+
+  const confirmSaveEmpaque = async (nombre) => {
+    const tipo = saveEmpaquePrompt?.tipo;
+    setSaveEmpaquePrompt(null);
+    if (!tipo || !nombre) return;
+    const mats = materiales.filter(m => (m.empaque_tipo || 'entero') === tipo);
+    try {
+      await api.post('/predeterminados/empaques', {
+        nombre,
+        materiales: mats.filter(m => m.material_id).map(m => ({ material_id: m.material_id, cantidad: Number(m.cantidad) || 1 })),
+      });
+      toast.success(`"${nombre}" guardado como empaque predeterminado`);
+      api.get('/predeterminados/empaques').then(d => setCatalogEmpaques(d.data || [])).catch(() => {});
+    } catch (err) {
+      toast.error(err.message || 'Error guardando empaque');
+    }
+  };
+
   const removePreparacion = (prepId) => {
     setPreparaciones((prev) => prev.filter((p) => p._id !== prepId));
   };
@@ -456,7 +487,9 @@ export default function CotizadorPage() {
         empaque_tipo: tipo,
       };
     });
-    setMateriales((prev) => [...prev, ...newMats]);
+    // Replace materials of the same tipo (not append)
+    setMateriales((prev) => [...prev.filter(m => m.empaque_tipo !== tipo), ...newMats]);
+    setSelectedEmpaquePred((prev) => ({ ...prev, [tipo]: pred.nombre }));
   };
 
   const removeMaterial = (matId) => {
@@ -1073,72 +1106,96 @@ export default function CotizadorPage() {
             </div>
           </div>
 
-          {/* ── Empaque / Materiales ── */}
+          {/* ── Empaque / Materiales — accordion like preparaciones ── */}
           <div>
             <h3 className="text-lg font-semibold text-stone-900 mb-3">Empaque<InfoTip text="Materiales de empaque para presentar tu producto. Si es presentacion entera, separa el empaque del producto completo y el de cada porcion individual." /></h3>
 
-            {tipoPresentacion === 'entero' ? (
-              <div className="space-y-4">
-                {/* Empaque producto entero */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Producto entero</p>
-                    <div className="flex items-center gap-2">
-                      {catalogEmpaques.length > 0 && (
-                        <div className="w-40">
-                          <SearchableSelect options={catalogEmpaques} value={null} onChange={(pred) => loadEmpaquePred(pred, 'entero')} placeholder="Plantilla..." />
+            <div className={`${cx.card} divide-y divide-stone-100`}>
+              {/* Empaque producto entero */}
+              {(() => {
+                const tipo = 'entero';
+                const mats = materiales.filter(m => (m.empaque_tipo || 'entero') === tipo);
+                const subtotal = mats.reduce((s, m) => s + (Number(m.precio) || 0) * (Number(m.cantidad) || 0), 0);
+                const isCollapsed = empaqueCollapsed[tipo];
+                const label = tipoPresentacion === 'entero' ? 'Empaque producto' : 'Empaque';
+                return (
+                  <div className="p-3 sm:p-5">
+                    <div className="flex items-center justify-between cursor-pointer" onClick={() => setEmpaqueCollapsed(p => ({ ...p, [tipo]: !p[tipo] }))}>
+                      <div className="flex items-center gap-3">
+                        {isCollapsed ? <ChevronDown size={16} className="text-stone-400" /> : <ChevronUp size={16} className="text-stone-400" />}
+                        <div>
+                          <span className="text-sm font-semibold text-stone-800">{selectedEmpaquePred[tipo] || label}</span>
+                          <span className="text-xs text-stone-400 ml-2">{mats.filter(m => m.material_id).length} materiales</span>
                         </div>
-                      )}
-                      <button onClick={() => addMaterial('entero')} className={cx.btnGhost + ' flex items-center gap-1 text-xs'}>
-                        <Plus size={13} /> Agregar
-                      </button>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-[var(--accent)]">{formatCurrency(subtotal)}</span>
+                        <button onClick={(e) => { e.stopPropagation(); saveEmpaqueAsPredeterminado(tipo); }} className={cx.btnIcon + ' hover:text-[var(--success)]'} title="Guardar como plantilla">
+                          <BookmarkPlus size={14} />
+                        </button>
+                      </div>
                     </div>
-                  </div>
-                  {renderMaterialsList(materiales.filter(m => (m.empaque_tipo || 'entero') === 'entero'))}
-                </div>
-
-                {/* Empaque por unidad */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-semibold text-stone-500 uppercase tracking-wide">Por porcion ({unidadesPorProducto} uni)</p>
-                    <div className="flex items-center gap-2">
-                      {catalogEmpaques.length > 0 && (
-                        <div className="w-40">
-                          <SearchableSelect options={catalogEmpaques} value={null} onChange={(pred) => loadEmpaquePred(pred, 'unidad')} placeholder="Plantilla..." />
+                    {!isCollapsed && (
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          {catalogEmpaques.length > 0 && (
+                            <div className="w-44">
+                              <SearchableSelect options={catalogEmpaques} value={null} onChange={(pred) => loadEmpaquePred(pred, tipo)} placeholder="Cargar plantilla..." />
+                            </div>
+                          )}
+                          <button onClick={() => addMaterial(tipo)} className={cx.btnGhost + ' flex items-center gap-1 text-xs'}>
+                            <Plus size={13} /> Agregar material
+                          </button>
                         </div>
-                      )}
-                      <button onClick={() => addMaterial('unidad')} className={cx.btnGhost + ' flex items-center gap-1 text-xs'}>
-                        <Plus size={13} /> Agregar
-                      </button>
-                    </div>
-                  </div>
-                  {renderMaterialsList(materiales.filter(m => m.empaque_tipo === 'unidad'))}
-                </div>
-              </div>
-            ) : (
-              <>
-                <div className="flex items-center justify-between mb-3">
-                  <span />
-                  <div className="flex items-center gap-2">
-                    {catalogEmpaques.length > 0 && (
-                      <div className="w-44">
-                        <SearchableSelect options={catalogEmpaques} value={null} onChange={(pred) => loadEmpaquePred(pred, 'entero')} placeholder="Cargar plantilla..." />
+                        {renderMaterialsList(mats)}
                       </div>
                     )}
-                    <button onClick={() => addMaterial('entero')} className={cx.btnGhost + ' flex items-center gap-1'}>
-                      <Plus size={14} /> Agregar
-                    </button>
                   </div>
-                </div>
-                {materiales.length > 0 ? (
-                  renderMaterialsList(materiales)
-                ) : (
-                  <div className={`${cx.card} p-8 text-center`}>
-                    <p className="text-stone-400 text-sm">Sin materiales de empaque.</p>
+                );
+              })()}
+
+              {/* Empaque por porcion (solo en presentacion entera) */}
+              {tipoPresentacion === 'entero' && (() => {
+                const tipo = 'unidad';
+                const mats = materiales.filter(m => m.empaque_tipo === tipo);
+                const subtotal = mats.reduce((s, m) => s + (Number(m.precio) || 0) * (Number(m.cantidad) || 0), 0);
+                const isCollapsed = empaqueCollapsed[tipo];
+                return (
+                  <div className="p-3 sm:p-5">
+                    <div className="flex items-center justify-between cursor-pointer" onClick={() => setEmpaqueCollapsed(p => ({ ...p, [tipo]: !p[tipo] }))}>
+                      <div className="flex items-center gap-3">
+                        {isCollapsed ? <ChevronDown size={16} className="text-stone-400" /> : <ChevronUp size={16} className="text-stone-400" />}
+                        <div>
+                          <span className="text-sm font-semibold text-stone-800">{selectedEmpaquePred[tipo] || `Empaque por porcion`}</span>
+                          <span className="text-xs text-stone-400 ml-2">{mats.filter(m => m.material_id).length} materiales · {unidadesPorProducto} uni</span>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-[var(--accent)]">{formatCurrency(subtotal)}</span>
+                        <button onClick={(e) => { e.stopPropagation(); saveEmpaqueAsPredeterminado(tipo); }} className={cx.btnIcon + ' hover:text-[var(--success)]'} title="Guardar como plantilla">
+                          <BookmarkPlus size={14} />
+                        </button>
+                      </div>
+                    </div>
+                    {!isCollapsed && (
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          {catalogEmpaques.length > 0 && (
+                            <div className="w-44">
+                              <SearchableSelect options={catalogEmpaques} value={null} onChange={(pred) => loadEmpaquePred(pred, tipo)} placeholder="Cargar plantilla..." />
+                            </div>
+                          )}
+                          <button onClick={() => addMaterial(tipo)} className={cx.btnGhost + ' flex items-center gap-1 text-xs'}>
+                            <Plus size={13} /> Agregar material
+                          </button>
+                        </div>
+                        {renderMaterialsList(mats)}
+                      </div>
+                    )}
                   </div>
-                )}
-              </>
-            )}
+                );
+              })()}
+            </div>
           </div>
         </div>
 
@@ -1213,6 +1270,12 @@ export default function CotizadorPage() {
                     <span className="text-stone-600 text-sm">Precio final</span>
                     <EditablePrice value={costos.precioFinal} onChange={setMargenFromPrecio} className="text-2xl font-bold text-stone-900" />
                   </div>
+                  {costos.precioVenta > 0 && costos.costoNeto > 0 && (
+                    <div className="flex justify-between items-center bg-emerald-50 rounded-lg px-3 py-2 mt-1">
+                      <span className="text-xs text-emerald-700">Ganancia por producto</span>
+                      <span className="text-sm font-bold text-emerald-700">{formatCurrency(costos.precioVenta - costos.costoNeto)}</span>
+                    </div>
+                  )}
                   {precioConfig === 'variable' ? (
                     <div className="flex justify-between items-baseline gap-4">
                       <span className="text-stone-400 text-xs">Sugeridos</span>
@@ -1327,6 +1390,12 @@ export default function CotizadorPage() {
                     <span className="text-stone-600 text-sm">Precio final</span>
                     <EditablePrice value={costos.precioFinal} onChange={setMargenFromPrecio} className="text-2xl font-bold text-stone-900" />
                   </div>
+                  {costos.precioVenta > 0 && costos.costoNeto > 0 && (
+                    <div className="flex justify-between items-center bg-emerald-50 rounded-lg px-3 py-2 mb-2">
+                      <span className="text-xs text-emerald-700">Ganancia por unidad</span>
+                      <span className="text-sm font-bold text-emerald-700">{formatCurrency(costos.precioVenta - costos.costoNeto)}</span>
+                    </div>
+                  )}
                   {precioConfig === 'variable' ? (
                     <div className="flex justify-between items-baseline gap-4">
                       <span className="text-stone-400 text-xs">Sugeridos</span>
@@ -1413,6 +1482,15 @@ export default function CotizadorPage() {
           </div>
         </div>
       )}
+
+      <PromptDialog
+        open={!!saveEmpaquePrompt}
+        title="Guardar empaque como plantilla"
+        message="Este empaque se guardara como predeterminado para reutilizar en otros productos."
+        placeholder="Nombre de la plantilla"
+        onConfirm={confirmSaveEmpaque}
+        onCancel={() => setSaveEmpaquePrompt(null)}
+      />
     </div>
   );
 }

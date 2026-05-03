@@ -16,8 +16,8 @@ import {
   Menu,
   X,
   LogOut,
-  ChevronLeft,
-  ChevronRight,
+  PanelLeftClose,
+  PanelLeftOpen,
   ChevronDown,
   ChevronUp,
   DollarSign,
@@ -40,9 +40,9 @@ function SidebarLink({ to, label, icon: Icon, onClick, collapsed, end, disabled 
     return (
       <div
         title={collapsed ? `${label} (bloqueado)` : 'Módulo no disponible en tu plan'}
-        className={`flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0 py-3' : 'px-4 py-3'} rounded-xl text-sm font-semibold text-white/20 cursor-not-allowed`}
+        className={`flex items-center ${collapsed ? 'justify-center' : 'gap-2.5'} ${collapsed ? 'px-0 py-2.5' : 'px-3 py-2'} rounded-lg text-[13px] font-medium text-white/20 cursor-not-allowed`}
       >
-        <Icon size={18} />
+        <Icon size={collapsed ? 20 : 16} strokeWidth={1.5} />
         {!collapsed && (
           <>
             <span className="flex-1">{label}</span>
@@ -59,14 +59,14 @@ function SidebarLink({ to, label, icon: Icon, onClick, collapsed, end, disabled 
       onClick={onClick}
       title={collapsed ? label : undefined}
       className={({ isActive }) =>
-        `flex items-center ${collapsed ? 'justify-center' : 'gap-3'} ${collapsed ? 'px-0 py-3' : 'px-4 py-3'} rounded-xl text-sm font-semibold transition-all duration-200 ${
+        `flex items-center ${collapsed ? 'justify-center' : 'gap-2.5'} ${collapsed ? 'px-0 py-2.5' : 'px-3 py-2'} rounded-lg text-[13px] font-medium transition-all duration-150 ${
           isActive
             ? 'bg-white/10 text-[#4ADE80]'
-            : 'text-white/60 hover:text-white hover:bg-white/5'
+            : 'text-white/55 hover:text-white hover:bg-white/5'
         }`
       }
     >
-      <Icon size={18} />
+      <Icon size={collapsed ? 20 : 16} strokeWidth={1.5} />
       {!collapsed && <span>{label}</span>}
     </NavLink>
   );
@@ -80,45 +80,45 @@ export default function Layout() {
 
   const sidebarGroups = [
     {
-      key: 'cotizador',
-      label: 'Cotizador',
-      icon: Calculator,
+      key: 'catalogo',
+      label: 'Catalogo',
+      icon: Package,
       links: [
         { to: '/dashboard', label: t.productos || 'Productos', icon: LayoutDashboard, perm: 'dashboard' },
-        { to: '/cotizador', label: 'Nuevo', icon: Calculator, perm: 'cotizador' },
-        { to: '/insumos', label: t.insumos || 'Insumos', icon: Salad, perm: 'insumos' },
+        { to: '/cotizador', label: 'Nuevo producto', icon: Calculator, perm: 'cotizador' },
+        { to: '/insumos', label: t.insumos || 'Ingredientes', icon: Salad, perm: 'insumos' },
         { to: '/materiales', label: t.materiales || 'Materiales', icon: Package, perm: 'materiales' },
-        { to: '/preparaciones-predeterminadas', label: t.prep_pred || 'Prep. Predet.', icon: ChefHat, perm: 'preparaciones' },
-        { to: '/empaques-predeterminados', label: 'Empaques', icon: BoxSelect, perm: 'empaques' },
-        { to: '/canales', label: 'Canales y Envio', icon: Truck, perm: 'cotizador' },
-        { to: '/proyeccion', label: 'Proyeccion', icon: TrendingUp, perm: 'cotizador' },
+        { to: '/preparaciones-predeterminadas', label: t.prep_pred || 'Recetas base', icon: ChefHat, perm: 'preparaciones' },
+        { to: '/empaques-predeterminados', label: 'Empaques predet.', icon: BoxSelect, perm: 'empaques' },
+        { to: '/canales', label: 'Canales y Envio', icon: Truck, perm: 'canales' },
       ],
     },
     {
-      key: 'pl',
+      key: 'ventas',
+      label: 'Ventas',
+      icon: ShoppingCart,
+      links: [
+        { to: '/pl/ventas', label: 'Registro', icon: ShoppingCart, perm: 'ventas' },
+        { to: '/pedidos', label: 'Contra Entrega', icon: ClipboardList, perm: 'ventas' },
+        { to: '/proyeccion', label: 'Proyeccion', icon: TrendingUp, perm: 'ventas' },
+      ],
+    },
+    {
+      key: 'finanzas',
       label: 'Finanzas',
       icon: DollarSign,
       links: [
-        { to: '/pl', label: 'Timeline', icon: Activity, perm: 'pl', end: true },
-        { to: '/pl/resumen', label: 'Estado de resultados', icon: BarChart3, perm: 'pl' },
-        { to: '/pl/ventas', label: 'Ventas', icon: ShoppingCart, perm: 'pl' },
-        { to: '/pedidos', label: 'Contra Entrega', icon: ClipboardList, perm: 'pl' },
-        { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'pl' },
-        { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'pl' },
-        { to: '/pl/cashflow', label: 'Flujo de Caja', icon: Wallet, perm: 'pl' },
-      ],
-    },
-    {
-      key: 'perdidas',
-      label: 'Pérdidas',
-      icon: TrendingDown,
-      links: [
-        { to: '/perdidas', label: 'Registro', icon: TrendingDown, perm: 'perdidas' },
+        { to: '/pl', label: 'Timeline', icon: Activity, perm: 'finanzas', end: true },
+        { to: '/pl/resumen', label: 'Estado de resultados', icon: BarChart3, perm: 'finanzas' },
+        { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'finanzas' },
+        { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'finanzas' },
+        { to: '/pl/cashflow', label: 'Flujo de Caja', icon: Wallet, perm: 'finanzas' },
+        { to: '/perdidas', label: 'Perdidas / Mermas', icon: TrendingDown, perm: 'finanzas' },
       ],
     },
     {
       key: 'facturacion',
-      label: 'Facturación',
+      label: 'Facturacion',
       icon: FileText,
       links: [
         { to: '/comprobantes', label: 'Comprobantes', icon: FileText, perm: 'facturacion' },
@@ -154,13 +154,18 @@ export default function Layout() {
     localStorage.setItem('kudi_nav_groups', JSON.stringify(next));
   };
   const isAdmin = user?.rol === 'admin';
-  const rawPermisos = Array.isArray(user?.permisos) ? user.permisos : ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'proyeccion', 'pl', 'perdidas'];
-  // Parse 3-state permisos: "modulo" = full, "~modulo" = vitrina (visible but locked), absent = hidden
+  const rawPermisos = Array.isArray(user?.permisos) ? user.permisos : ['dashboard', 'cotizador', 'insumos', 'materiales', 'preparaciones', 'empaques', 'canales', 'ventas', 'finanzas', 'facturacion'];
+  // Map old permission keys to new ones for backward compatibility
+  const permAliases = { pl: 'finanzas', cotizador: 'cotizador', proyeccion: 'ventas', perdidas: 'finanzas' };
   const permState = (perm) => {
     if (!perm) return 'full';
     if (isAdmin) return 'full';
     if (rawPermisos.includes(perm)) return 'full';
     if (rawPermisos.includes(`~${perm}`)) return 'vitrina';
+    // Check aliases (old perm keys still in DB)
+    const alias = permAliases[perm];
+    if (alias && rawPermisos.includes(alias)) return 'full';
+    if (alias && rawPermisos.includes(`~${alias}`)) return 'vitrina';
     return 'hidden';
   };
 
@@ -191,22 +196,47 @@ export default function Layout() {
 
   const closeSidebar = () => setOpen(false);
 
+  const businessName = user?.nombre_comercial || user?.empresa || '';
+
   const renderSidebarContent = (isCollapsed) => (
     <>
-      <div className={`${isCollapsed ? 'p-3' : 'p-5'} border-b border-white/10`}>
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-2.5'}`}>
-          {user?.logo_url ? (
-            <img src={user.logo_url} alt="Logo" className="w-9 h-9 rounded-xl object-cover" />
-          ) : (
-            <img src="/logo-kudi.jpg" alt="Kudi" className="w-9 h-9 rounded-xl object-cover" />
-          )}
+      {/* Header: Kudi brand + collapse toggle — fixed, no scroll */}
+      <div className={`${isCollapsed ? 'px-3 py-4' : 'px-5 py-4'} border-b border-white/10 flex-shrink-0`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
+          <div className={`flex items-center ${isCollapsed ? '' : 'gap-3'}`}>
+            <img src="/logo-kudi.jpg" alt="Kudi" className={`${isCollapsed ? 'w-9 h-9' : 'w-8 h-8'} rounded-lg object-cover flex-shrink-0`} />
+            {!isCollapsed && (
+              <div className="min-w-0">
+                <h1 className="text-sm font-bold text-white leading-tight">Kudi</h1>
+                {businessName && (
+                  <p className="text-[10px] text-white/40 truncate leading-tight">{businessName}</p>
+                )}
+              </div>
+            )}
+          </div>
           {!isCollapsed && (
-            <h1 className="text-base font-bold text-white tracking-wide">Kudi</h1>
+            <button
+              onClick={toggleCollapsed}
+              className="p-1.5 text-white/30 hover:text-white/60 hover:bg-white/5 rounded-lg transition-colors"
+              title="Contraer menu"
+            >
+              <PanelLeftClose size={18} strokeWidth={1.5} />
+            </button>
           )}
         </div>
+        {isCollapsed && (
+          <button
+            onClick={toggleCollapsed}
+            className="w-full flex justify-center mt-3 p-1.5 text-white/30 hover:text-white/60 hover:bg-white/5 rounded-lg transition-colors"
+            title="Expandir menu"
+          >
+            <PanelLeftOpen size={18} strokeWidth={1.5} />
+          </button>
+        )}
       </div>
 
-      <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-4'} py-4 space-y-1 overflow-y-auto`}>
+      {/* Navigation — independent scroll */}
+      <nav className={`flex-1 ${isCollapsed ? 'px-2' : 'px-3'} py-4 space-y-1 overflow-y-auto min-h-0`}>
         {sidebarGroups.map((group) => {
           const visibleLinks = group.links
             .map(l => ({ ...l, _state: permState(l.perm) }))
@@ -215,33 +245,44 @@ export default function Layout() {
           const isGroupCollapsed = collapsedGroups[group.key];
 
           return (
-            <div key={group.key}>
-              <button onClick={() => toggleGroup(group.key)} className="w-full flex items-center justify-between px-4 py-2 text-xs font-semibold text-white/40 uppercase tracking-wider hover:text-white/60">
+            <div key={group.key} className="mb-2">
+              {/* Group header */}
+              <button
+                onClick={() => toggleGroup(group.key)}
+                className={`w-full flex items-center justify-between ${isCollapsed ? 'justify-center px-0' : 'px-3'} py-2 rounded-lg text-[11px] font-semibold text-white/50 uppercase tracking-wide hover:text-white/70 hover:bg-white/5 transition-colors`}
+              >
                 <div className="flex items-center gap-2">
-                  <group.icon size={14} />
+                  <group.icon size={isCollapsed ? 20 : 15} strokeWidth={1.5} />
                   {!isCollapsed && <span>{group.label}</span>}
                 </div>
-                {!isCollapsed && (isGroupCollapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />)}
+                {!isCollapsed && (isGroupCollapsed ? <ChevronDown size={13} strokeWidth={1.5} /> : <ChevronUp size={13} strokeWidth={1.5} />)}
               </button>
-              {!isGroupCollapsed && visibleLinks.map(l => (
-                <SidebarLink key={l.to} {...l} disabled={l._state === 'vitrina'} collapsed={isCollapsed} onClick={closeSidebar} />
-              ))}
+              {/* Group links with vertical line */}
+              {!isGroupCollapsed && (
+                <div className={isCollapsed ? '' : 'relative ml-[18px] pl-3 border-l border-white/10'}>
+                  {visibleLinks.map(l => (
+                    <SidebarLink key={l.to} {...l} disabled={l._state === 'vitrina'} collapsed={isCollapsed} onClick={closeSidebar} />
+                  ))}
+                </div>
+              )}
             </div>
           );
         })}
+
+        {/* Separator */}
+        <div className={`${isCollapsed ? 'mx-2' : 'mx-3'} border-t border-white/10 my-3`} />
+
         {standaloneLinks.map((l) => (
           <SidebarLink key={l.to} {...l} onClick={closeSidebar} collapsed={isCollapsed} />
         ))}
         {isAdmin && (
           <>
+            <div className={`${isCollapsed ? 'mx-2' : 'mx-3'} border-t border-white/10 my-3`} />
             {!isCollapsed && (
-              <div className="mt-4 mb-2 px-3">
-                <p className="text-[10px] text-white/30 uppercase tracking-widest font-semibold">
-                  Admin
-                </p>
+              <div className="px-3 py-1.5">
+                <p className="text-[10px] text-white/25 uppercase tracking-widest font-semibold">Admin</p>
               </div>
             )}
-            {isCollapsed && <div className="mt-4 mb-2 border-t border-white/10" />}
             {adminLinks.map((l) => (
               <SidebarLink key={l.to} {...l} onClick={closeSidebar} collapsed={isCollapsed} />
             ))}
@@ -249,42 +290,20 @@ export default function Layout() {
         )}
       </nav>
 
-      {isCollapsed && (
-        <div className="flex justify-center py-2 border-t border-white/10">
-          <button
-            onClick={toggleCollapsed}
-            className="p-2 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-colors"
-            title="Expandir menu"
-          >
-            <ChevronRight size={16} />
-          </button>
-        </div>
-      )}
-      {!isCollapsed && (
-        <div className="flex justify-center py-2 border-t border-white/10">
-          <button
-            onClick={toggleCollapsed}
-            className="p-2 text-white/40 hover:text-white/60 hover:bg-white/5 rounded-lg transition-colors"
-            title="Contraer menu"
-          >
-            <ChevronLeft size={16} />
-          </button>
-        </div>
-      )}
-
-      <div className={`p-3 border-t border-white/10`}>
-        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-3'} py-2`}>
-          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white/70 shrink-0">
+      {/* Footer: user info + logout — fixed, no scroll */}
+      <div className={`${isCollapsed ? 'p-2' : 'px-4 py-3'} border-t border-white/10 flex-shrink-0`}>
+        <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'gap-3 px-1'} py-1.5`}>
+          <div className={`${isCollapsed ? 'w-9 h-9' : 'w-8 h-8'} rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-white/70 shrink-0`}>
             {user?.nombre?.charAt(0)?.toUpperCase() || 'U'}
           </div>
           {!isCollapsed && (
             <>
               <div className="flex-1 min-w-0">
-                <p className="text-sm text-white truncate">{user?.nombre || 'Usuario'}</p>
-                <p className="text-[10px] text-white/40 truncate">{user?.email}</p>
+                <p className="text-xs text-white truncate font-medium">{user?.nombre || 'Usuario'}</p>
+                <p className="text-[10px] text-white/30 truncate">{user?.email}</p>
               </div>
-              <button onClick={handleLogout} className="p-2 text-white/40 hover:text-rose-400 transition-colors rounded-lg">
-                <LogOut size={16} />
+              <button onClick={handleLogout} className="p-1.5 text-white/30 hover:text-rose-400 transition-colors rounded-lg" title="Cerrar sesion">
+                <LogOut size={16} strokeWidth={1.5} />
               </button>
             </>
           )}
@@ -296,40 +315,41 @@ export default function Layout() {
   return (
     <div className="min-h-screen bg-[#F4F6F5] flex">
       {/* Desktop sidebar */}
-      <aside className={`hidden lg:flex ${collapsed ? 'w-16' : 'w-52'} flex-col bg-[#0A2F24] fixed inset-y-0 left-0 z-30 transition-all duration-200 relative overflow-hidden`}>
+      <aside className={`hidden lg:flex ${collapsed ? 'w-[68px]' : 'w-52'} flex-col bg-[#0A2F24] fixed inset-y-0 left-0 z-30 transition-all duration-200 overflow-hidden`}>
         <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`, backgroundSize: '128px'}} />
-        {renderSidebarContent(collapsed)}
+        <div className="relative flex flex-col h-full">
+          {renderSidebarContent(collapsed)}
+        </div>
       </aside>
 
       {/* Mobile overlay */}
       {open && (
         <div className="fixed inset-0 z-40 lg:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={closeSidebar} />
-          <aside className="absolute left-0 top-0 bottom-0 w-56 bg-[#0A2F24] flex flex-col">
+          <aside className="absolute left-0 top-0 bottom-0 w-56 bg-[#0A2F24] flex flex-col overflow-hidden">
+            <div className="absolute inset-0 opacity-[0.03] pointer-events-none" style={{backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`, backgroundSize: '128px'}} />
             <button
               onClick={closeSidebar}
-              className="absolute top-4 right-4 p-1 text-white/40 hover:text-white"
+              className="absolute top-4 right-4 p-1 text-white/40 hover:text-white z-10"
             >
-              <X size={20} />
+              <X size={18} />
             </button>
-            {renderSidebarContent(false)}
+            <div className="relative flex flex-col h-full">
+              {renderSidebarContent(false)}
+            </div>
           </aside>
         </div>
       )}
 
-      {/* Main content */}
-      <div className={`flex-1 ${collapsed ? 'lg:ml-16' : 'lg:ml-52'} transition-all duration-200`}>
+      {/* Main content — independent scroll */}
+      <div className={`flex-1 ${collapsed ? 'lg:ml-[68px]' : 'lg:ml-52'} transition-all duration-200 lg:h-screen lg:overflow-y-auto`}>
         {/* Mobile header */}
         <header className="lg:hidden flex items-center justify-between px-4 py-3 bg-[#0A2F24] sticky top-0 z-20">
           <button onClick={() => setOpen(true)} className="p-2 text-white/60 hover:text-white">
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            {user?.logo_url ? (
-              <img src={user.logo_url} alt="Logo" className="w-7 h-7 rounded-lg object-cover" />
-            ) : (
-              <img src="/logo-kudi.jpg" alt="Kudi" className="w-7 h-7 rounded-lg object-cover" />
-            )}
+            <img src="/logo-kudi.jpg" alt="Kudi" className="w-7 h-7 rounded-lg object-cover" />
             <span className="text-sm font-bold text-white">Kudi</span>
           </div>
           <div className="w-9" />
@@ -345,7 +365,7 @@ export default function Layout() {
           </div>
         )}
 
-        <main className="p-3 pb-14 lg:px-4 lg:py-3 lg:pb-14">
+        <main className="p-4 pb-14 lg:px-10 lg:py-6 lg:pb-14">
           <TerminosProvider terminos={user?.giro_terminos}>
             <Outlet />
           </TerminosProvider>

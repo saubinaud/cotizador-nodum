@@ -8,15 +8,20 @@ import ConfirmDialog from '../components/ConfirmDialog';
 import CustomSelect from '../components/CustomSelect';
 
 const ALL_MODULES = [
-  { key: 'dashboard', label: 'Productos' },
-  { key: 'cotizador', label: 'Cotizador' },
-  { key: 'insumos', label: 'Insumos' },
-  { key: 'materiales', label: 'Materiales' },
-  { key: 'preparaciones', label: 'Prep. Predeterminadas' },
-  { key: 'empaques', label: 'Empaques Predeterminados' },
-  { key: 'proyeccion', label: 'Proyección de Ventas' },
-  { key: 'pl', label: 'P&L (Finanzas)' },
-  { key: 'perdidas', label: 'Perdidas (Mermas)' },
+  // Catalogo
+  { key: 'dashboard', label: 'Productos', group: 'Catalogo' },
+  { key: 'cotizador', label: 'Nuevo producto', group: 'Catalogo', requires: ['insumos', 'materiales'] },
+  { key: 'insumos', label: 'Ingredientes', group: 'Catalogo' },
+  { key: 'materiales', label: 'Materiales', group: 'Catalogo' },
+  { key: 'preparaciones', label: 'Recetas base', group: 'Catalogo' },
+  { key: 'empaques', label: 'Empaques predet.', group: 'Catalogo' },
+  { key: 'canales', label: 'Canales y Envio', group: 'Catalogo' },
+  // Ventas
+  { key: 'ventas', label: 'Ventas', group: 'Ventas', requires: ['dashboard'] },
+  // Finanzas
+  { key: 'finanzas', label: 'Finanzas', group: 'Finanzas' },
+  // Facturacion
+  { key: 'facturacion', label: 'Facturacion', group: 'Facturacion', requires: ['ventas'] },
 ];
 
 const DEFAULT_PERMISOS = ALL_MODULES.map((m) => m.key);
@@ -90,19 +95,26 @@ export default function AdminUsuariosPage() {
   };
 
   // 3-state permission cycle: full → vitrina → hidden → full
+  // When activating a module, also activate its dependencies
   const cyclePermiso = (permisos, key) => {
     const hasKey = permisos.includes(key);
     const hasVitrina = permisos.includes(`~${key}`);
+    let result;
     if (hasKey) {
-      // full → vitrina
-      return [...permisos.filter(p => p !== key), `~${key}`];
+      result = [...permisos.filter(p => p !== key), `~${key}`];
     } else if (hasVitrina) {
-      // vitrina → hidden
-      return permisos.filter(p => p !== `~${key}`);
+      result = permisos.filter(p => p !== `~${key}`);
     } else {
-      // hidden → full
-      return [...permisos, key];
+      // Activating → also activate required dependencies
+      result = [...permisos, key];
+      const mod = ALL_MODULES.find(m => m.key === key);
+      if (mod?.requires) {
+        for (const dep of mod.requires) {
+          if (!result.includes(dep)) result.push(dep);
+        }
+      }
     }
+    return result;
   };
 
   const getPermisoState = (permisos, key) => {
@@ -280,19 +292,30 @@ export default function AdminUsuariosPage() {
                 )}
               </div>
               <div>
-                <label className={cx.label}>Módulos (click para cambiar: Completo → Vitrina → Oculto)</label>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1">
-                  {ALL_MODULES.map((m) => {
-                    const state = getPermisoState(createForm.permisos, m.key);
+                <label className={cx.label}>Modulos (click para cambiar: Completo → Vitrina → Oculto)</label>
+                <div className="space-y-3 mt-2">
+                  {['Catalogo', 'Ventas', 'Finanzas', 'Facturacion'].map(group => {
+                    const mods = ALL_MODULES.filter(m => m.group === group);
                     return (
-                      <button key={m.key} type="button" onClick={() => toggleCreatePermiso(m.key)}
-                        className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${PERM_COLORS[state]} border-transparent hover:border-stone-300`}
-                      >
-                        <span>{m.label}</span>
-                        <span className="text-[10px] font-bold uppercase">{PERM_LABELS[state]}</span>
-                      </button>
+                      <div key={group}>
+                        <p className="text-[10px] text-stone-400 uppercase tracking-wider font-semibold mb-1">{group}</p>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
+                          {mods.map((m) => {
+                            const state = getPermisoState(createForm.permisos, m.key);
+                            return (
+                              <button key={m.key} type="button" onClick={() => toggleCreatePermiso(m.key)}
+                                className={`flex items-center justify-between gap-2 px-3 py-2 rounded-lg text-xs font-medium border transition-all ${PERM_COLORS[state]} border-transparent hover:border-stone-300`}
+                              >
+                                <span>{m.label}{m.requires ? ' *' : ''}</span>
+                                <span className="text-[10px] font-bold uppercase">{PERM_LABELS[state]}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
                     );
                   })}
+                  <p className="text-[10px] text-stone-400">* Activa automaticamente sus dependencias</p>
                 </div>
               </div>
               <div className="flex gap-2">
@@ -464,18 +487,26 @@ export default function AdminUsuariosPage() {
         <div className="fixed inset-0 z-50 flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setEditPermisos(null)} />
           <div className={`${cx.card} relative p-6 w-full max-w-sm mx-4`}>
-            <h3 className="text-stone-800 font-semibold mb-2">Módulos</h3>
+            <h3 className="text-stone-800 font-semibold mb-2">Modulos</h3>
             <p className="text-xs text-stone-400 mb-4">Click para cambiar estado</p>
-            <div className="space-y-2">
-              {ALL_MODULES.map((m) => {
-                const state = getPermisoState(editPermisos.permisos, m.key);
+            <div className="space-y-3">
+              {['Catalogo', 'Ventas', 'Finanzas', 'Facturacion'].map(group => {
+                const mods = ALL_MODULES.filter(m => m.group === group);
                 return (
-                  <button key={m.key} type="button" onClick={() => toggleEditPermiso(m.key)}
-                    className={`w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${PERM_COLORS[state]} hover:opacity-80`}
-                  >
-                    <span>{m.label}</span>
-                    <span className="text-[10px] font-bold uppercase">{PERM_LABELS[state]}</span>
-                  </button>
+                  <div key={group}>
+                    <p className="text-[10px] text-stone-400 uppercase tracking-wider font-semibold mb-1">{group}</p>
+                    {mods.map((m) => {
+                      const state = getPermisoState(editPermisos.permisos, m.key);
+                      return (
+                        <button key={m.key} type="button" onClick={() => toggleEditPermiso(m.key)}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm font-medium transition-all ${PERM_COLORS[state]} hover:opacity-80 mb-1`}
+                        >
+                          <span>{m.label}</span>
+                          <span className="text-[10px] font-bold uppercase">{PERM_LABELS[state]}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 );
               })}
             </div>

@@ -7,66 +7,33 @@ const { logAudit } = require('../utils/audit');
 const router = express.Router();
 router.use(auth);
 
-// Read env vars dynamically (dotenv may not be loaded yet at require time)
-function getApisperuConfig() {
+// ==================== LYCET (Greenter self-hosted) ====================
+
+function getLycetConfig() {
   return {
-    base: process.env.APISPERU_BASE_URL || 'https://facturacion.apisperu.com/api/v1',
-    email: process.env.APISPERU_EMAIL || '',
-    password: process.env.APISPERU_PASSWORD || '',
+    url: process.env.LYCET_URL || 'http://localhost:8050/api/v1',
+    token: process.env.LYCET_TOKEN || 'kudi-lycet-2026-secure',
   };
 }
 
-// Token cache (auto-refresh every 23 hours)
-let _apisperuToken = null;
-let _apisperuTokenExpires = 0;
-
-async function getApisperuToken() {
-  if (_apisperuToken && Date.now() < _apisperuTokenExpires) return _apisperuToken;
-  try {
-    const { base, email, password } = getApisperuConfig();
-    console.log('[apisperu] Login attempt with:', email, 'base:', base);
-    const res = await fetch(`${base}/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: email, password }),
-    });
-    const data = await res.json();
-    if (data.token) {
-      _apisperuToken = data.token;
-      _apisperuTokenExpires = Date.now() + 23 * 60 * 60 * 1000; // 23h
-      console.log('[apisperu] Token refreshed');
-    }
-    return _apisperuToken;
-  } catch (err) {
-    console.error('[apisperu] Login error:', err.message);
-    return _apisperuToken; // return stale token if refresh fails
-  }
-}
-
-// Helper: call APIsPeru with auto-login
-async function callApisPeru(path, body) {
-  const token = await getApisperuToken();
-  const { base } = getApisperuConfig();
-  const res = await fetch(`${base}${path}`, {
+async function callLycet(path, body) {
+  const { url, token } = getLycetConfig();
+  const res = await fetch(`${url}${path}?token=${token}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${token}`,
-    },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
+  const contentType = res.headers.get('content-type') || '';
+  // PDF endpoint returns binary, not JSON
+  if (contentType.includes('application/pdf')) {
+    const buffer = Buffer.from(await res.arrayBuffer());
+    return { pdf: buffer.toString('base64') };
+  }
   return res.json();
 }
 
 // ==================== AUTO-ENABLE LOGIC ====================
 
-/**
- * Auto-enables facturacion when ALL requirements are met:
- * 1. User has RUC in their profile
- * 2. Config has direccion_fiscal
- * 3. Config has certificado uploaded
- * If all 3 are true → habilitado = true automatically
- */
 async function autoHabilitarSiCompleto(userId) {
   try {
     const user = await pool.query('SELECT ruc FROM usuarios WHERE id = $1', [userId]);
@@ -92,9 +59,62 @@ async function autoHabilitarSiCompleto(userId) {
   }
 }
 
+// ==================== LYCET MULTI-COMPANY SYNC ====================
+
+/**
+ * Registers or updates a company in Lycet (self-hosted Greenter).
+ * Lycet stores each company's cert + SOL credentials in empresas.json.
+ * When an invoice is sent, Lycet matches the RUC in the invoice JSON
+ * to the registered company config automatically.
+ *
+ * Required: RUC, SOL_USER (format: {ruc}{sol_user}), SOL_PASS, certificate (PEM base64)
+ * Called when: certificate uploaded, SOL credentials changed
+ */
+async function syncLycetCompany(userId) {
+  try {
+    const userRes = await pool.query('SELECT ruc FROM usuarios WHERE id = $1', [userId]);
+    const configRes = await pool.query(
+      'SELECT sol_user, sol_pass, certificado_pem FROM facturacion_config WHERE usuario_id = $1',
+      [userId]
+    );
+    const ruc = userRes.rows[0]?.ruc;
+    const cfg = configRes.rows[0];
+    if (!ruc) return;
+
+    // Need at minimum SOL credentials and certificate to register
+    if (!cfg?.sol_user || !cfg?.certificado_pem) {
+      console.log('[lycet] Skip sync — missing sol_user or certificate for RUC:', ruc);
+      return;
+    }
+
+    // Decrypt PEM from DB and base64-encode for Lycet
+    const pemRaw = decryptCert(cfg.certificado_pem);
+    const certBase64 = Buffer.from(pemRaw).toString('base64');
+
+    const { url, token } = getLycetConfig();
+    const res = await fetch(`${url}/configuration/company/${ruc}?token=${token}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        SOL_USER: `${ruc}${cfg.sol_user}`,
+        SOL_PASS: cfg.sol_pass,
+        certificate: certBase64,
+      }),
+    });
+    const data = await res.json();
+
+    if (data.message) {
+      console.log('[lycet] Company synced:', ruc, '-', data.message);
+    } else {
+      console.error('[lycet] Company sync failed:', ruc, JSON.stringify(data));
+    }
+  } catch (err) {
+    console.error('[lycet] Sync error:', err.message);
+  }
+}
+
 // ==================== RUC LOOKUP ====================
 
-// GET /api/facturacion/buscar-ruc/:ruc — lookup RUC data from SUNAT
 router.get('/buscar-ruc/:ruc', async (req, res) => {
   try {
     const { ruc } = req.params;
@@ -102,11 +122,9 @@ router.get('/buscar-ruc/:ruc', async (req, res) => {
       return res.status(400).json({ success: false, error: 'RUC debe tener 11 dígitos' });
     }
 
-    // Try PeruAPI with api_token
     const peruApiKey = process.env.PERUAPI_KEY || '';
     let data = null;
 
-    // Option 1: PeruAPI (if key is configured and IP authorized)
     if (peruApiKey) {
       try {
         const r1 = await fetch(`https://peruapi.com/api/ruc/${ruc}?api_token=${peruApiKey}`);
@@ -115,7 +133,6 @@ router.get('/buscar-ruc/:ruc', async (req, res) => {
       } catch (_) {}
     }
 
-    // Option 2: apis.net.pe
     if (!data) {
       try {
         const r2 = await fetch(`https://api.apis.net.pe/v2/sunat/ruc?numero=${ruc}`, { headers: { 'Accept': 'application/json' } });
@@ -126,7 +143,6 @@ router.get('/buscar-ruc/:ruc', async (req, res) => {
       } catch (_) {}
     }
 
-    // Option 3: apiperu.dev
     if (!data) {
       try {
         const r3 = await fetch(`https://apiperu.dev/api/ruc/${ruc}`, { headers: { 'Accept': 'application/json' } });
@@ -163,19 +179,16 @@ router.get('/buscar-ruc/:ruc', async (req, res) => {
 
 // ==================== CONFIG ====================
 
-// GET /api/facturacion/config
 router.get('/config', async (req, res) => {
   try {
     let config = await pool.query('SELECT * FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
     if (config.rows.length === 0) {
-      // Auto-create config
       config = await pool.query(
         'INSERT INTO facturacion_config (usuario_id) VALUES ($1) RETURNING *',
         [req.user.id]
       );
     }
     const c = config.rows[0];
-    // Don't send the encrypted cert to frontend
     return res.json({
       success: true,
       data: {
@@ -190,7 +203,6 @@ router.get('/config', async (req, res) => {
   }
 });
 
-// PUT /api/facturacion/config — update config (admin or self)
 router.put('/config', async (req, res) => {
   try {
     const { direccion_fiscal, departamento, provincia, distrito, ubigeo,
@@ -215,34 +227,13 @@ router.put('/config', async (req, res) => {
 
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Config no encontrada' });
 
-    // Sync with APIsPeru if company exists and sol_user/sol_pass changed
-    if (sol_user || sol_pass || direccion_fiscal) {
-      try {
-        const cfg = await pool.query('SELECT apisperu_company_id, sol_user, sol_pass, direccion_fiscal, distrito, provincia FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
-        const c = cfg.rows[0];
-        if (c?.apisperu_company_id) {
-          const token = await getApisperuToken();
-          const updateBody = {};
-          if (c.sol_user) updateBody.sol_user = c.sol_user;
-          if (c.sol_pass) updateBody.sol_pass = c.sol_pass;
-          if (c.direccion_fiscal) updateBody.direccion = [c.direccion_fiscal, c.distrito, c.provincia].filter(Boolean).join(', ');
-
-          await fetch(`${getApisperuConfig().base}/companies/${c.apisperu_company_id}`, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-            body: JSON.stringify(updateBody),
-          });
-          console.log('[apisperu] Company synced after config update');
-        }
-      } catch (syncErr) {
-        console.error('[apisperu] Sync error:', syncErr.message);
-      }
+    // Sync SOL credentials with Lycet if changed
+    if (sol_user || sol_pass) {
+      await syncLycetCompany(req.user.id);
     }
 
-    // Auto-check if we can enable facturacion now
     await autoHabilitarSiCompleto(req.user.id);
 
-    // Return fresh config
     const fresh = await pool.query('SELECT * FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
     return res.json({ success: true, data: { ...fresh.rows[0], certificado_pem: undefined, certificado_subido: !!fresh.rows[0]?.certificado_pem } });
   } catch (err) {
@@ -251,81 +242,65 @@ router.put('/config', async (req, res) => {
   }
 });
 
-// POST /api/facturacion/certificado-prueba — generate free test certificate
-router.post('/certificado-prueba', async (req, res) => {
+// POST /api/facturacion/validar-sol — test SOL credentials by sending a test invoice
+router.post('/validar-sol', async (req, res) => {
   try {
-    // Get user RUC
-    const userRes = await pool.query('SELECT ruc FROM usuarios WHERE id = $1', [req.user.id]);
-    const ruc = userRes.rows[0]?.ruc;
-    if (!ruc) return res.status(400).json({ success: false, error: 'Configura tu RUC en Perfil primero' });
+    const userRes = await pool.query('SELECT ruc, razon_social, nombre_comercial FROM usuarios WHERE id = $1', [req.user.id]);
+    const configRes = await pool.query('SELECT * FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
+    const usuario = userRes.rows[0];
+    const config = configRes.rows[0];
 
-    const testPassword = 'kudi' + Date.now().toString().slice(-4);
+    if (!usuario?.ruc) return res.status(400).json({ success: false, error: 'Configura tu RUC en Perfil primero' });
+    if (!config?.sol_user) return res.status(400).json({ success: false, error: 'Ingresa tus credenciales SOL primero' });
+    if (!config?.certificado_pem) return res.status(400).json({ success: false, error: 'Sube tu certificado digital primero' });
 
-    // Generate free PFX from APIsPeru
-    const token = await getApisperuToken();
-    const pfxRes = await fetch(`${getApisperuConfig().base}/companies/certificate/free`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ password: testPassword, ruc }),
-    });
-    const pfxBuffer = await pfxRes.arrayBuffer();
-    const pfxBase64 = Buffer.from(pfxBuffer).toString('base64');
+    // Sync with Lycet first
+    await syncLycetCompany(req.user.id);
 
-    // Convert PFX to PEM
-    const convertRes = await callApisPeru('/companies/certificate', {
-      cert: pfxBase64, cert_pass: testPassword, base64: true,
-    });
+    // Send a test boleta with correlativo 0 (SUNAT rejects 0 but the auth/signing succeeds)
+    const testInvoice = {
+      ublVersion: '2.1', tipoOperacion: '0101', tipoDoc: '03',
+      serie: 'B001', correlativo: '0',
+      fechaEmision: (() => { const n = new Date(); const l = new Date(n.getTime() - 5*60*60*1000); return l.toISOString().replace(/\.\d{3}Z$/, '-05:00'); })(),
+      tipoMoneda: 'PEN',
+      formaPago: { moneda: 'PEN', tipo: 'Contado' },
+      client: { tipoDoc: '0', numDoc: '00000000', rznSocial: 'TEST VALIDACION' },
+      company: {
+        ruc: parseInt(usuario.ruc),
+        razonSocial: usuario.razon_social || '',
+        nombreComercial: usuario.nombre_comercial || '',
+        address: { direccion: config.direccion_fiscal || '', provincia: config.provincia || '', departamento: config.departamento || '', distrito: config.distrito || '', ubigueo: config.ubigeo || '' },
+      },
+      mtoOperGravadas: 1, mtoIGV: 0.18, totalImpuestos: 0.18, valorVenta: 1, subTotal: 1.18, mtoImpVenta: 1.18,
+      details: [{ codProducto: 'TEST', unidad: 'NIU', descripcion: 'Validacion SOL', cantidad: 1, mtoValorUnitario: 1, mtoValorVenta: 1, mtoBaseIgv: 1, porcentajeIgv: 18, igv: 0.18, tipAfeIgv: 10, totalImpuestos: 0.18, mtoPrecioUnitario: 1.18 }],
+      legends: [{ code: '1000', value: 'UNO CON 18/100 SOLES' }],
+    };
 
-    if (!convertRes.pem) {
-      return res.status(500).json({ success: false, error: 'Error generando certificado de prueba' });
+    const apiRes = await callLycet('/invoice/send', testInvoice);
+    const sr = apiRes.sunatResponse || {};
+    const errCode = sr.error?.code || sr.cdrResponse?.code;
+    const errMsg = sr.error?.message || sr.cdrResponse?.description;
+
+    // If we get ANY response from SUNAT (even rejection), it means SOL auth worked
+    if (apiRes.xml && apiRes.hash) {
+      // Check specific errors
+      if (errCode === '0111') {
+        return res.json({ success: false, error: 'El usuario SOL no tiene perfil de emisión electrónica. Crea un usuario secundario en SUNAT con permiso de emisión.' });
+      }
+      // Any other SUNAT response (including rejections for correlativo 0) means auth works
+      return res.json({ success: true, data: { message: 'Acceso SOL validado. Ya puedes emitir comprobantes.' } });
     }
 
-    // Save encrypted PEM
-    const encryptedPem = encryptCert(convertRes.pem);
-    await pool.query(
-      `UPDATE facturacion_config SET certificado_pem = $1, certificado_subido = true, environment = 'produccion', updated_at = NOW() WHERE usuario_id = $2`,
-      [encryptedPem, req.user.id]
-    );
-
-    // Register company in APIsPeru
-    try {
-      const configRes = await pool.query('SELECT * FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
-      const cfg = configRes.rows[0];
-      const uRes = await pool.query('SELECT razon_social, nombre_comercial FROM usuarios WHERE id = $1', [req.user.id]);
-      const u = uRes.rows[0];
-
-      const companyRes = await fetch(`${getApisperuConfig().base}/companies`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({
-          plan: 'free',
-          environment: cfg?.environment || 'produccion',
-          ruc,
-          razon_social: u?.razon_social || '',
-          direccion: [cfg?.direccion_fiscal, cfg?.distrito, cfg?.provincia].filter(Boolean).join(', '),
-          sol_user: cfg?.sol_user || 'MODDATOS',
-          sol_pass: cfg?.sol_pass || 'MODDATOS',
-          certificado: Buffer.from(convertRes.pem).toString('base64'),
-          logo: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-        }),
-      });
-      const companyData = await companyRes.json();
-      if (companyData.id || companyData._id) {
-        await pool.query('UPDATE facturacion_config SET apisperu_company_id = $1, updated_at = NOW() WHERE usuario_id = $2',
-          [companyData.id || companyData._id, req.user.id]);
-      }
-    } catch (_) {}
-
-    await autoHabilitarSiCompleto(req.user.id);
-
-    return res.json({ success: true, data: { message: 'Certificado de prueba generado y activado (modo beta)' } });
+    // No XML = connection/signing failed
+    return res.json({ success: false, error: apiRes.error || 'No se pudo conectar con SUNAT. Verifica tus credenciales SOL.' });
   } catch (err) {
-    console.error('Cert prueba error:', err);
-    return res.status(500).json({ success: false, error: 'Error generando certificado' });
+    console.error('Validar SOL error:', err);
+    return res.status(500).json({ success: false, error: 'Error validando credenciales' });
   }
 });
 
-// POST /api/facturacion/certificado — upload .p12 certificate
+// ==================== CERTIFICADO ====================
+
 router.post('/certificado', async (req, res) => {
   try {
     const { cert_base64, cert_password } = req.body;
@@ -333,8 +308,8 @@ router.post('/certificado', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Certificado requerido' });
     }
 
-    // Try converting P12 to PEM locally first (handles SUNAT's RC2 cipher)
-    let pem = null;
+    // Convert P12 to PEM via local openssl
+    let pemRaw = null;
     try {
       const { execSync } = require('child_process');
       const fs = require('fs');
@@ -342,101 +317,25 @@ router.post('/certificado', async (req, res) => {
       const tmpPem = tmpP12 + '.pem';
       fs.writeFileSync(tmpP12, Buffer.from(cert_base64, 'base64'));
       execSync(`openssl pkcs12 -in ${tmpP12} -out ${tmpPem} -nodes -passin "pass:${(cert_password || '').replace(/"/g, '\\"')}" -legacy 2>/dev/null || openssl pkcs12 -in ${tmpP12} -out ${tmpPem} -nodes -passin "pass:${(cert_password || '').replace(/"/g, '\\"')}" 2>/dev/null`);
-      pem = fs.readFileSync(tmpPem, 'utf8');
+      pemRaw = fs.readFileSync(tmpPem, 'utf8');
       fs.unlinkSync(tmpP12);
       fs.unlinkSync(tmpPem);
     } catch (localErr) {
-      console.log('[cert] Local conversion failed, trying APIsPeru:', localErr.message);
-    }
-
-    // Fallback: try APIsPeru conversion
-    if (!pem) {
-      const convertRes = await callApisPeru('/companies/certificate', {
-        cert: cert_base64,
-        cert_pass: cert_password || '',
-        base64: true,
-      });
-      pem = convertRes.pem;
-    }
-
-    if (!pem) {
+      console.log('[cert] Local conversion failed:', localErr.message);
       return res.status(400).json({ success: false, error: 'Error convirtiendo certificado. Verifica la contraseña.' });
     }
 
-    // Encrypt and store the PEM
-    const encryptedPem = encryptCert(pem);
-
+    // Encrypt and store the PEM in DB
+    const encryptedPem = encryptCert(pemRaw);
     await pool.query(
-      `UPDATE facturacion_config SET
-        certificado_pem = $1, certificado_subido = true, updated_at = NOW()
-       WHERE usuario_id = $2`,
+      `UPDATE facturacion_config SET certificado_pem = $1, certificado_subido = true, updated_at = NOW() WHERE usuario_id = $2`,
       [encryptedPem, req.user.id]
     );
 
-    // Register/update company in APIsPeru
-    try {
-      const userRes = await pool.query(
-        'SELECT ruc, razon_social, nombre_comercial FROM usuarios WHERE id = $1',
-        [req.user.id]
-      );
-      const u = userRes.rows[0];
-      const configRes = await pool.query(
-        'SELECT direccion_fiscal, departamento, provincia, distrito, ubigeo, apisperu_company_id, environment, sol_user, sol_pass FROM facturacion_config WHERE usuario_id = $1',
-        [req.user.id]
-      );
-      const cfg = configRes.rows[0];
-
-      if (u?.ruc) {
-        const companyData = {
-          plan: 'free',
-          environment: cfg?.environment || 'produccion',
-          ruc: u.ruc,
-          razon_social: u.razon_social || '',
-          direccion: [cfg?.direccion_fiscal, cfg?.distrito, cfg?.provincia].filter(Boolean).join(', '),
-          sol_user: cfg?.sol_user || 'MODDATOS',
-          sol_pass: cfg?.sol_pass || 'MODDATOS',
-          certificado: Buffer.from(pem).toString('base64'),
-          logo: 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==',
-        };
-
-        let companyId = cfg?.apisperu_company_id;
-
-        if (companyId) {
-          // Update existing company
-          await callApisPeru(`/companies/${companyId}`, companyData);
-          console.log('[apisperu] Company updated:', companyId);
-        } else {
-          // Create new company
-          const token = await getApisperuToken();
-          const createRes = await fetch(`${getApisperuConfig().base}/companies`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': `Bearer ${token}`,
-            },
-            body: JSON.stringify(companyData),
-          });
-          const createData = await createRes.json();
-
-          if (createData.id || createData._id) {
-            companyId = createData.id || createData._id;
-            await pool.query(
-              'UPDATE facturacion_config SET apisperu_company_id = $1, updated_at = NOW() WHERE usuario_id = $2',
-              [companyId, req.user.id]
-            );
-            console.log('[apisperu] Company created:', companyId);
-          } else {
-            console.error('[apisperu] Company create failed:', createData);
-          }
-        }
-      }
-    } catch (companyErr) {
-      console.error('[apisperu] Company registration error:', companyErr.message);
-      // Don't fail the certificate upload if company registration fails
-    }
-
-    // Auto-check if we can enable facturacion now
     await autoHabilitarSiCompleto(req.user.id);
+
+    // Sync company with Lycet (registers cert + SOL credentials automatically)
+    await syncLycetCompany(req.user.id);
 
     return res.json({ success: true, data: { message: 'Certificado guardado correctamente' } });
   } catch (err) {
@@ -447,11 +346,9 @@ router.post('/certificado', async (req, res) => {
 
 // ==================== EMISION ====================
 
-// POST /api/facturacion/emitir — emit boleta or factura
 router.post('/emitir', async (req, res) => {
   try {
     const { venta_id, transaccion_id, tipo, cliente_id, items } = req.body;
-    // tipo: 'boleta' | 'factura'
     if (!tipo || !items || items.length === 0) {
       return res.status(400).json({ success: false, error: 'Tipo e items requeridos' });
     }
@@ -459,13 +356,9 @@ router.post('/emitir', async (req, res) => {
     // Get config
     const configRes = await pool.query('SELECT * FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
     if (configRes.rows.length === 0 || !configRes.rows[0].habilitado) {
-      return res.status(403).json({ success: false, error: 'Facturacion no habilitada. Contacta al administrador.' });
+      return res.status(403).json({ success: false, error: 'Facturación no habilitada. Completa la configuración primero.' });
     }
     const config = configRes.rows[0];
-
-    if (!config.apisperu_company_id) {
-      return res.status(400).json({ success: false, error: 'Empresa no registrada en el servicio de facturación. Sube tu certificado digital primero.' });
-    }
 
     // Get user data
     const userRes = await pool.query(
@@ -484,7 +377,6 @@ router.post('/emitir', async (req, res) => {
       cliente = clienteRes.rows[0] || null;
     }
 
-    // For factura, client with RUC is required
     if (tipo === 'factura' && (!cliente || cliente.tipo_doc !== '6')) {
       return res.status(400).json({ success: false, error: 'Para factura se requiere un cliente con RUC' });
     }
@@ -494,49 +386,36 @@ router.post('/emitir', async (req, res) => {
       descuento: items.reduce((s, i) => s + (parseFloat(i.descuento) || 0), 0),
     };
 
-    // Build invoice JSON
+    // Build invoice JSON (same Greenter/UBL 2.1 format — compatible with Lycet)
     const { invoice, serie, correlativo, totalValorVenta, totalIGV, totalFinal } = buildInvoiceJSON({
-      tipo,
-      venta,
-      productos: items,
-      usuario,
-      config,
-      cliente,
+      tipo, venta, productos: items, usuario, config, cliente,
     });
 
-    // Send to APIsPeru
-    console.log('[facturacion] Sending invoice to APIsPeru:', JSON.stringify({ serie: invoice.serie, correlativo: invoice.correlativo, ruc: invoice.company?.ruc, tipoDoc: invoice.tipoDoc }));
-    const apiRes = await callApisPeru('/invoice/send', invoice);
-    console.log('[facturacion] APIsPeru response keys:', Object.keys(apiRes));
+    // Send to Lycet (self-hosted Greenter)
+    console.log('[facturacion] Sending to Lycet:', JSON.stringify({ serie: invoice.serie, correlativo: invoice.correlativo, ruc: invoice.company?.ruc, tipoDoc: invoice.tipoDoc }));
+    const apiRes = await callLycet('/invoice/send', invoice);
+    console.log('[facturacion] Lycet response keys:', Object.keys(apiRes));
 
-    // Parse the nested response structure
-    // APIsPeru returns multiple formats:
+    // Parse response — Lycet/Greenter uses same format as APIsPeru:
     // Success: { xml, hash, sunatResponse: { success: true, cdrZip, cdrResponse: { id, code: "0", description } } }
-    // SUNAT error: { xml, hash, sunatResponse: { success: false, error: { code: "0111", message: "..." } } }
-    // APIsPeru error: { error: "Error al comunicarse..." }
+    // SUNAT error: { xml, hash, sunatResponse: { success: false, error: { code, message } } }
     const sr = apiRes.sunatResponse || {};
     const cdrResp = sr.cdrResponse || {};
     const srError = sr.error || {};
     const isSuccess = sr.success === true || cdrResp.code === '0';
 
-    // Build human-readable message
     let sunatMessage = cdrResp.description || null;
     let sunatCode = cdrResp.code || null;
 
     if (!sunatMessage && typeof srError === 'object' && srError.message) {
       sunatCode = srError.code || null;
       sunatMessage = srError.message;
-      // Add helpful context for common errors
       if (srError.code === '0111') {
-        sunatMessage = 'SUNAT rechazó: Tu RUC no está habilitado para emitir comprobantes vía sistema. Ve a SUNAT SOL → Empresas → Comprobantes de Pago Electrónicos → SEE Del contribuyente y regístrate. La activación toma 24 horas.';
+        sunatMessage = 'SUNAT rechazó: El usuario SOL no tiene perfil de emisión electrónica. Crea un usuario secundario en SUNAT SOL con permiso de emisión electrónica.';
       }
     }
     if (!sunatMessage && apiRes.error) {
       sunatMessage = apiRes.error;
-      // Add helpful context for APIsPeru connection errors
-      if (apiRes.error.includes('comunicarse con el servidor interno')) {
-        sunatMessage = 'No se pudo conectar con SUNAT. Esto puede ocurrir si: (1) Tu registro como emisor electrónico aún no está activo — espera 24h después de registrarte en SOL, (2) SUNAT está temporalmente fuera de servicio. Intenta nuevamente más tarde.';
-      }
     }
 
     console.log('[facturacion] SUNAT result:', { success: isSuccess, code: sunatCode, message: sunatMessage });
@@ -548,7 +427,7 @@ router.post('/emitir', async (req, res) => {
         mto_oper_gravadas, mto_igv, mto_total, moneda,
         sunat_success, sunat_code, sunat_message, sunat_xml, sunat_cdr, sunat_hash,
         estado, detalle_json)
-       VALUES ($1, $2, $3, $4, $5, $6, NOW(), $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
+       VALUES ($1, $2, $3, $4, $5, $6, (NOW() AT TIME ZONE 'America/Lima'), $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)
        RETURNING *`,
       [
         req.user.id, venta_id || null, transaccion_id || null,
@@ -563,7 +442,6 @@ router.post('/emitir', async (req, res) => {
       ]
     );
 
-    // If successful, increment correlativo and mark venta as facturada
     if (isSuccess) {
       const corField = tipo === 'factura' ? 'correlativo_factura' : 'correlativo_boleta';
       await pool.query(
@@ -585,11 +463,7 @@ router.post('/emitir', async (req, res) => {
       success: true,
       data: {
         comprobante: compRes.rows[0],
-        sunat: {
-          success: isSuccess,
-          code: sunatCode,
-          message: sunatMessage,
-        },
+        sunat: { success: isSuccess, code: sunatCode, message: sunatMessage },
       },
     });
   } catch (err) {
@@ -598,7 +472,8 @@ router.post('/emitir', async (req, res) => {
   }
 });
 
-// GET /api/facturacion/pdf/:id — regenerate PDF on demand
+// ==================== PDF ====================
+
 router.get('/pdf/:id', async (req, res) => {
   try {
     const comp = await pool.query(
@@ -609,13 +484,11 @@ router.get('/pdf/:id', async (req, res) => {
 
     const c = comp.rows[0];
 
-    // Get user and config for company data
     const userRes = await pool.query('SELECT ruc, razon_social, nombre_comercial, igv_rate FROM usuarios WHERE id = $1', [req.user.id]);
     const configRes = await pool.query('SELECT * FROM facturacion_config WHERE usuario_id = $1', [req.user.id]);
     const usuario = userRes.rows[0];
     const config = configRes.rows[0];
 
-    // Rebuild the invoice JSON from stored data
     const items = typeof c.detalle_json === 'string' ? JSON.parse(c.detalle_json) : c.detalle_json;
 
     const { invoice } = buildInvoiceJSON({
@@ -632,15 +505,15 @@ router.get('/pdf/:id', async (req, res) => {
       },
     });
 
-    // Override serie/correlativo with stored values
     invoice.serie = c.serie;
     invoice.correlativo = c.correlativo;
-    invoice.fechaEmision = c.fecha_emision;
+    // Format date for Lycet: no milliseconds, Peru timezone
+    const d = new Date(c.fecha_emision);
+    invoice.fechaEmision = d.toISOString().replace(/\.\d{3}Z$/, '-05:00');
 
-    const pdfRes = await callApisPeru('/invoice/pdf', invoice);
+    const pdfRes = await callLycet('/invoice/pdf', invoice);
 
     if (pdfRes.pdf) {
-      // Return base64 PDF
       return res.json({ success: true, data: { pdf: pdfRes.pdf } });
     }
 
@@ -651,28 +524,35 @@ router.get('/pdf/:id', async (req, res) => {
   }
 });
 
-// GET /api/facturacion/comprobantes?periodo_id=X
+// ==================== COMPROBANTES LIST ====================
+
 router.get('/comprobantes', async (req, res) => {
   try {
     const { periodo_id, tipo_doc, limit: lim } = req.query;
-    let query = 'SELECT * FROM comprobantes WHERE usuario_id = $1';
+    let query = `SELECT c.*,
+      v.producto_id, v.cantidad AS venta_cantidad, v.fecha AS venta_fecha,
+      p.nombre AS producto_nombre
+      FROM comprobantes c
+      LEFT JOIN ventas v ON v.id = c.venta_id
+      LEFT JOIN productos p ON p.id = v.producto_id
+      WHERE c.usuario_id = $1`;
     const params = [req.user.id];
     let idx = 2;
 
     if (periodo_id) {
       const per = await pool.query('SELECT fecha_inicio, fecha_fin FROM periodos WHERE id = $1', [periodo_id]);
       if (per.rows.length > 0) {
-        query += ` AND fecha_emision BETWEEN $${idx} AND $${idx + 1}`;
+        query += ` AND c.fecha_emision BETWEEN $${idx} AND $${idx + 1}`;
         params.push(per.rows[0].fecha_inicio, per.rows[0].fecha_fin);
         idx += 2;
       }
     }
     if (tipo_doc) {
-      query += ` AND tipo_doc = $${idx++}`;
+      query += ` AND c.tipo_doc = $${idx++}`;
       params.push(tipo_doc);
     }
 
-    query += ' ORDER BY fecha_emision DESC, created_at DESC';
+    query += ' ORDER BY c.created_at DESC';
     if (lim) {
       query += ` LIMIT $${idx++}`;
       params.push(parseInt(lim));
@@ -686,7 +566,8 @@ router.get('/comprobantes', async (req, res) => {
   }
 });
 
-// POST /api/facturacion/anular/:id — issue credit note
+// ==================== ANULAR ====================
+
 router.post('/anular/:id', async (req, res) => {
   try {
     const comp = await pool.query(
@@ -697,10 +578,8 @@ router.post('/anular/:id', async (req, res) => {
       return res.status(404).json({ success: false, error: 'Comprobante no encontrado o ya anulado' });
     }
 
-    // Mark as anulado
     await pool.query('UPDATE comprobantes SET estado = $1 WHERE id = $2', ['anulado', req.params.id]);
 
-    // Unmark venta
     if (comp.rows[0].venta_id) {
       await pool.query('UPDATE ventas SET facturado = false, comprobante_id = NULL WHERE id = $1', [comp.rows[0].venta_id]);
     }
@@ -714,10 +593,28 @@ router.post('/anular/:id', async (req, res) => {
   }
 });
 
-// PUT /api/facturacion/habilitar/:userId — admin enables invoicing for a user
+// DELETE /api/facturacion/comprobantes/rechazados — bulk delete failed comprobantes
+router.delete('/comprobantes/rechazados', async (req, res) => {
+  try {
+    const result = await pool.query(
+      "DELETE FROM comprobantes WHERE usuario_id = $1 AND estado = 'error' RETURNING id",
+      [req.user.id]
+    );
+    const count = result.rows.length;
+    if (count > 0) {
+      logAudit({ userId: req.user.id, entidad: 'comprobante', entidadId: null, accion: 'limpiar', descripcion: `Elimino ${count} comprobantes rechazados` });
+    }
+    return res.json({ success: true, data: { message: `${count} comprobantes rechazados eliminados`, count } });
+  } catch (err) {
+    console.error('Delete rechazados error:', err);
+    return res.status(500).json({ success: false, error: 'Error eliminando' });
+  }
+});
+
+// ==================== ADMIN ====================
+
 router.put('/habilitar/:userId', async (req, res) => {
   try {
-    // Check if requester is admin
     const adminCheck = await pool.query('SELECT rol FROM usuarios WHERE id = $1', [req.user.id]);
     if (adminCheck.rows[0]?.rol !== 'admin') {
       return res.status(403).json({ success: false, error: 'Solo admin puede habilitar facturacion' });
@@ -725,7 +622,6 @@ router.put('/habilitar/:userId', async (req, res) => {
 
     const { habilitado } = req.body;
 
-    // Ensure config exists
     await pool.query(
       'INSERT INTO facturacion_config (usuario_id) VALUES ($1) ON CONFLICT (usuario_id) DO NOTHING',
       [req.params.userId]

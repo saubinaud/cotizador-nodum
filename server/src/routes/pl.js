@@ -573,7 +573,7 @@ router.get('/ventas', async (req, res) => {
 router.post('/ventas', async (req, res) => {
   try {
     const { periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, nota, cuenta_id,
-            tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id } = req.body;
+            tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id } = req.body;
     if (!periodo_id || !producto_id || !fecha || !cantidad) {
       return res.status(400).json({ success: false, error: 'periodo_id, producto_id, fecha y cantidad son requeridos' });
     }
@@ -592,10 +592,10 @@ router.post('/ventas', async (req, res) => {
 
     const result = await pool.query(
       `INSERT INTO ventas (periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total, nota,
-        tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+        tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14) RETURNING *`,
       [periodo_id, producto_id, fecha, cantidad, precio, desc, total, nota || null,
-        tipo_envio || null, costoEnvio, zona_envio_id || null, direccion_envio || null, canal_id || null]
+        tipo_envio || null, costoEnvio, zona_envio_id || null, direccion_envio || null, canal_id || null, cliente_id || null]
     );
 
     // Dual-write to transacciones for timeline (with cuenta_id for cash flow)
@@ -651,22 +651,42 @@ router.get('/ventas/resumen', async (req, res) => {
 // PUT /api/pl/ventas/:id
 router.put('/ventas/:id', async (req, res) => {
   try {
-    const { cantidad, precio_unitario, descuento, nota } = req.body;
+    const { cantidad, precio_unitario, descuento, nota, fecha, cliente_id, canal_id, cuenta_id,
+            tipo_envio, costo_envio, zona_envio_id, direccion_envio } = req.body;
 
-    // Fetch existing venta to use its values as defaults for partial updates
     const existing = await pool.query('SELECT * FROM ventas WHERE id = $1', [req.params.id]);
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Venta no encontrada' });
     const prev = existing.rows[0];
 
     const precio = precio_unitario != null ? parseFloat(precio_unitario) : parseFloat(prev.precio_unitario);
     const cant = cantidad != null ? parseInt(cantidad) : parseInt(prev.cantidad);
-    const desc = descuento != null ? parseFloat(descuento) : parseFloat(prev.descuento);
-    const total = (precio * cant) - desc;
+    const desc = descuento != null ? parseFloat(descuento) : parseFloat(prev.descuento || 0);
+    const envio = costo_envio != null ? parseFloat(costo_envio) : parseFloat(prev.costo_envio || 0);
+    const total = (precio * cant) - desc + envio;
 
     const result = await pool.query(
-      `UPDATE ventas SET cantidad = $1, precio_unitario = $2, descuento = $3, total = $4, nota = $5
-       WHERE id = $6 RETURNING *`,
-      [cant, precio, desc, total, nota !== undefined ? (nota || null) : prev.nota, req.params.id]
+      `UPDATE ventas SET
+        cantidad = $1, precio_unitario = $2, descuento = $3, total = $4,
+        nota = COALESCE($5, nota),
+        fecha = COALESCE($6, fecha),
+        cliente_id = $7,
+        canal_id = $8,
+        tipo_envio = $9,
+        costo_envio = $10,
+        zona_envio_id = $11,
+        direccion_envio = $12,
+        updated_at = NOW()
+       WHERE id = $13 RETURNING *`,
+      [cant, precio, desc, total,
+       nota !== undefined ? (nota || null) : null,
+       fecha || null,
+       cliente_id !== undefined ? (cliente_id || null) : prev.cliente_id,
+       canal_id !== undefined ? (canal_id || null) : prev.canal_id,
+       tipo_envio !== undefined ? (tipo_envio || null) : prev.tipo_envio,
+       envio,
+       zona_envio_id !== undefined ? (zona_envio_id || null) : prev.zona_envio_id,
+       direccion_envio !== undefined ? (direccion_envio || null) : prev.direccion_envio,
+       req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Venta no encontrada' });
     return res.json({ success: true, data: result.rows[0] });

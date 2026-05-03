@@ -222,7 +222,15 @@ export default function PLVentasPage() {
       cantidad: v.cantidad,
       precio_unitario: parseFloat(v.precio_unitario) || '',
       nota: v.nota || '',
+      cuenta_id: v.cuenta_id || '',
+      cliente_id: v.cliente_id || '',
     });
+    setCanalId(v.canal_id || '');
+    setTieneEnvio(!!v.tipo_envio);
+    setTipoEnvio(v.tipo_envio || 'propio');
+    setCostoEnvio(v.costo_envio ? String(v.costo_envio) : '');
+    setZonaEnvioId(v.zona_envio_id || '');
+    setDireccionEnvio(v.direccion_envio || '');
     if (desc > 0) {
       setDescuentoTipo('total');
       setDescuentoValor(String(desc));
@@ -266,6 +274,14 @@ export default function PLVentasPage() {
           precio_unitario: form.precio_unitario,
           descuento: descuentoTotal,
           nota: form.nota,
+          fecha: form.fecha,
+          cliente_id: form.cliente_id || null,
+          canal_id: canalId || null,
+          cuenta_id: form.cuenta_id || null,
+          tipo_envio: tieneEnvio ? tipoEnvio : null,
+          costo_envio: tieneEnvio ? parseFloat(costoEnvio) || 0 : 0,
+          zona_envio_id: zonaEnvioId || null,
+          direccion_envio: direccionEnvio || null,
         });
         toast.success('Venta actualizada');
       } else {
@@ -287,23 +303,26 @@ export default function PLVentasPage() {
         });
         toast.success('Venta registrada');
 
-        // If contra entrega, also create a pedido
-        if (contraEntrega && parseFloat(adelanto) > 0) {
+        // If contra entrega, create a pedido
+        if (contraEntrega) {
           try {
             const prod = productos.find(p => p.id === form.producto_id);
             const total = (parseFloat(form.precio_unitario || prod?.precio_final || 0)) * parseInt(form.cantidad || 1);
             await api.post('/pedidos', {
               cliente_id: form.cliente_id || null,
               descripcion: prod?.nombre || 'Pedido',
-              items: [{ producto_id: form.producto_id, cantidad: form.cantidad, precio_unitario: form.precio_unitario }],
+              items: [{ producto_id: form.producto_id, cantidad: form.cantidad, precio_unitario: form.precio_unitario || prod?.precio_final }],
               monto_total: total,
               tipo_pago: 'contra_entrega',
-              adelanto: parseFloat(adelanto),
+              adelanto: parseFloat(adelanto) || 0,
               fecha_entrega_estimada: fechaEntrega || null,
               metodo_pago: 'efectivo',
               cuenta_id: form.cuenta_id || null,
             });
-          } catch (_) {}
+            toast.success('Pedido contra entrega creado');
+          } catch (pedidoErr) {
+            toast.error('Venta registrada pero error creando pedido: ' + (pedidoErr.message || ''));
+          }
         }
       }
       setModalOpen(false);
@@ -616,18 +635,16 @@ export default function PLVentasPage() {
                   </div>
                 )}
 
-                {/* Date (only for new) */}
-                {!editingVenta && (
-                  <div>
-                    <label className={cx.label}>Fecha</label>
-                    <input
-                      type="date"
-                      value={form.fecha}
-                      onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
-                      className={cx.input}
-                    />
-                  </div>
-                )}
+                {/* Date */}
+                <div>
+                  <label className={cx.label}>Fecha</label>
+                  <input
+                    type="date"
+                    value={form.fecha}
+                    onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
+                    className={cx.input}
+                  />
+                </div>
 
                 {/* Quantity */}
                 <div>
@@ -724,7 +741,7 @@ export default function PLVentasPage() {
                 )}
 
                 {/* Canal de venta */}
-                {!editingVenta && canales.length > 0 && (
+                {canales.length > 0 && (
                   <div>
                     <label className={cx.label}>Canal de venta (opcional)</label>
                     <CustomSelect
@@ -742,7 +759,6 @@ export default function PLVentasPage() {
                 )}
 
                 {/* Envio */}
-                {!editingVenta && (
                 <>
                 <div className="flex items-center gap-3">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -797,7 +813,6 @@ export default function PLVentasPage() {
                   </div>
                 )}
                 </>
-                )}
 
                 {/* Cuenta */}
                 {cuentas.length > 0 && (
@@ -813,7 +828,6 @@ export default function PLVentasPage() {
                 )}
 
                 {/* Cliente (opcional) */}
-                {!editingVenta && (
                 <div>
                   <label className={cx.label}>Cliente (opcional)</label>
                   <CustomSelect
@@ -828,7 +842,6 @@ export default function PLVentasPage() {
                     </button>
                   )}
                 </div>
-                )}
 
                 {/* Quick new client form */}
                 {showNewClient && (

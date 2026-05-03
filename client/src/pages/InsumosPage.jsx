@@ -8,7 +8,7 @@ import CustomSelect from '../components/CustomSelect';
 import { Plus, Save, X, Trash2, Pencil, Search, TrendingUp } from 'lucide-react';
 import { useTerminos } from '../context/TerminosContext';
 
-const UNIDADES = ['g', 'ml', 'uni', 'oz', 'kg', 'L'];
+const UNIDADES = ['g', 'kg', 'ml', 'L', 'uni', 'oz'];
 
 const emptyRow = () => ({
   id: null,
@@ -116,8 +116,8 @@ export default function InsumosPage() {
       await api.del(`/insumos/${deleteTarget.id}`);
       toast.success('Insumo eliminado');
       setInsumos((prev) => prev.filter((i) => i.id !== deleteTarget.id));
-    } catch {
-      toast.error('Error eliminando insumo');
+    } catch (err) {
+      toast.error(err.message || 'Error eliminando insumo');
     } finally {
       setDeleteTarget(null);
     }

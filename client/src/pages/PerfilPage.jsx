@@ -43,7 +43,7 @@ export default function PerfilPage() {
       nombre_comercial: user?.empresa || user?.nombre_comercial || '',
       ruc: user?.ruc || '',
       razon_social: user?.razon_social || '',
-      igv_rate: user?.igv_rate ? (Number(user.igv_rate) < 1 ? Math.round(Number(user.igv_rate) * 100) : Number(user.igv_rate)) : 18,
+      igv_rate: user?.igv_rate ? (Number(user.igv_rate) < 1 ? parseFloat((Number(user.igv_rate) * 100).toFixed(2)) : Number(user.igv_rate)) : 18,
       pais: user?.pais || 'PE',
       tipo_negocio: user?.tipo_negocio || 'formal',
       precio_decimales: user?.precio_decimales || 'variable',
@@ -172,7 +172,7 @@ export default function PerfilPage() {
   };
 
   const igvDisplay = user?.igv_rate != null
-    ? (Number(user.igv_rate) < 1 ? Math.round(Number(user.igv_rate) * 100) : Number(user.igv_rate))
+    ? (Number(user.igv_rate) < 1 ? parseFloat((Number(user.igv_rate) * 100).toFixed(2)) : Number(user.igv_rate))
     : 18;
 
   return (
@@ -258,36 +258,27 @@ export default function PerfilPage() {
                 />
               </div>
             </div>
-            <div>
-              <label className={cx.label}>Tipo de negocio</label>
-              <CustomSelect
-                value={profileForm.tipo_negocio}
-                onChange={(val) => {
-                  setProfileForm((prev) => ({
-                    ...prev,
-                    tipo_negocio: val,
-                    ...(val === 'informal' ? { igv_rate: 0 } : {}),
-                  }));
-                }}
-                options={[
-                  { value: 'formal', label: 'Formal (paga IGV)' },
-                  { value: 'informal', label: 'Informal (no paga IGV)' },
-                ]}
-              />
-            </div>
             <div className="grid grid-cols-2 gap-4">
-              {profileForm.tipo_negocio !== 'informal' && (
-                <div>
-                  <label className={cx.label}>Tasa IGV (%)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={profileForm.igv_rate}
-                    onChange={(e) => setProfileForm({ ...profileForm, igv_rate: e.target.value })}
-                    className={cx.input + ' w-32'}
-                  />
-                </div>
-              )}
+              <div>
+                <label className={cx.label}>Tipo de contribuyente</label>
+                <CustomSelect
+                  value={profileForm.tipo_negocio === 'informal' ? 'no_igv' : `formal_${profileForm.igv_rate}`}
+                  onChange={(val) => {
+                    if (val === 'no_igv') {
+                      setProfileForm(prev => ({ ...prev, tipo_negocio: 'informal', igv_rate: 0 }));
+                    } else if (val === 'formal_10.5') {
+                      setProfileForm(prev => ({ ...prev, tipo_negocio: 'formal', igv_rate: 10.5 }));
+                    } else {
+                      setProfileForm(prev => ({ ...prev, tipo_negocio: 'formal', igv_rate: 18 }));
+                    }
+                  }}
+                  options={[
+                    { value: 'formal_18', label: 'Formal (IGV 18%)' },
+                    { value: 'formal_10.5', label: 'Formal (IGV 10.5%)' },
+                    { value: 'no_igv', label: 'No paga IGV' },
+                  ]}
+                />
+              </div>
               <div>
                 <label className={cx.label}>Pais</label>
                 <CustomSelect
@@ -353,12 +344,8 @@ export default function PerfilPage() {
               <p className="text-stone-800 text-sm">{user?.razon_social || '-'}</p>
             </div>
             <div>
-              <label className={cx.label}>Tipo de negocio</label>
-              <p className="text-stone-800 text-sm">{user?.tipo_negocio === 'informal' ? 'Informal (no paga IGV)' : 'Formal'}</p>
-            </div>
-            <div>
-              <label className={cx.label}>Tasa IGV</label>
-              <p className="text-stone-800 text-sm">{user?.tipo_negocio === 'informal' ? 'No aplica' : `${igvDisplay}%`}</p>
+              <label className={cx.label}>Tipo de contribuyente</label>
+              <p className="text-stone-800 text-sm">{user?.tipo_negocio === 'informal' ? 'No paga IGV' : `Formal (IGV ${igvDisplay}%)`}</p>
             </div>
             <div>
               <label className={cx.label}>Pais</label>
