@@ -396,24 +396,27 @@ router.get('/periodos', async (req, res) => {
       [req.eid]
     );
 
-    // Auto-create current month periodo if missing
-    const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+    // Auto-create current month periodo if missing (match by date range, not name)
+    const MESES_PL = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
     const now = new Date(Date.now() - 5*60*60*1000); // Lima time (UTC-5)
-    const monthName = MESES[now.getMonth()] + ' ' + now.getFullYear();
-    const exists = result.rows.find(p => p.nombre === monthName);
+    const y = now.getFullYear();
+    const m = now.getMonth();
+    const inicioStr = `${y}-${String(m+1).padStart(2,'0')}-01`;
+    const exists = result.rows.find(p => {
+      if (!p.fecha_inicio) return false;
+      const fi = typeof p.fecha_inicio === 'string' ? p.fecha_inicio : p.fecha_inicio.toISOString();
+      return fi.startsWith(inicioStr);
+    });
     if (!exists && req.eid) {
-      const y = now.getFullYear();
-      const m = now.getMonth();
-      const inicio = `${y}-${String(m+1).padStart(2,'0')}-01`;
       const lastDay = new Date(y, m+1, 0).getDate();
-      const fin = `${y}-${String(m+1).padStart(2,'0')}-${lastDay}`;
+      const finStr = `${y}-${String(m+1).padStart(2,'0')}-${lastDay}`;
       try {
         const newP = await pool.query(
           'INSERT INTO periodos (empresa_id, usuario_id, nombre, tipo, fecha_inicio, fecha_fin) VALUES ($1,$2,$3,$4,$5,$6) RETURNING *',
-          [req.eid, req.uid, monthName, 'mensual', inicio, fin]
+          [req.eid, req.uid, `${MESES_PL[m]} ${y}`, 'mensual', inicioStr, finStr]
         );
         result.rows.unshift(newP.rows[0]);
-      } catch(e) { /* ignore if already exists */ }
+      } catch(e) { /* unique constraint idx_periodos_empresa_nombre prevents duplicates */ }
     }
 
     return res.json({ success: true, data: result.rows });

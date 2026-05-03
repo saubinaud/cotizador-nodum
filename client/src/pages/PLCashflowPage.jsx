@@ -100,7 +100,7 @@ export default function PLCashflowPage() {
 
   // Flujo de Caja
   const [anio, setAnio] = useState(new Date().getFullYear());
-  const [selectedMonth, setSelectedMonth] = useState(null); // null = all months, 0-11 = specific month
+  const [selectedMonths, setSelectedMonths] = useState(new Set()); // empty = all months, Set of 0-11 for specific months
   const [gridData, setGridData] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -334,7 +334,12 @@ export default function PLCashflowPage() {
   // ── Derived data ─────────────────────────────────────────
 
   const meses = gridData?.meses || [];
-  const displayMeses = selectedMonth !== null ? meses.filter((_, i) => i === selectedMonth) : meses;
+  const displayMeses = selectedMonths.size > 0
+    ? meses.filter(m => {
+        if (!m.periodo?.fecha_inicio) return false;
+        return selectedMonths.has(new Date(m.periodo.fecha_inicio).getMonth());
+      })
+    : meses;
   const gridCategorias = gridData?.categorias || [];
 
   const seccionOpts = [
@@ -386,9 +391,9 @@ export default function PLCashflowPage() {
             </div>
             <div className="flex items-center gap-3">
               <div className="flex items-center gap-1">
-                <button onClick={() => { setAnio(a => a - 1); setSelectedMonth(null); }} className={cx.btnGhost}><ChevronLeft size={16} /></button>
+                <button onClick={() => { setAnio(a => a - 1); setSelectedMonths(new Set()); }} className={cx.btnGhost}><ChevronLeft size={16} /></button>
                 <span className="text-sm font-bold text-stone-800 w-12 text-center">{anio}</span>
-                <button onClick={() => { setAnio(a => a + 1); setSelectedMonth(null); }} className={cx.btnGhost}><ChevronRight size={16} /></button>
+                <button onClick={() => { setAnio(a => a + 1); setSelectedMonths(new Set()); }} className={cx.btnGhost}><ChevronRight size={16} /></button>
               </div>
               <button onClick={() => openMovForm()} className={cx.btnPrimary + ' flex items-center gap-2'}>
                 <Plus size={16} /> Movimiento
@@ -396,19 +401,24 @@ export default function PLCashflowPage() {
             </div>
           </div>
 
-          {/* Month filter */}
+          {/* Month filter — multi-select */}
           <div className="flex flex-wrap gap-1 mb-4">
             <button
-              onClick={() => setSelectedMonth(null)}
-              className={`px-2 py-1 rounded text-[11px] font-medium ${selectedMonth === null ? 'bg-[var(--accent)] text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+              onClick={() => setSelectedMonths(new Set())}
+              className={`px-2 py-1 rounded text-[11px] font-medium ${selectedMonths.size === 0 ? 'bg-[var(--accent)] text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
             >
-              Año
+              Todo
             </button>
             {['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'].map((m, i) => (
               <button
                 key={i}
-                onClick={() => setSelectedMonth(i)}
-                className={`px-2 py-1 rounded text-[11px] font-medium ${selectedMonth === i ? 'bg-[var(--accent)] text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
+                onClick={() => setSelectedMonths(prev => {
+                  const next = new Set(prev);
+                  if (next.has(i)) next.delete(i);
+                  else next.add(i);
+                  return next;
+                })}
+                className={`px-2 py-1 rounded text-[11px] font-medium ${selectedMonths.has(i) ? 'bg-[var(--accent)] text-white' : 'bg-stone-100 text-stone-600 hover:bg-stone-200'}`}
               >
                 {m}
               </button>
