@@ -1409,6 +1409,29 @@ async function runMigrations() {
     await client.query(`ALTER TABLE facturacion_config ADD COLUMN IF NOT EXISTS apisperu_company_token TEXT`);
     await client.query(`ALTER TABLE facturacion_config ALTER COLUMN environment SET DEFAULT 'produccion'`);
 
+    // ==================== MULTI-PRODUCT VENTAS ====================
+
+    // venta_items table for multi-product tickets
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS venta_items (
+        id SERIAL PRIMARY KEY,
+        venta_id INTEGER NOT NULL REFERENCES ventas(id) ON DELETE CASCADE,
+        producto_id INTEGER NOT NULL REFERENCES productos(id),
+        cantidad INTEGER NOT NULL DEFAULT 1,
+        precio_unitario NUMERIC(12,2) NOT NULL,
+        descuento NUMERIC(12,2) NOT NULL DEFAULT 0,
+        subtotal NUMERIC(12,2) NOT NULL DEFAULT 0
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_venta_items_venta ON venta_items(venta_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_venta_items_producto ON venta_items(producto_id)`);
+
+    // Make producto_id nullable on ventas (multi-product tickets have NULL)
+    await client.query(`ALTER TABLE ventas ALTER COLUMN producto_id DROP NOT NULL`);
+
+    // Add descuento_global to ventas
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS descuento_global NUMERIC(12,2) DEFAULT 0`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

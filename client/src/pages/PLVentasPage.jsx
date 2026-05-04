@@ -63,16 +63,13 @@ export default function PLVentasPage() {
 
   // Modal form
   const [form, setForm] = useState({
-    producto_id: null,
     fecha: todayStr(),
-    cantidad: 1,
-    precio_unitario: '',
     nota: '',
     cuenta_id: '',
     cliente_id: '',
   });
-  const [descuentoTipo, setDescuentoTipo] = useState('none');
-  const [descuentoValor, setDescuentoValor] = useState('');
+  const [ventaItems, setVentaItems] = useState([{ _id: Date.now(), producto_id: null, cantidad: 1, precio_unitario: '', descuento: 0 }]);
+  const [descuentoGlobal, setDescuentoGlobal] = useState(0);
   const [contraEntrega, setContraEntrega] = useState(false);
   const [adelanto, setAdelanto] = useState('');
   const [fechaEntrega, setFechaEntrega] = useState('');
@@ -159,18 +156,31 @@ export default function PLVentasPage() {
     }
   };
 
-  // Discount calculation
-  const calcDescuento = () => {
-    const val = parseFloat(descuentoValor) || 0;
-    const cant = parseInt(form.cantidad) || 1;
-    const precio = parseFloat(form.precio_unitario) || 0;
-    switch (descuentoTipo) {
-      case 'total': return val;
-      case 'unit': return val * cant;
-      case 'percent': return (precio * cant) * (val / 100);
-      default: return 0;
-    }
+  // Item management functions
+  const addItem = () => setVentaItems(prev => [...prev, { _id: Date.now(), producto_id: null, cantidad: 1, precio_unitario: '', descuento: 0 }]);
+
+  const removeItem = (id) => setVentaItems(prev => prev.filter(i => i._id !== id));
+
+  const updateItem = (id, field, value) => setVentaItems(prev => prev.map(i => i._id === id ? { ...i, [field]: value } : i));
+
+  const selectProducto = (itemId, producto) => {
+    setVentaItems(prev => prev.map(i => i._id === itemId ? {
+      ...i,
+      producto_id: producto.id,
+      producto_nombre: producto.nombre,
+      precio_unitario: parseFloat(producto.precio_final) || '',
+    } : i));
   };
+
+  // Enriched productos for SearchableSelect
+  const enrichedProductos = useMemo(() =>
+    productos.map(p => ({
+      ...p,
+      value: p.id,
+      label: p.nombre,
+    })),
+    [productos]
+  );
 
   // Create client inline
   async function handleCreateClient() {
@@ -193,15 +203,13 @@ export default function PLVentasPage() {
   const openNewVenta = () => {
     setEditingVenta(null);
     setForm({
-      producto_id: null,
       fecha: todayStr(),
-      cantidad: 1,
-      precio_unitario: '',
       nota: '',
+      cuenta_id: '',
       cliente_id: '',
     });
-    setDescuentoTipo('none');
-    setDescuentoValor('');
+    setVentaItems([{ _id: Date.now(), producto_id: null, cantidad: 1, precio_unitario: '', descuento: 0 }]);
+    setDescuentoGlobal(0);
     setContraEntrega(false);
     setAdelanto('');
     setFechaEntrega('');
@@ -218,66 +226,68 @@ export default function PLVentasPage() {
   // Open modal for editing
   const openEditVenta = (v) => {
     setEditingVenta(v);
-    const desc = parseFloat(v.descuento) || 0;
     setForm({
-      producto_id: v.producto_id,
       fecha: v.fecha ? v.fecha.slice(0, 10) : todayStr(),
-      cantidad: v.cantidad,
-      precio_unitario: parseFloat(v.precio_unitario) || '',
       nota: v.nota || '',
       cuenta_id: v.cuenta_id || '',
       cliente_id: v.cliente_id || '',
     });
+    // Load items
+    if (v.items && v.items.length > 0) {
+      setVentaItems(v.items.map(i => ({
+        _id: i.id || Date.now() + Math.random(),
+        producto_id: i.producto_id,
+        producto_nombre: i.producto_nombre,
+        cantidad: i.cantidad,
+        precio_unitario: parseFloat(i.precio_unitario) || '',
+        descuento: parseFloat(i.descuento) || 0,
+      })));
+    } else {
+      // Legacy single product
+      setVentaItems([{
+        _id: Date.now(),
+        producto_id: v.producto_id,
+        producto_nombre: v.producto_nombre,
+        cantidad: v.cantidad,
+        precio_unitario: parseFloat(v.precio_unitario) || '',
+        descuento: parseFloat(v.descuento) || 0,
+      }]);
+    }
+    setDescuentoGlobal(parseFloat(v.descuento_global) || 0);
     setCanalId(v.canal_id || '');
     setTieneEnvio(!!v.tipo_envio);
     setTipoEnvio(v.tipo_envio || 'propio');
     setCostoEnvio(v.costo_envio ? String(v.costo_envio) : '');
     setZonaEnvioId(v.zona_envio_id || '');
     setDireccionEnvio(v.direccion_envio || '');
-    if (desc > 0) {
-      setDescuentoTipo('total');
-      setDescuentoValor(String(desc));
-    } else {
-      setDescuentoTipo('none');
-      setDescuentoValor('');
-    }
     setModalOpen(true);
   };
 
-  // Select product in modal - auto-fill price
-  const selectProducto = (prod) => {
-    setForm((prev) => ({
-      ...prev,
-      producto_id: prod.id,
-      precio_unitario: parseFloat(prod.precio_final) || '',
-    }));
-  };
-
-  // Computed total in modal
-  const formTotal = useMemo(() => {
-    const precio = parseFloat(form.precio_unitario) || 0;
-    const cant = parseInt(form.cantidad) || 0;
-    const desc = calcDescuento();
-    return (precio * cant) - desc;
-  }, [form.precio_unitario, form.cantidad, descuentoTipo, descuentoValor]);
-
-  const totalConEnvio = formTotal + (tieneEnvio ? parseFloat(costoEnvio) || 0 : 0);
+  // Computed subtotal and total
+  const subtotal = ventaItems.reduce((s, i) => s + ((parseFloat(i.precio_unitario) || 0) * (parseInt(i.cantidad) || 1) - (parseFloat(i.descuento) || 0)), 0);
+  const total = subtotal - descuentoGlobal + (tieneEnvio ? parseFloat(costoEnvio) || 0 : 0);
 
   // Save venta
   const saveVenta = async () => {
-    if (!form.producto_id || !form.fecha || !form.cantidad) {
-      toast.error('Producto, fecha y cantidad son requeridos');
+    const validItems = ventaItems.filter(i => i.producto_id);
+    if (validItems.length === 0 || !form.fecha) {
+      toast.error('Al menos un producto y fecha son requeridos');
       return;
     }
     try {
-      const descuentoTotal = calcDescuento();
+      const itemsPayload = validItems.map(i => ({
+        producto_id: i.producto_id,
+        cantidad: parseInt(i.cantidad) || 1,
+        precio_unitario: parseFloat(i.precio_unitario) || 0,
+        descuento: parseFloat(i.descuento) || 0,
+      }));
+
       if (editingVenta) {
         await api.put(`/pl/ventas/${editingVenta.id}`, {
-          cantidad: form.cantidad,
-          precio_unitario: form.precio_unitario,
-          descuento: descuentoTotal,
-          nota: form.nota,
+          items: itemsPayload,
           fecha: form.fecha,
+          descuento_global: descuentoGlobal,
+          nota: form.nota,
           cliente_id: form.cliente_id || null,
           canal_id: canalId || null,
           cuenta_id: form.cuenta_id || null,
@@ -289,11 +299,9 @@ export default function PLVentasPage() {
         toast.success('Venta actualizada');
       } else {
         await api.post('/pl/ventas', {
-          producto_id: form.producto_id,
+          items: itemsPayload,
           fecha: form.fecha,
-          cantidad: form.cantidad,
-          precio_unitario: form.precio_unitario || undefined,
-          descuento: descuentoTotal,
+          descuento_global: descuentoGlobal,
           nota: form.nota,
           cuenta_id: form.cuenta_id || null,
           cliente_id: form.cliente_id || null,
@@ -308,13 +316,17 @@ export default function PLVentasPage() {
         // If contra entrega, create a pedido
         if (contraEntrega) {
           try {
-            const prod = productos.find(p => p.id === form.producto_id);
-            const total = (parseFloat(form.precio_unitario || prod?.precio_final || 0)) * parseInt(form.cantidad || 1);
+            const firstItem = validItems[0];
+            const prod = productos.find(p => p.id === firstItem.producto_id);
             await api.post('/pedidos', {
               cliente_id: form.cliente_id || null,
-              descripcion: prod?.nombre || 'Pedido',
-              items: [{ producto_id: form.producto_id, cantidad: form.cantidad, precio_unitario: form.precio_unitario || prod?.precio_final }],
-              monto_total: total,
+              descripcion: validItems.length > 1 ? `${validItems.length} productos` : (prod?.nombre || 'Pedido'),
+              items: validItems.map(i => ({
+                producto_id: i.producto_id,
+                cantidad: parseInt(i.cantidad) || 1,
+                precio_unitario: parseFloat(i.precio_unitario) || 0,
+              })),
+              monto_total: subtotal,
               tipo_pago: 'contra_entrega',
               adelanto: parseFloat(adelanto) || 0,
               fecha_entrega_estimada: fechaEntrega || null,
@@ -337,6 +349,8 @@ export default function PLVentasPage() {
       setZonaEnvioId('');
       setDireccionEnvio('');
       setCanalId('');
+      setVentaItems([{ _id: Date.now(), producto_id: null, cantidad: 1, precio_unitario: '', descuento: 0 }]);
+      setDescuentoGlobal(0);
       loadVentas(periodo);
     } catch (err) {
       toast.error(err.message);
@@ -371,17 +385,20 @@ export default function PLVentasPage() {
     if (!emitirModal) return;
     setEmitting(true);
     try {
+      const emitirItems = (emitirModal.items || [{ producto_id: emitirModal.producto_id, producto_nombre: emitirModal.producto_nombre, cantidad: emitirModal.cantidad, precio_unitario: emitirModal.precio_unitario, descuento: emitirModal.descuento || 0 }])
+        .map(i => ({
+          producto_id: i.producto_id,
+          producto_nombre: i.producto_nombre,
+          cantidad: i.cantidad,
+          precio_unitario: i.precio_unitario,
+          descuento: i.descuento || 0,
+        }));
+
       const res = await api.post('/facturacion/emitir', {
         venta_id: emitirModal.id,
         tipo: emitirTipo,
         cliente_id: emitirClienteId || null,
-        items: [{
-          producto_id: emitirModal.producto_id,
-          producto_nombre: emitirModal.producto_nombre,
-          cantidad: emitirModal.cantidad,
-          precio_unitario: emitirModal.precio_unitario,
-          descuento: emitirModal.descuento || 0,
-        }],
+        items: emitirItems,
       });
       const data = res.data || res;
       if (data.sunat?.success) {
@@ -437,6 +454,12 @@ export default function PLVentasPage() {
       </div>
     );
   }
+
+  // Helper to get venta display name
+  const ventaDisplayName = (v) => {
+    if (v.items?.length > 1) return `${v.items.length} productos`;
+    return v.items?.[0]?.producto_nombre || v.producto_nombre || '-';
+  };
 
   return (
     <div className="max-w-7xl mx-auto pb-12">
@@ -513,7 +536,6 @@ export default function PLVentasPage() {
                   <th className={cx.th}>Fecha</th>
                   <th className={cx.th}>Producto</th>
                   <th className={cx.th + ' text-center'}>Cant.</th>
-                  <th className={cx.th + ' text-right'}>Precio</th>
                   <th className={cx.th + ' text-right'}>Descuento</th>
                   <th className={cx.th + ' text-right'}>Total</th>
                   <th className={cx.th + ' w-20'}></th>
@@ -523,11 +545,16 @@ export default function PLVentasPage() {
                 {ventas.map((v) => (
                   <tr key={v.id} className={cx.tr}>
                     <td className={cx.td + ' text-stone-600'}>{formatDate(v.fecha)}</td>
-                    <td className={cx.td + ' font-medium text-stone-900'}>{v.producto_nombre}</td>
-                    <td className={cx.td + ' text-center text-stone-600'}>{v.cantidad}</td>
-                    <td className={cx.td + ' text-right text-stone-600'}>{formatCurrency(v.precio_unitario)}</td>
+                    <td className={cx.td + ' font-medium text-stone-900'}>{ventaDisplayName(v)}</td>
+                    <td className={cx.td + ' text-center text-stone-600'}>
+                      {v.items?.length > 1
+                        ? v.items.reduce((s, i) => s + (parseInt(i.cantidad) || 0), 0)
+                        : v.cantidad}
+                    </td>
                     <td className={cx.td + ' text-right text-stone-400'}>
-                      {parseFloat(v.descuento) > 0 ? `-${formatCurrency(v.descuento)}` : '-'}
+                      {parseFloat(v.descuento) > 0 || parseFloat(v.descuento_global) > 0
+                        ? `-${formatCurrency((parseFloat(v.descuento) || 0) + (parseFloat(v.descuento_global) || 0))}`
+                        : '-'}
                     </td>
                     <td className={cx.td + ' text-right font-semibold text-stone-900'}>{formatCurrency(v.total)}</td>
                     <td className={cx.td}>
@@ -566,32 +593,50 @@ export default function PLVentasPage() {
                         : <ChevronDown size={16} className="text-stone-400 flex-shrink-0" />
                       }
                       <div className="min-w-0">
-                        <p className="text-sm font-semibold text-stone-900 truncate">{v.producto_nombre}</p>
-                        <p className="text-[11px] text-stone-400">{formatDate(v.fecha)} &middot; {v.cantidad} uds</p>
+                        <p className="text-sm font-semibold text-stone-900 truncate">{ventaDisplayName(v)}</p>
+                        <p className="text-[11px] text-stone-400">{formatDate(v.fecha)}</p>
                       </div>
                     </div>
                     <span className="text-sm font-semibold text-stone-900 flex-shrink-0 ml-3">{formatCurrency(v.total)}</span>
                   </div>
                   {isExpanded && (
                     <div className="mt-3 pt-3 border-t border-stone-100">
-                      <div className="grid grid-cols-2 gap-2 text-xs mb-3">
-                        <div>
-                          <span className="text-stone-400">Precio unit.</span>
-                          <p className="text-stone-800 font-medium">{formatCurrency(v.precio_unitario)}</p>
+                      {/* Show each item if multi-product */}
+                      {v.items && v.items.length > 0 ? (
+                        <div className="space-y-1 mb-3">
+                          {v.items.map((item, idx) => (
+                            <div key={idx} className="flex justify-between text-xs">
+                              <span className="text-stone-700">{item.producto_nombre} x{item.cantidad}</span>
+                              <span className="text-stone-600">{formatCurrency((parseFloat(item.precio_unitario) || 0) * (parseInt(item.cantidad) || 1))}</span>
+                            </div>
+                          ))}
                         </div>
-                        <div>
+                      ) : (
+                        <div className="grid grid-cols-2 gap-2 text-xs mb-3">
+                          <div>
+                            <span className="text-stone-400">Precio unit.</span>
+                            <p className="text-stone-800 font-medium">{formatCurrency(v.precio_unitario)}</p>
+                          </div>
+                          <div>
+                            <span className="text-stone-400">Cantidad</span>
+                            <p className="text-stone-800 font-medium">{v.cantidad}</p>
+                          </div>
+                        </div>
+                      )}
+                      {(parseFloat(v.descuento) > 0 || parseFloat(v.descuento_global) > 0) && (
+                        <div className="text-xs mb-3">
                           <span className="text-stone-400">Descuento</span>
                           <p className="text-stone-800 font-medium">
-                            {parseFloat(v.descuento) > 0 ? formatCurrency(v.descuento) : '-'}
+                            {formatCurrency((parseFloat(v.descuento) || 0) + (parseFloat(v.descuento_global) || 0))}
                           </p>
                         </div>
-                        {v.nota && (
-                          <div className="col-span-2">
-                            <span className="text-stone-400">Nota</span>
-                            <p className="text-stone-600">{v.nota}</p>
-                          </div>
-                        )}
-                      </div>
+                      )}
+                      {v.nota && (
+                        <div className="text-xs mb-3">
+                          <span className="text-stone-400">Nota</span>
+                          <p className="text-stone-600">{v.nota}</p>
+                        </div>
+                      )}
                       <div className="flex gap-2 flex-wrap">
                         {v.facturado && (
                           <span className={cx.badge('bg-emerald-50 text-emerald-600')}>Facturado</span>
@@ -633,18 +678,59 @@ export default function PLVentasPage() {
               </div>
 
               <div className="space-y-4">
-                {/* Product selector (only for new) */}
-                {!editingVenta && (
-                  <div>
-                    <label className={cx.label}>Producto</label>
-                    <SearchableSelect
-                      options={productos}
-                      value={form.producto_id}
-                      onChange={selectProducto}
-                      placeholder="Buscar producto..."
-                    />
+                {/* Products list */}
+                <div className="space-y-2">
+                  <label className={cx.label}>Productos</label>
+                  {ventaItems.map((item, idx) => (
+                    <div key={item._id} className="flex gap-2 items-center bg-stone-50 rounded-lg p-2">
+                      <div className="flex-1">
+                        <SearchableSelect
+                          options={enrichedProductos}
+                          value={item.producto_id}
+                          onChange={(prod) => selectProducto(item._id, prod)}
+                          placeholder="Producto..."
+                        />
+                      </div>
+                      <input type="number" value={item.cantidad} min="1"
+                        onChange={e => updateItem(item._id, 'cantidad', parseInt(e.target.value) || 1)}
+                        className="w-16 bg-white rounded-lg px-2 py-2 text-sm text-center border border-stone-200"
+                        placeholder="Cant" />
+                      <input type="number" value={item.precio_unitario} step="0.01"
+                        onChange={e => updateItem(item._id, 'precio_unitario', e.target.value)}
+                        className="w-24 bg-white rounded-lg px-2 py-2 text-sm text-center border border-stone-200"
+                        placeholder="Precio" />
+                      <span className="text-sm font-medium text-stone-700 w-20 text-right">
+                        {formatCurrency((parseFloat(item.precio_unitario) || 0) * (parseInt(item.cantidad) || 1) - (parseFloat(item.descuento) || 0))}
+                      </span>
+                      {ventaItems.length > 1 && (
+                        <button onClick={() => removeItem(item._id)} className={cx.btnIcon + ' hover:text-rose-600'}>
+                          <Trash2 size={14} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                  <button onClick={addItem} className={cx.btnGhost + ' text-xs flex items-center gap-1'}>
+                    <Plus size={13} /> Agregar producto
+                  </button>
+                </div>
+
+                {/* Subtotal + descuento global */}
+                <div className="border-t border-stone-200 pt-3 mt-3 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-stone-500">Subtotal</span>
+                    <span className="text-stone-800 font-medium">{formatCurrency(subtotal)}</span>
                   </div>
-                )}
+                  <div className="flex items-center justify-between">
+                    <label className={cx.label + ' mb-0'}>Descuento global</label>
+                    <input type="number" step="0.01" value={descuentoGlobal}
+                      onChange={e => setDescuentoGlobal(parseFloat(e.target.value) || 0)}
+                      className="w-24 bg-white rounded-lg px-2 py-2 text-sm text-right border border-stone-200" />
+                  </div>
+                  <div className="flex justify-between text-lg font-bold">
+                    <span>Total</span>
+                    <span className="text-[var(--accent)]">{formatCurrency(total)}</span>
+                  </div>
+                </div>
 
                 {/* Date */}
                 <div>
@@ -655,65 +741,6 @@ export default function PLVentasPage() {
                     onChange={(e) => setForm((f) => ({ ...f, fecha: e.target.value }))}
                     className={cx.input}
                   />
-                </div>
-
-                {/* Quantity */}
-                <div>
-                  <label className={cx.label}>Cantidad</label>
-                  <input
-                    type="number"
-                    value={form.cantidad}
-                    onChange={(e) => setForm((f) => ({ ...f, cantidad: e.target.value }))}
-                    min="1"
-                    className={cx.input}
-                  />
-                </div>
-
-                {/* Unit price */}
-                <div>
-                  <label className={cx.label}>Precio unitario</label>
-                  <input
-                    type="number"
-                    value={form.precio_unitario}
-                    onChange={(e) => setForm((f) => ({ ...f, precio_unitario: e.target.value }))}
-                    step="0.01"
-                    className={cx.input}
-                    placeholder="Se usa el precio del producto si esta vacio"
-                  />
-                </div>
-
-                {/* Discount */}
-                <div>
-                  <label className={cx.label}>Descuento</label>
-                  <div className="flex gap-2">
-                    <CustomSelect
-                      value={descuentoTipo}
-                      onChange={setDescuentoTipo}
-                      options={[
-                        { value: 'none', label: 'Sin descuento' },
-                        { value: 'total', label: 'Monto fijo' },
-                        { value: 'unit', label: 'Por unidad' },
-                        { value: 'percent', label: 'Porcentaje' },
-                      ]}
-                      className="w-40"
-                    />
-                    {descuentoTipo !== 'none' && (
-                      <input
-                        type="number"
-                        value={descuentoValor}
-                        onChange={(e) => setDescuentoValor(e.target.value)}
-                        className={cx.input + ' w-28'}
-                        placeholder={descuentoTipo === 'percent' ? '10' : '5.00'}
-                        min="0"
-                        step="0.01"
-                      />
-                    )}
-                  </div>
-                  {descuentoTipo !== 'none' && calcDescuento() > 0 && (
-                    <p className="text-[11px] text-stone-400 mt-1">
-                      Descuento total: {formatCurrency(calcDescuento())}
-                    </p>
-                  )}
                 </div>
 
                 {/* Contra entrega toggle */}
@@ -738,7 +765,7 @@ export default function PLVentasPage() {
                       <div>
                         <label className={cx.label}>Restante</label>
                         <p className="text-lg font-bold text-amber-600 mt-1">
-                          {formatCurrency(Math.max(0, (parseFloat(form.precio_unitario || 0) * parseInt(form.cantidad || 1)) - parseFloat(adelanto || 0)))}
+                          {formatCurrency(Math.max(0, subtotal - parseFloat(adelanto || 0)))}
                         </p>
                       </div>
                     </div>
@@ -761,11 +788,6 @@ export default function PLVentasPage() {
                       options={[{ value: '', label: 'Venta directa (sin canal)' }, ...canales.map(c => ({ value: c.id, label: c.nombre }))]}
                       placeholder="Venta directa"
                     />
-                    {canalId && form.producto_id && (
-                      <p className="text-[10px] text-stone-400 mt-1">
-                        Revisa la ficha tecnica del producto para ver el precio sugerido de este canal.
-                      </p>
-                    )}
                   </div>
                 )}
 
@@ -885,17 +907,6 @@ export default function PLVentasPage() {
                     placeholder="Ej: Pedido delivery"
                   />
                 </div>
-
-                {/* Computed total */}
-                <div className="flex items-center justify-between pt-2 border-t border-stone-100">
-                  <span className="text-sm text-stone-500">Total</span>
-                  <span className="text-lg font-bold text-stone-900">{formatCurrency(totalConEnvio)}</span>
-                </div>
-                {tieneEnvio && parseFloat(costoEnvio) > 0 && (
-                  <p className="text-[11px] text-stone-400 text-right -mt-2">
-                    Producto: {formatCurrency(formTotal)} + Envio: {formatCurrency(parseFloat(costoEnvio))}
-                  </p>
-                )}
               </div>
 
               {/* Actions */}
@@ -925,8 +936,25 @@ export default function PLVentasPage() {
             <div className="space-y-4">
               {/* Venta info */}
               <div className="p-3 bg-stone-50 rounded-lg">
-                <p className="text-sm font-medium text-stone-800">{emitirModal.producto_nombre}</p>
-                <p className="text-xs text-stone-500">Cant: {emitirModal.cantidad} x {formatCurrency(emitirModal.precio_unitario)} = {formatCurrency(emitirModal.total || (emitirModal.cantidad * emitirModal.precio_unitario))}</p>
+                {emitirModal.items && emitirModal.items.length > 0 ? (
+                  <div className="space-y-1">
+                    {emitirModal.items.map((item, idx) => (
+                      <div key={idx} className="flex justify-between text-sm">
+                        <span className="text-stone-800">{item.producto_nombre} x{item.cantidad}</span>
+                        <span className="text-stone-600">{formatCurrency((parseFloat(item.precio_unitario) || 0) * (parseInt(item.cantidad) || 1))}</span>
+                      </div>
+                    ))}
+                    <div className="flex justify-between text-sm font-medium pt-1 border-t border-stone-200">
+                      <span>Total</span>
+                      <span>{formatCurrency(emitirModal.total)}</span>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-stone-800">{emitirModal.producto_nombre}</p>
+                    <p className="text-xs text-stone-500">Cant: {emitirModal.cantidad} x {formatCurrency(emitirModal.precio_unitario)} = {formatCurrency(emitirModal.total || (emitirModal.cantidad * emitirModal.precio_unitario))}</p>
+                  </>
+                )}
               </div>
 
               {/* Tipo */}
@@ -976,7 +1004,7 @@ export default function PLVentasPage() {
       <ConfirmDialog
         open={!!deleteTarget}
         title="Eliminar venta"
-        message={`Estas seguro de eliminar esta venta de "${deleteTarget?.producto_nombre}"?`}
+        message={`Estas seguro de eliminar esta venta de "${deleteTarget ? ventaDisplayName(deleteTarget) : ''}"?`}
         onConfirm={handleDelete}
         onCancel={() => setDeleteTarget(null)}
       />

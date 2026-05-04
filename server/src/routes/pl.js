@@ -247,13 +247,30 @@ router.get('/resumen', async (req, res) => {
       [req.eid, start, end]
     );
 
-    // COGS from sales x product costs
+    // COGS from sales x product costs (multi-product via venta_items + legacy fallback)
     const cogsRes = await pool.query(
       `SELECT
-        COALESCE(SUM(v.cantidad * p.costo_insumos), 0) AS cogs_insumos,
-        COALESCE(SUM(v.cantidad * p.costo_empaque), 0) AS cogs_empaque
-       FROM ventas v JOIN productos p ON p.id = v.producto_id
-       WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3`,
+        COALESCE(SUM(cogs_insumos), 0) AS cogs_insumos,
+        COALESCE(SUM(cogs_empaque), 0) AS cogs_empaque
+       FROM (
+        -- Multi-product ventas (with venta_items)
+        SELECT
+          vi.cantidad * COALESCE(p.costo_insumos, 0) AS cogs_insumos,
+          vi.cantidad * COALESCE(p.costo_empaque, 0) AS cogs_empaque
+        FROM venta_items vi
+        JOIN productos p ON p.id = vi.producto_id
+        JOIN ventas v ON v.id = vi.venta_id
+        WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3
+        UNION ALL
+        -- Legacy ventas (no venta_items, producto_id directly on venta)
+        SELECT
+          v.cantidad * COALESCE(p.costo_insumos, 0) AS cogs_insumos,
+          v.cantidad * COALESCE(p.costo_empaque, 0) AS cogs_empaque
+        FROM ventas v
+        JOIN productos p ON p.id = v.producto_id
+        WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3
+          AND NOT EXISTS (SELECT 1 FROM venta_items vi WHERE vi.venta_id = v.id)
+       ) sub`,
       [req.eid, start, end]
     );
 
@@ -280,14 +297,27 @@ router.get('/resumen', async (req, res) => {
     );
     const comp = comprasRes.rows[0];
 
-    // Top products
+    // Top products (combine venta_items + legacy ventas)
     const topProductos = await pool.query(
       `SELECT p.id, p.nombre, p.imagen_url,
-              SUM(v.cantidad) AS unidades, SUM(v.total) AS ingresos,
-              SUM(v.cantidad * p.costo_neto) AS costo_total,
-              SUM(v.total) - SUM(v.cantidad * p.costo_neto) AS utilidad
-       FROM ventas v JOIN productos p ON p.id = v.producto_id
-       WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3
+              SUM(sub.cantidad) AS unidades, SUM(sub.ingresos) AS ingresos,
+              SUM(sub.cantidad * p.costo_neto) AS costo_total,
+              SUM(sub.ingresos) - SUM(sub.cantidad * p.costo_neto) AS utilidad
+       FROM (
+        -- From venta_items
+        SELECT vi.producto_id, vi.cantidad, vi.subtotal AS ingresos
+        FROM venta_items vi
+        JOIN ventas v ON v.id = vi.venta_id
+        WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3
+        UNION ALL
+        -- Legacy ventas without venta_items
+        SELECT v.producto_id, v.cantidad, v.total AS ingresos
+        FROM ventas v
+        WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3
+          AND v.producto_id IS NOT NULL
+          AND NOT EXISTS (SELECT 1 FROM venta_items vi WHERE vi.venta_id = v.id)
+       ) sub
+       JOIN productos p ON p.id = sub.producto_id
        GROUP BY p.id, p.nombre, p.imagen_url
        ORDER BY ingresos DESC LIMIT 10`,
       [req.eid, start, end]
@@ -559,11 +589,41 @@ router.get('/ventas', async (req, res) => {
               p.costo_insumos AS producto_costo_insumos, p.costo_empaque AS producto_costo_empaque,
               p.imagen_url AS producto_imagen
        FROM ventas v
-       JOIN productos p ON p.id = v.producto_id
+       LEFT JOIN productos p ON p.id = v.producto_id
        WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3
        ORDER BY v.fecha DESC, v.created_at DESC`,
       [req.eid, start, end]
     );
+
+    // Load venta_items for each venta
+    for (const venta of result.rows) {
+      const itemsRes = await pool.query(
+        `SELECT vi.*, p.nombre AS producto_nombre
+         FROM venta_items vi
+         JOIN productos p ON p.id = vi.producto_id
+         WHERE vi.venta_id = $1
+         ORDER BY vi.id`,
+        [venta.id]
+      );
+      if (itemsRes.rows.length > 0) {
+        venta.items = itemsRes.rows;
+      } else if (venta.producto_id) {
+        // Legacy venta without venta_items — create virtual items array
+        venta.items = [{
+          id: null,
+          venta_id: venta.id,
+          producto_id: venta.producto_id,
+          cantidad: venta.cantidad,
+          precio_unitario: venta.precio_unitario,
+          descuento: parseFloat(venta.descuento) || 0,
+          subtotal: parseFloat(venta.total) - (parseFloat(venta.costo_envio) || 0),
+          producto_nombre: venta.producto_nombre,
+        }];
+      } else {
+        venta.items = [];
+      }
+    }
+
     return res.json({ success: true, data: result.rows });
   } catch (err) {
     console.error('List ventas error:', err);
@@ -573,39 +633,82 @@ router.get('/ventas', async (req, res) => {
 
 // POST /api/pl/ventas
 router.post('/ventas', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { producto_id, fecha, cantidad, precio_unitario, descuento, nota, cuenta_id,
+    let { items, producto_id, fecha, cantidad, precio_unitario, descuento, descuento_global, nota, cuenta_id,
             tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id } = req.body;
-    if (!producto_id || !fecha || !cantidad) {
-      return res.status(400).json({ success: false, error: 'producto_id, fecha y cantidad son requeridos' });
+
+    // Backward compat: old single-product format -> convert to items array
+    if (!items && producto_id) {
+      if (!fecha || !cantidad) {
+        return res.status(400).json({ success: false, error: 'producto_id, fecha y cantidad son requeridos' });
+      }
+      // Get product price if not provided
+      const prod = await pool.query('SELECT precio_final, costo_neto FROM productos WHERE id = $1 AND empresa_id = $2', [producto_id, req.eid]);
+      if (prod.rows.length === 0) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+      const precio = precio_unitario || parseFloat(prod.rows[0].precio_final);
+      items = [{ producto_id, cantidad: parseInt(cantidad), precio_unitario: precio, descuento: parseFloat(descuento) || 0 }];
+      descuento_global = 0;
     }
 
-    // Get product price if not provided
-    const prod = await pool.query('SELECT precio_final, costo_neto FROM productos WHERE id = $1 AND empresa_id = $2', [producto_id, req.eid]);
-    if (prod.rows.length === 0) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+    if (!fecha) {
+      return res.status(400).json({ success: false, error: 'fecha es requerido' });
+    }
+    if (!items || !Array.isArray(items) || items.length === 0) {
+      return res.status(400).json({ success: false, error: 'items debe ser un array con al menos 1 item' });
+    }
 
-    const precio = precio_unitario || parseFloat(prod.rows[0].precio_final);
-    const desc = parseFloat(descuento) || 0;
+    // Calculate per-item subtotals
+    let totalDescuentoItems = 0;
+    let totalCantidad = 0;
+    for (const item of items) {
+      const itemDesc = parseFloat(item.descuento) || 0;
+      item._subtotal = (parseFloat(item.precio_unitario) * parseInt(item.cantidad)) - itemDesc;
+      totalDescuentoItems += itemDesc;
+      totalCantidad += parseInt(item.cantidad);
+    }
+
+    const descGlobal = parseFloat(descuento_global) || 0;
     const costoEnvio = parseFloat(costo_envio) || 0;
-    const total = (precio * parseInt(cantidad)) - desc + costoEnvio;
+    const sumSubtotals = items.reduce((s, i) => s + i._subtotal, 0);
+    const total = sumSubtotals - descGlobal + costoEnvio;
+
+    // producto_id on the venta: if single item, use it; otherwise NULL
+    const ventaProductoId = items.length === 1 ? items[0].producto_id : null;
+    // precio_unitario on the venta: if single item, use it; otherwise NULL
+    const ventaPrecioUnitario = items.length === 1 ? parseFloat(items[0].precio_unitario) : null;
 
     // Auto-find periodo for backward compat
     const pid = await findPeriodoId(req.eid, fecha);
 
-    const result = await pool.query(
-      `INSERT INTO ventas (empresa_id, periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, total, nota,
+    await client.query('BEGIN');
+
+    const result = await client.query(
+      `INSERT INTO ventas (empresa_id, periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, descuento_global, total, nota,
         tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING *`,
-      [req.eid, pid, producto_id, fecha, cantidad, precio, desc, total, nota || null,
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+      [req.eid, pid, ventaProductoId, fecha, totalCantidad, ventaPrecioUnitario, totalDescuentoItems, descGlobal, total, nota || null,
         tipo_envio || null, costoEnvio, zona_envio_id || null, direccion_envio || null, canal_id || null, cliente_id || null]
     );
+    const venta = result.rows[0];
 
-    // Dual-write to transacciones for timeline (with cuenta_id for cash flow)
+    // Insert venta_items
+    for (const item of items) {
+      await client.query(
+        `INSERT INTO venta_items (venta_id, producto_id, cantidad, precio_unitario, descuento, subtotal)
+         VALUES ($1, $2, $3, $4, $5, $6)`,
+        [venta.id, item.producto_id, parseInt(item.cantidad), parseFloat(item.precio_unitario), parseFloat(item.descuento) || 0, item._subtotal]
+      );
+    }
+
+    await client.query('COMMIT');
+
+    // Dual-write ONE transaccion for the whole ticket (with cuenta_id for cash flow)
     try {
       await pool.query(
         `INSERT INTO transacciones (usuario_id, empresa_id, periodo_id, tipo, fecha, producto_id, cantidad, precio_unitario, descuento, monto, monto_absoluto, descripcion, cuenta_id)
          VALUES ($1, $2, $3, 'venta', $4, $5, $6, $7, $8, $9, $9, $10, $11)`,
-        [req.uid, req.eid, pid, fecha, producto_id, cantidad, precio, desc, total, nota || null, cuenta_id || null]
+        [req.uid, req.eid, pid, fecha, ventaProductoId, totalCantidad, ventaPrecioUnitario, totalDescuentoItems + descGlobal, total, nota || null, cuenta_id || null]
       );
       // Update account balance if specified
       if (cuenta_id) {
@@ -613,12 +716,15 @@ router.post('/ventas', async (req, res) => {
       }
     } catch (_) {}
 
-    logAudit({ userId: req.user.id, entidad: 'venta', entidadId: result.rows[0].id, accion: 'crear', descripcion: `Registro venta de ${cantidad} unidad(es)` });
+    logAudit({ userId: req.user.id, entidad: 'venta', entidadId: venta.id, accion: 'crear', descripcion: `Registro venta de ${totalCantidad} unidad(es)` });
 
-    return res.status(201).json({ success: true, data: result.rows[0] });
+    return res.status(201).json({ success: true, data: venta });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Create venta error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });
+  } finally {
+    client.release();
   }
 });
 
@@ -627,22 +733,57 @@ router.get('/ventas/resumen', async (req, res) => {
   try {
     const { start, end } = await getDateRange(req);
 
-    const result = await pool.query(
+    // Venta-level summary
+    const ventaSummary = await pool.query(
       `SELECT
         COUNT(*) AS total_ventas,
         COALESCE(SUM(v.total), 0) AS ingresos_brutos,
-        COALESCE(SUM(v.descuento), 0) AS descuentos,
-        COALESCE(SUM(v.total), 0) - COALESCE(SUM(v.descuento), 0) AS ingresos_netos,
-        COALESCE(SUM(v.cantidad * p.costo_neto), 0) AS cogs_total,
-        COALESCE(SUM(v.cantidad * p.costo_insumos), 0) AS cogs_insumos,
-        COALESCE(SUM(v.cantidad * p.costo_empaque), 0) AS cogs_empaque,
+        COALESCE(SUM(COALESCE(v.descuento, 0) + COALESCE(v.descuento_global, 0)), 0) AS descuentos,
         COALESCE(SUM(v.cantidad), 0) AS unidades_vendidas
        FROM ventas v
-       JOIN productos p ON p.id = v.producto_id
        WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3`,
       [req.eid, start, end]
     );
-    return res.json({ success: true, data: result.rows[0] });
+
+    // COGS: combine venta_items + legacy
+    const cogsSummary = await pool.query(
+      `SELECT
+        COALESCE(SUM(sub.cogs_neto), 0) AS cogs_total,
+        COALESCE(SUM(sub.cogs_insumos), 0) AS cogs_insumos,
+        COALESCE(SUM(sub.cogs_empaque), 0) AS cogs_empaque
+       FROM (
+        SELECT vi.cantidad * COALESCE(p.costo_neto, 0) AS cogs_neto,
+               vi.cantidad * COALESCE(p.costo_insumos, 0) AS cogs_insumos,
+               vi.cantidad * COALESCE(p.costo_empaque, 0) AS cogs_empaque
+        FROM venta_items vi
+        JOIN productos p ON p.id = vi.producto_id
+        JOIN ventas v ON v.id = vi.venta_id
+        WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3
+        UNION ALL
+        SELECT v.cantidad * COALESCE(p.costo_neto, 0),
+               v.cantidad * COALESCE(p.costo_insumos, 0),
+               v.cantidad * COALESCE(p.costo_empaque, 0)
+        FROM ventas v
+        JOIN productos p ON p.id = v.producto_id
+        WHERE v.empresa_id = $1 AND v.fecha >= $2 AND v.fecha <= $3
+          AND NOT EXISTS (SELECT 1 FROM venta_items vi WHERE vi.venta_id = v.id)
+       ) sub`,
+      [req.eid, start, end]
+    );
+
+    const vs = ventaSummary.rows[0];
+    const cs = cogsSummary.rows[0];
+    const data = {
+      total_ventas: vs.total_ventas,
+      ingresos_brutos: vs.ingresos_brutos,
+      descuentos: vs.descuentos,
+      ingresos_netos: parseFloat(vs.ingresos_brutos) - parseFloat(vs.descuentos),
+      cogs_total: cs.cogs_total,
+      cogs_insumos: cs.cogs_insumos,
+      cogs_empaque: cs.cogs_empaque,
+      unidades_vendidas: vs.unidades_vendidas,
+    };
+    return res.json({ success: true, data });
   } catch (err) {
     console.error('Ventas resumen error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });
@@ -651,34 +792,75 @@ router.get('/ventas/resumen', async (req, res) => {
 
 // PUT /api/pl/ventas/:id
 router.put('/ventas/:id', async (req, res) => {
+  const client = await pool.connect();
   try {
-    const { cantidad, precio_unitario, descuento, nota, fecha, cliente_id, canal_id, cuenta_id,
+    const { items, cantidad, precio_unitario, descuento, descuento_global, nota, fecha, cliente_id, canal_id, cuenta_id,
             tipo_envio, costo_envio, zona_envio_id, direccion_envio } = req.body;
 
     const existing = await pool.query('SELECT * FROM ventas WHERE id = $1 AND empresa_id = $2', [req.params.id, req.eid]);
     if (existing.rows.length === 0) return res.status(404).json({ success: false, error: 'Venta no encontrada' });
     const prev = existing.rows[0];
 
-    const precio = precio_unitario != null ? parseFloat(precio_unitario) : parseFloat(prev.precio_unitario);
-    const cant = cantidad != null ? parseInt(cantidad) : parseInt(prev.cantidad);
-    const desc = descuento != null ? parseFloat(descuento) : parseFloat(prev.descuento || 0);
     const envio = costo_envio != null ? parseFloat(costo_envio) : parseFloat(prev.costo_envio || 0);
-    const total = (precio * cant) - desc + envio;
 
-    const result = await pool.query(
+    await client.query('BEGIN');
+
+    let cant, precio, desc, descGlobal, total, ventaProductoId;
+
+    if (items && Array.isArray(items) && items.length > 0) {
+      // Multi-product update: replace all items
+      await client.query('DELETE FROM venta_items WHERE venta_id = $1', [req.params.id]);
+
+      let totalDescuentoItems = 0;
+      let totalCantidad = 0;
+      let sumSubtotals = 0;
+
+      for (const item of items) {
+        const itemDesc = parseFloat(item.descuento) || 0;
+        const subtotal = (parseFloat(item.precio_unitario) * parseInt(item.cantidad)) - itemDesc;
+        totalDescuentoItems += itemDesc;
+        totalCantidad += parseInt(item.cantidad);
+        sumSubtotals += subtotal;
+
+        await client.query(
+          `INSERT INTO venta_items (venta_id, producto_id, cantidad, precio_unitario, descuento, subtotal)
+           VALUES ($1, $2, $3, $4, $5, $6)`,
+          [req.params.id, item.producto_id, parseInt(item.cantidad), parseFloat(item.precio_unitario), itemDesc, subtotal]
+        );
+      }
+
+      descGlobal = descuento_global != null ? parseFloat(descuento_global) : parseFloat(prev.descuento_global || 0);
+      total = sumSubtotals - descGlobal + envio;
+      cant = totalCantidad;
+      precio = items.length === 1 ? parseFloat(items[0].precio_unitario) : null;
+      desc = totalDescuentoItems;
+      ventaProductoId = items.length === 1 ? items[0].producto_id : null;
+    } else {
+      // Legacy single-product update (no items array provided)
+      precio = precio_unitario != null ? parseFloat(precio_unitario) : parseFloat(prev.precio_unitario);
+      cant = cantidad != null ? parseInt(cantidad) : parseInt(prev.cantidad);
+      desc = descuento != null ? parseFloat(descuento) : parseFloat(prev.descuento || 0);
+      descGlobal = descuento_global != null ? parseFloat(descuento_global) : parseFloat(prev.descuento_global || 0);
+      total = (precio * cant) - desc - descGlobal + envio;
+      ventaProductoId = prev.producto_id;
+    }
+
+    const result = await client.query(
       `UPDATE ventas SET
-        cantidad = $1, precio_unitario = $2, descuento = $3, total = $4,
-        nota = COALESCE($5, nota),
-        fecha = COALESCE($6, fecha),
-        cliente_id = $7,
-        canal_id = $8,
-        tipo_envio = $9,
-        costo_envio = $10,
-        zona_envio_id = $11,
-        direccion_envio = $12,
+        producto_id = $1,
+        cantidad = $2, precio_unitario = $3, descuento = $4, descuento_global = $5, total = $6,
+        nota = COALESCE($7, nota),
+        fecha = COALESCE($8, fecha),
+        cliente_id = $9,
+        canal_id = $10,
+        tipo_envio = $11,
+        costo_envio = $12,
+        zona_envio_id = $13,
+        direccion_envio = $14,
         updated_at = NOW()
-       WHERE id = $13 RETURNING *`,
-      [cant, precio, desc, total,
+       WHERE id = $15 RETURNING *`,
+      [ventaProductoId,
+       cant, precio, desc, descGlobal, total,
        nota !== undefined ? (nota || null) : null,
        fecha || null,
        cliente_id !== undefined ? (cliente_id || null) : prev.cliente_id,
@@ -689,11 +871,17 @@ router.put('/ventas/:id', async (req, res) => {
        direccion_envio !== undefined ? (direccion_envio || null) : prev.direccion_envio,
        req.params.id]
     );
+
+    await client.query('COMMIT');
+
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Venta no encontrada' });
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     console.error('Update venta error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });
+  } finally {
+    client.release();
   }
 });
 
