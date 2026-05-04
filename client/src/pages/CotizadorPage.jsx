@@ -6,6 +6,7 @@ import { useToast } from '../context/ToastContext';
 import { useCalculadorCostos } from '../hooks/useCalculadorCostos';
 import { cx } from '../styles/tokens';
 import { formatCurrency, precioComercial, preciosRecomendados } from '../utils/format';
+import { API_BASE } from '../config/api';
 import SearchableSelect from '../components/SearchableSelect';
 import CustomSelect from '../components/CustomSelect';
 import { PromptDialog } from '../components/ConfirmDialog';
@@ -799,20 +800,66 @@ export default function CotizadorPage() {
                   </div>
                 )}
               </div>
-              {/* Imagen URL as small icon toggle — hidden by default, shown inline */}
-              {imagenUrl ? (
-                <div className="mt-4 flex items-center gap-2">
-                  <ImageIcon size={14} className="text-stone-400" />
-                  <input type="text" value={imagenUrl} onChange={(e) => setImagenUrl(e.target.value)} className={cx.input + ' flex-1 text-xs'} placeholder="URL de imagen..." />
-                  <button onClick={() => setImagenUrl('')} className={cx.btnIcon + ' hover:text-rose-500'} title="Quitar imagen">
-                    <Trash2 size={13} />
-                  </button>
-                </div>
-              ) : (
-                <button onClick={() => setImagenUrl(' ')} className="mt-3 text-xs text-stone-400 hover:text-stone-600 flex items-center gap-1 transition-colors">
-                  <ImageIcon size={13} /> Agregar imagen
-                </button>
-              )}
+              {/* Product image — upload or URL */}
+              <div className="mt-4">
+                {imagenUrl && imagenUrl.trim() ? (
+                  <div className="flex items-start gap-3">
+                    <img src={imagenUrl.trim()} alt="Producto" className="w-20 h-20 rounded-xl object-cover border border-stone-200" onError={(e) => { e.target.style.display = 'none'; }} />
+                    <div className="flex-1 space-y-1">
+                      <p className="text-[10px] text-stone-400 truncate">{imagenUrl}</p>
+                      <button onClick={() => setImagenUrl('')} className="text-xs text-rose-500 hover:text-rose-700 flex items-center gap-1">
+                        <Trash2 size={12} /> Quitar imagen
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex gap-2">
+                    <label className="flex-1 cursor-pointer">
+                      <div className="border-2 border-dashed border-stone-200 rounded-xl p-4 text-center hover:border-[var(--accent)] hover:bg-stone-50 transition-colors">
+                        <ImageIcon size={20} className="mx-auto text-stone-300 mb-1" />
+                        <p className="text-xs text-stone-400">Click para subir imagen</p>
+                        <p className="text-[10px] text-stone-300">JPG, PNG, WebP (max 5MB)</p>
+                      </div>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="hidden"
+                        onChange={async (e) => {
+                          const file = e.target.files?.[0];
+                          if (!file) return;
+                          if (file.size > 5 * 1024 * 1024) { toast.error('Imagen muy grande (max 5MB)'); return; }
+                          // If product is saved, upload to R2
+                          if (id) {
+                            try {
+                              const formData = new FormData();
+                              formData.append('image', file);
+                              const res = await fetch(`${API_BASE.replace('/api', '')}/api/upload/producto/${id}`, {
+                                method: 'POST',
+                                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                                body: formData,
+                              });
+                              const data = await res.json();
+                              if (data.success) {
+                                setImagenUrl(data.data.url);
+                                toast.success('Imagen subida');
+                              } else {
+                                toast.error(data.error || 'Error subiendo imagen');
+                              }
+                            } catch (err) { toast.error('Error subiendo imagen'); }
+                          } else {
+                            // Preview only — will upload after first save
+                            const reader = new FileReader();
+                            reader.onload = () => setImagenUrl(reader.result);
+                            reader.readAsDataURL(file);
+                            toast.info('La imagen se guardara al crear el producto');
+                          }
+                          e.target.value = '';
+                        }}
+                      />
+                    </label>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
