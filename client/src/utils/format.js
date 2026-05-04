@@ -17,14 +17,17 @@ export function formatPercent(n) {
 export function precioComercial(precio, modo = 'variable') {
   if (!precio || precio <= 0) return 0;
 
+  // Round to 2 decimals first to avoid floating point noise (16.0099999 → 16.01)
+  const p = Math.round(precio * 100) / 100;
+
   if (modo === 'enteros') {
-    // Always round up to next integer
-    return Math.ceil(precio);
+    // Round to nearest integer (not always up)
+    return Math.round(p);
   }
 
-  // 'decimales' and 'variable' use same logic: round to .90 or next integer
-  const entero = Math.floor(precio);
-  const centavos = precio - entero;
+  // 'decimales' and 'variable': round to .90 or nearest integer
+  const entero = Math.floor(p);
+  const centavos = Math.round((p - entero) * 100) / 100;
   if (centavos <= 0.05) return entero || 1;
   if (centavos <= 0.90) return entero + 0.90;
   return entero + 1;

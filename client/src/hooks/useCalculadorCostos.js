@@ -67,13 +67,13 @@ export function useCalculadorCostos(preparaciones = [], materiales = [], margen 
     const margenDecimal = Number(margen) / 100;
     const igvDecimal = Number(igvRate) / 100;
     const precioVentaProducto = costoNetoProducto > 0 && margenDecimal < 1 ? costoNetoProducto / (1 - margenDecimal) : costoNetoProducto;
-    const precioFinalProducto = precioVentaProducto * (1 + igvDecimal);
+    const precioFinalProducto = Math.round(precioVentaProducto * (1 + igvDecimal) * 100) / 100;
 
     // PER PORTION pricing (can have its own margin)
     const costoNetoPorcion = costoInsumosPorPorcion + costoEmpaqueUnidad;
     const margenPorcionDecimal = margenPorcion !== null ? Number(margenPorcion) / 100 : margenDecimal;
     const precioVentaPorcion = costoNetoPorcion > 0 && margenPorcionDecimal < 1 ? costoNetoPorcion / (1 - margenPorcionDecimal) : costoNetoPorcion;
-    const precioFinalPorcion = precioVentaPorcion * (1 + igvDecimal);
+    const precioFinalPorcion = Math.round(precioVentaPorcion * (1 + igvDecimal) * 100) / 100;
 
     // Return values that the backend/save needs (use product-level values)
     return {
