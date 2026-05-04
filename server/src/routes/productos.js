@@ -1,7 +1,7 @@
 const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
-const { calcularCostos, round4 } = require('../services/calculador');
+const { calcularCostos, round4, round2 } = require('../services/calculador');
 const { aBase, calcCostoLinea } = require('../utils/unidades');
 const { logAudit } = require('../utils/audit');
 
@@ -118,7 +118,7 @@ router.post('/', async (req, res) => {
       costo_empaque: round4(parseFloat(req.body.costoEmpaque || req.body.costoEmpaqueEntero) || costo_empaque),
       costo_neto: round4(parseFloat(req.body.costoNeto) || 0),
       precio_venta: round4(parseFloat(req.body.precioVenta) || 0),
-      precio_final: round4(parseFloat(req.body.precioFinal) || 0),
+      precio_final: round2(parseFloat(req.body.precioFinal) || 0),
     };
 
     // Fallback: if frontend didn't send costs, calculate from costo_linea sum
@@ -130,7 +130,7 @@ router.post('/', async (req, res) => {
       costos.costo_insumos = round4(parseFloat(sumRes.rows[0].total));
       costos.costo_neto = round4(costos.costo_insumos + costos.costo_empaque);
       costos.precio_venta = margenDecimal < 1 ? round4(costos.costo_neto / (1 - margenDecimal)) : costos.costo_neto;
-      costos.precio_final = round4(costos.precio_venta * (1 + igv_rate));
+      costos.precio_final = round2(costos.precio_venta * (1 + igv_rate));
     }
 
     await client.query(
@@ -508,7 +508,7 @@ router.put('/:id', async (req, res) => {
       costo_empaque: round4(parseFloat(req.body.costoEmpaque || req.body.costoEmpaqueEntero) || costo_empaque),
       costo_neto: round4(parseFloat(req.body.costoNeto) || 0),
       precio_venta: round4(parseFloat(req.body.precioVenta) || 0),
-      precio_final: round4(parseFloat(req.body.precioFinal) || 0),
+      precio_final: round2(parseFloat(req.body.precioFinal) || 0),
     };
 
     if (!costos.costo_neto) {
@@ -519,7 +519,7 @@ router.put('/:id', async (req, res) => {
       costos.costo_insumos = round4(parseFloat(sumRes.rows[0].total));
       costos.costo_neto = round4(costos.costo_insumos + costos.costo_empaque);
       costos.precio_venta = effectiveMargen < 1 ? round4(costos.costo_neto / (1 - effectiveMargen)) : costos.costo_neto;
-      costos.precio_final = round4(costos.precio_venta * (1 + igv_rate));
+      costos.precio_final = round2(costos.precio_venta * (1 + igv_rate));
     }
 
     await client.query(

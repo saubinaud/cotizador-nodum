@@ -13,6 +13,10 @@ function round4(n) {
   return Math.round(n * 10000) / 10000;
 }
 
+function round2(n) {
+  return Math.round(n * 100) / 100;
+}
+
 // Convert quantity from uso_unidad to insumo's unidad_medida
 const FACTORES = {
   'g→kg': 0.001, 'kg→g': 1000,
@@ -47,7 +51,7 @@ function calcularCostos(detalle) {
   costo_insumos = round4(costo_insumos);
   const costo_neto = round4(costo_insumos + costo_empaque);
   const precio_venta = margen < 1 ? round4(costo_neto / (1 - margen)) : costo_neto;
-  const precio_final = round4(precio_venta * (1 + igv_rate));
+  const precio_final = round2(precio_venta * (1 + igv_rate));
 
   return { costo_insumos, costo_empaque: round4(costo_empaque), costo_neto, precio_venta, precio_final, insumos_detalle };
 }
@@ -167,4 +171,4 @@ async function recalcularProductosPorMaterial(pool, materialId, usuarioId) {
   return results;
 }
 
-module.exports = { calcularCostos, recalcularProducto, recalcularProductosPorInsumo, recalcularProductosPorMaterial, round4 };
+module.exports = { calcularCostos, recalcularProducto, recalcularProductosPorInsumo, recalcularProductosPorMaterial, round4, round2 };
