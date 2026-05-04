@@ -9,13 +9,12 @@
  *   precio_final          = precio_venta * (1 + igv_rate)
  */
 
-function round4(n) {
-  return Math.round(n * 10000) / 10000;
-}
-
 function round2(n) {
   return Math.round(n * 100) / 100;
 }
+
+// Backward compat alias — all rounding is now 2 decimals
+const round4 = round2;
 
 // Convert quantity from uso_unidad to insumo's unidad_medida
 const FACTORES = {
