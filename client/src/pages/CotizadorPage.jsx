@@ -835,7 +835,7 @@ export default function CotizadorPage() {
                               formData.append('image', file);
                               const res = await fetch(`${API_BASE.replace('/api', '')}/api/upload/producto/${id}`, {
                                 method: 'POST',
-                                headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` },
+                                headers: { 'Authorization': `Bearer ${localStorage.getItem('nodum_token')}` },
                                 body: formData,
                               });
                               const data = await res.json();
