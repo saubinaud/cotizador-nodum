@@ -163,20 +163,23 @@ router.post('/connect', async (req, res) => {
     }
 
     // Test connection with the token
-    let shopData;
+    let storeName = '';
+    let locationId = null;
+    let locationGid = null;
     try {
-      shopData = await shopifyGQL(store_url, accessToken, `{
-        shop { name }
-        locations(first: 1) { edges { node { id name } } }
-      }`);
+      const shopData = await shopifyGQL(store_url, accessToken, `{ shop { name } }`);
+      storeName = shopData.shop.name;
     } catch (err) {
       return res.status(400).json({ success: false, error: `Token obtenido pero error al conectar: ${err.message}` });
     }
 
-    const storeName = shopData.shop.name;
-    const locationEdge = shopData.locations?.edges?.[0];
-    const locationId = locationEdge ? extractGid(locationEdge.node.id) : null;
-    const locationGid = locationEdge?.node?.id || null;
+    // Try to get location (optional — some apps don't have this scope)
+    try {
+      const locData = await shopifyGQL(store_url, accessToken, `{ locations(first: 1) { edges { node { id name } } } }`);
+      const locationEdge = locData.locations?.edges?.[0];
+      locationId = locationEdge ? extractGid(locationEdge.node.id) : null;
+      locationGid = locationEdge?.node?.id || null;
+    } catch (_) { /* location scope not available */ }
 
     // UPSERT integration — save client_id + secret (NOT the temporary token)
     await pool.query(
