@@ -6,10 +6,36 @@ const { registrarMovimiento } = require('./stock');
 const router = express.Router();
 router.use(auth);
 
-// --------------- Shopify GraphQL Helper ---------------
+// --------------- Shopify Token + GraphQL Helpers ---------------
+
+// Token cache: { storeUrl: { token, expires } }
+const _tokenCache = {};
+
+async function getShopifyToken(storeUrl, clientId, clientSecret) {
+  const cacheKey = storeUrl;
+  const cached = _tokenCache[cacheKey];
+  if (cached && Date.now() < cached.expires) return cached.token;
+
+  // Exchange client_credentials for access_token (expires in 24h)
+  const res = await fetch(`https://${storeUrl}/admin/oauth/access_token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: `client_id=${clientId}&client_secret=${clientSecret}&grant_type=client_credentials`,
+  });
+  if (!res.ok) throw new Error(`Shopify auth error: ${res.status}`);
+  const data = await res.json();
+  if (!data.access_token) throw new Error('No access_token in response');
+
+  // Cache with 23h expiry (token lasts 24h)
+  _tokenCache[cacheKey] = {
+    token: data.access_token,
+    expires: Date.now() + (data.expires_in - 3600) * 1000,
+  };
+  return data.access_token;
+}
 
 async function shopifyGQL(storeUrl, accessToken, query, variables = {}) {
-  const res = await fetch(`https://${storeUrl}/admin/api/2025-01/graphql.json`, {
+  const res = await fetch(`https://${storeUrl}/admin/api/2026-04/graphql.json`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -21,6 +47,13 @@ async function shopifyGQL(storeUrl, accessToken, query, variables = {}) {
   const data = await res.json();
   if (data.errors) throw new Error(data.errors[0]?.message || 'GraphQL error');
   return data.data;
+}
+
+// Helper: get token from DB config and auto-refresh
+async function getTokenForEmpresa(integ) {
+  const { store_url, client_id, client_secret } = integ.config || {};
+  if (!store_url || !client_id || !client_secret) throw new Error('Config incompleta');
+  return getShopifyToken(store_url, client_id, client_secret);
 }
 
 /** Extract numeric ID from Shopify GID, e.g. "gid://shopify/Order/123456" -> "123456" */
@@ -65,7 +98,7 @@ router.get('/status', async (req, res) => {
     let storeName = integ.config.store_name || null;
     let productosShopify = 0;
     try {
-      const shopData = await shopifyGQL(integ.config.store_url, integ.access_token, `{
+      const shopData = await shopifyGQL(integ.config.store_url, await getTokenForEmpresa(integ), `{
         shop { name }
         productsCount { count }
       }`);
@@ -112,23 +145,32 @@ router.get('/status', async (req, res) => {
 
 router.post('/connect', async (req, res) => {
   try {
-    let { store_url, access_token } = req.body;
-    if (!store_url || !access_token) {
-      return res.status(400).json({ success: false, error: 'store_url y access_token son requeridos' });
+    let { store_url, client_id, client_secret } = req.body;
+    if (!store_url || !client_id || !client_secret) {
+      return res.status(400).json({ success: false, error: 'Store URL, Client ID y Client Secret son requeridos' });
     }
 
     // Clean store_url
     store_url = store_url.replace(/^https?:\/\//, '').replace(/\/+$/, '');
+    if (!store_url.includes('.myshopify.com')) store_url += '.myshopify.com';
 
-    // Test connection
+    // Get access token via client_credentials grant
+    let accessToken;
+    try {
+      accessToken = await getShopifyToken(store_url, client_id, client_secret);
+    } catch (err) {
+      return res.status(400).json({ success: false, error: `No se pudo autenticar: ${err.message}. Verifica tus credenciales.` });
+    }
+
+    // Test connection with the token
     let shopData;
     try {
-      shopData = await shopifyGQL(store_url, access_token, `{
+      shopData = await shopifyGQL(store_url, accessToken, `{
         shop { name }
         locations(first: 1) { edges { node { id name } } }
       }`);
     } catch (err) {
-      return res.status(400).json({ success: false, error: `No se pudo conectar a Shopify: ${err.message}` });
+      return res.status(400).json({ success: false, error: `Token obtenido pero error al conectar: ${err.message}` });
     }
 
     const storeName = shopData.shop.name;
@@ -136,20 +178,18 @@ router.post('/connect', async (req, res) => {
     const locationId = locationEdge ? extractGid(locationEdge.node.id) : null;
     const locationGid = locationEdge?.node?.id || null;
 
-    // UPSERT integration
+    // UPSERT integration — save client_id + secret (NOT the temporary token)
     await pool.query(
-      `INSERT INTO integraciones (empresa_id, tipo, access_token, config, activo, ultima_sync, created_by)
-       VALUES ($1, 'shopify', $2, $3, true, NULL, $4)
+      `INSERT INTO integraciones (empresa_id, tipo, access_token, config, activo, ultima_sync)
+       VALUES ($1, 'shopify', $2, $3, true, NULL)
        ON CONFLICT (empresa_id, tipo) DO UPDATE SET
          access_token = EXCLUDED.access_token,
          config = EXCLUDED.config,
-         activo = true,
-         updated_at = NOW()`,
+         activo = true`,
       [
         req.eid,
-        access_token,
-        JSON.stringify({ store_url: store_url, store_name: storeName, location_id: locationId, location_gid: locationGid }),
-        req.uid,
+        'auto', // token se genera automáticamente via client_credentials
+        JSON.stringify({ store_url, client_id, client_secret, store_name: storeName, location_id: locationId, location_gid: locationGid }),
       ]
     );
 
@@ -192,7 +232,7 @@ router.post('/sync-products', async (req, res) => {
 
     while (hasNextPage) {
       const afterClause = cursor ? `, after: "${cursor}"` : '';
-      const data = await shopifyGQL(integ.config.store_url, integ.access_token, `{
+      const data = await shopifyGQL(integ.config.store_url, await getTokenForEmpresa(integ), `{
         products(first: 250${afterClause}) {
           edges {
             cursor
@@ -308,7 +348,7 @@ router.post('/pull-orders', async (req, res) => {
       ? new Date(integ.ultima_sync).toISOString()
       : new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const data = await shopifyGQL(integ.config.store_url, integ.access_token, `{
+    const data = await shopifyGQL(integ.config.store_url, await getTokenForEmpresa(integ), `{
       orders(first: 50, query: "created_at:>'${lastSync}' AND financial_status:paid", sortKey: CREATED_AT) {
         edges {
           node {
@@ -496,7 +536,7 @@ router.post('/push-stock', async (req, res) => {
         const inventoryItemGid = `gid://shopify/InventoryItem/${prod.shopify_inventory_item_id}`;
         const quantity = Math.floor(parseFloat(prod.stock_actual) || 0);
 
-        await shopifyGQL(integ.config.store_url, integ.access_token, `
+        await shopifyGQL(integ.config.store_url, await getTokenForEmpresa(integ), `
           mutation inventorySetOnHandQuantities($input: InventorySetOnHandQuantitiesInput!) {
             inventorySetOnHandQuantities(input: $input) {
               userErrors { field message }

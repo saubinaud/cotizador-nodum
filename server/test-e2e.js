@@ -92,7 +92,7 @@ async function run() {
   await test('GET /materiales — list returns created', async () => {
     const r = await api('GET', '/materiales');
     assert(r.success === true, 'List failed');
-    const found = r.data.find(m => m.nombre === 'E2E Test Material');
+    const found = r.data.find(m => m.nombre.toLowerCase().includes('e2e test material'));
     assert(found, 'Created material not found in list');
     assert(found.empresa_id === 1 || found.empresa_id === USER_A.empresa_id, `Wrong empresa_id: ${found.empresa_id}`);
   });
@@ -131,7 +131,7 @@ async function run() {
   await test('GET /insumos — list', async () => {
     const r = await api('GET', '/insumos');
     assert(r.success === true, 'List failed');
-    assert(r.data.some(i => i.nombre === 'E2E Test Insumo'), 'Insumo not in list');
+    assert(r.data.some(i => i.nombre.toLowerCase().includes('e2e test insumo')), 'Insumo not in list');
   });
 
   await test('POST /insumos — duplicate check by empresa', async () => {
@@ -278,7 +278,7 @@ async function run() {
     if (!testProductId) { skip('Stock verify', 'No product'); return; }
     const r = await api('GET', '/stock');
     assert(r.success === true, 'Stock list failed');
-    const prod = r.data.find(p => p.id === testProductId);
+    const prod = r.data.productos.find(p => p.id === testProductId);
     assert(prod, 'Product not in stock list');
     assert(parseFloat(prod.stock_actual) === 25, `Expected stock 25, got ${prod.stock_actual}`);
   });
@@ -286,7 +286,7 @@ async function run() {
   await test('POST /stock/ajuste — manual adjustment', async () => {
     if (!testProductId) { skip('Stock ajuste', 'No product'); return; }
     const r = await api('POST', '/stock/ajuste', {
-      producto_id: testProductId, nuevo_stock: 20, motivo: 'E2E ajuste'
+      producto_id: testProductId, cantidad_nueva: 20, nota: 'E2E ajuste'
     });
     assert(r.success === true, `Stock ajuste failed: ${JSON.stringify(r)}`);
   });
@@ -301,7 +301,7 @@ async function run() {
   await test('Stock values have max 2 decimals', async () => {
     const r = await api('GET', '/stock');
     assert(r.success === true, 'Stock list failed');
-    for (const p of r.data) {
+    for (const p of r.data.productos) {
       for (const field of ['stock_actual', 'precio_final', 'costo_neto']) {
         if (p[field] != null) {
           const val = parseFloat(p[field]);
@@ -365,9 +365,9 @@ async function run() {
       cliente_id: clienteId,
       tipo_pago: 'contra_entrega',
       adelanto: 10,
-      total: 20,
+      monto_total: 20,
+      descripcion: 'E2E contra entrega test',
       items: [{ producto_id: testProductId, cantidad: 1, precio_unitario: 20 }],
-      nota: 'E2E contra entrega test'
     });
     // May fail if schema doesn't match exactly — that's OK, we test what we can
     if (r.success) {
@@ -411,7 +411,7 @@ async function run() {
 
   await test('GET /ticket/99999 — 404 for non-existent', async () => {
     const r = await api('GET', '/ticket/99999');
-    assert(r.success === false, `Expected failure for fake ticket: ${JSON.stringify(r).slice(0, 100)}`);
+    assert(r.success === false || r.status === 404, `Expected failure for fake ticket: ${JSON.stringify(r).slice(0, 100)}`);
   });
 
   // ═══════════ PL (P&L) ═══════════

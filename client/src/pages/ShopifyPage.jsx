@@ -24,7 +24,8 @@ export default function ShopifyPage() {
   const [syncing, setSyncing] = useState(null);
   const [logs, setLogs] = useState([]);
   const [storeUrl, setStoreUrl] = useState('');
-  const [accessToken, setAccessToken] = useState('');
+  const [clientId, setClientId] = useState('');
+  const [clientSecret, setClientSecret] = useState('');
   const [syncResult, setSyncResult] = useState(null);
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
 
@@ -46,15 +47,16 @@ export default function ShopifyPage() {
       .catch(() => {});
 
   const handleConnect = async () => {
-    if (!storeUrl || !accessToken) {
-      toast.error('URL y token requeridos');
+    if (!storeUrl || !clientId || !clientSecret) {
+      toast.error('URL, Client ID y Client Secret requeridos');
       return;
     }
     setConnecting(true);
     try {
       const res = await api.post('/shopify/connect', {
         store_url: storeUrl,
-        access_token: accessToken,
+        client_id: clientId,
+        client_secret: clientSecret,
       });
       toast.success(`Conectado a ${res.store_name}`);
       loadStatus();
@@ -133,7 +135,7 @@ export default function ShopifyPage() {
               <br />
               read_locations
             </p>
-            <p>4. Install &rarr; copia el Access Token</p>
+            <p>4. Copia el Client ID y Client Secret</p>
           </div>
 
           <div className="space-y-4">
@@ -147,13 +149,22 @@ export default function ShopifyPage() {
               />
             </div>
             <div>
-              <label className={cx.label}>Access Token</label>
+              <label className={cx.label}>Client ID</label>
               <input
                 className={cx.input}
-                placeholder="shpat_..."
+                placeholder="87ee354..."
+                value={clientId}
+                onChange={(e) => setClientId(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className={cx.label}>Client Secret</label>
+              <input
+                className={cx.input}
+                placeholder="shpss_..."
                 type="password"
-                value={accessToken}
-                onChange={(e) => setAccessToken(e.target.value)}
+                value={clientSecret}
+                onChange={(e) => setClientSecret(e.target.value)}
               />
             </div>
             <button
