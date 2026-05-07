@@ -1461,6 +1461,34 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_stock_mov_producto ON stock_movimientos(producto_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_stock_mov_created ON stock_movimientos(created_at)`);
 
+    // ==================== COMISIONES VENDEDOR ====================
+
+    // Add comision_pct to usuarios (for vendedor commission percentage)
+    await client.query(`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS comision_pct NUMERIC(5,2) DEFAULT 0`);
+
+    // Add vendedor_id to ventas
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS vendedor_id INTEGER REFERENCES usuarios(id) ON DELETE SET NULL`);
+
+    // comisiones table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS comisiones (
+        id SERIAL PRIMARY KEY,
+        empresa_id INTEGER NOT NULL REFERENCES empresas(id),
+        venta_id INTEGER REFERENCES ventas(id) ON DELETE CASCADE,
+        vendedor_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+        monto_venta NUMERIC(12,2) NOT NULL DEFAULT 0,
+        costo_envio NUMERIC(12,2) NOT NULL DEFAULT 0,
+        base_comision NUMERIC(12,2) NOT NULL DEFAULT 0,
+        comision_pct NUMERIC(5,2) NOT NULL DEFAULT 0,
+        comision_monto NUMERIC(12,2) NOT NULL DEFAULT 0,
+        fecha DATE NOT NULL,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_comisiones_empresa ON comisiones(empresa_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_comisiones_vendedor ON comisiones(vendedor_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_comisiones_fecha ON comisiones(fecha)`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

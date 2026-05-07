@@ -57,10 +57,23 @@ export default function EquipoPage() {
     finally { setSaving(false); }
   }
 
-  async function handleChangeRol(memberId, newRol) {
+  const [editComision, setEditComision] = useState({}); // { memberId: pct }
+
+  async function handleChangeRol(memberId, newRol, comisionPct) {
     try {
-      await api.patch(`/equipo/${memberId}/rol`, { rol_empresa: newRol });
+      await api.patch(`/equipo/${memberId}/rol`, { rol_empresa: newRol, comision_pct: comisionPct ?? 0 });
       toast.success('Rol actualizado');
+      loadMembers();
+    } catch (err) { toast.error(err.message || 'Error'); }
+  }
+
+  async function handleSaveComision(memberId) {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return;
+    const pct = parseFloat(editComision[memberId]) || 0;
+    try {
+      await api.patch(`/equipo/${memberId}/rol`, { rol_empresa: member.rol_empresa, comision_pct: pct });
+      toast.success('Comision actualizada');
       loadMembers();
     } catch (err) { toast.error(err.message || 'Error'); }
   }
@@ -136,8 +149,26 @@ export default function EquipoPage() {
                         { value: 'viewer', label: 'Visor' },
                       ]}
                       value={m.rol_empresa}
-                      onChange={(v) => handleChangeRol(m.id, v)}
+                      onChange={(v) => handleChangeRol(m.id, v, m.rol_empresa === 'vendedor' ? (parseFloat(m.comision_pct) || 0) : 0)}
                     />
+                    {m.rol_empresa === 'vendedor' && (
+                      <div className="flex items-center gap-1">
+                        <input
+                          type="number"
+                          step="0.5"
+                          min="0"
+                          max="100"
+                          value={editComision[m.id] ?? (parseFloat(m.comision_pct) || '')}
+                          onChange={(e) => setEditComision(p => ({ ...p, [m.id]: e.target.value }))}
+                          onBlur={() => handleSaveComision(m.id)}
+                          onKeyDown={(e) => { if (e.key === 'Enter') handleSaveComision(m.id); }}
+                          className="w-16 bg-white rounded-lg px-2 py-1.5 text-xs text-center border border-stone-200"
+                          placeholder="%"
+                          title="% comision"
+                        />
+                        <span className="text-xs text-stone-400">%</span>
+                      </div>
+                    )}
                     <button onClick={() => handleRemove(m.id, m.nombre)} className={cx.btnDanger + ' p-2'} title="Remover">
                       <Trash2 size={14} />
                     </button>

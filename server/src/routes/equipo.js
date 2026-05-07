@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
   try {
     if (!req.user.empresa_id) return res.json({ success: true, data: [] });
     const result = await pool.query(
-      `SELECT id, email, nombre, rol_empresa, estado, created_at
+      `SELECT id, email, nombre, rol_empresa, estado, comision_pct, created_at
        FROM usuarios WHERE empresa_id = $1 ORDER BY rol_empresa, nombre`,
       [req.user.empresa_id]
     );
@@ -71,7 +71,7 @@ router.post('/invitar', requirePermiso('equipo', 'gestionar'), async (req, res) 
 // PATCH /api/equipo/:id/rol — change member role (owner only)
 router.patch('/:id/rol', requirePermiso('equipo', 'gestionar'), async (req, res) => {
   try {
-    const { rol_empresa } = req.body;
+    const { rol_empresa, comision_pct } = req.body;
     const validRoles = ['manager', 'cashier', 'kitchen', 'viewer', 'vendedor', 'repartidor', 'contador'];
     if (!validRoles.includes(rol_empresa)) {
       return res.status(400).json({ success: false, error: 'Rol invalido' });
@@ -82,14 +82,16 @@ router.patch('/:id/rol', requirePermiso('equipo', 'gestionar'), async (req, res)
       return res.status(400).json({ success: false, error: 'No puedes cambiar tu propio rol' });
     }
 
+    const pct = comision_pct != null ? parseFloat(comision_pct) || 0 : 0;
+
     const result = await pool.query(
-      'UPDATE usuarios SET rol_empresa = $1, updated_at = NOW() WHERE id = $2 AND empresa_id = $3 RETURNING id, nombre, rol_empresa',
-      [rol_empresa, req.params.id, req.user.empresa_id]
+      'UPDATE usuarios SET rol_empresa = $1, comision_pct = $2, updated_at = NOW() WHERE id = $3 AND empresa_id = $4 RETURNING id, nombre, rol_empresa, comision_pct',
+      [rol_empresa, pct, req.params.id, req.user.empresa_id]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Miembro no encontrado' });
 
     logAudit({ userId: req.user.id, entidad: 'equipo', entidadId: req.params.id, accion: 'editar',
-      descripcion: `Cambio rol de ${result.rows[0].nombre} a ${rol_empresa}` });
+      descripcion: `Cambio rol de ${result.rows[0].nombre} a ${rol_empresa}${pct > 0 ? ` (comision ${pct}%)` : ''}` });
 
     return res.json({ success: true, data: result.rows[0] });
   } catch (err) {

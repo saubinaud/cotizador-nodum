@@ -636,7 +636,7 @@ router.post('/ventas', async (req, res) => {
   const client = await pool.connect();
   try {
     let { items, producto_id, fecha, cantidad, precio_unitario, descuento, descuento_global, nota, cuenta_id,
-            tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id } = req.body;
+            tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id, vendedor_id } = req.body;
 
     // Backward compat: old single-product format -> convert to items array
     if (!items && producto_id) {
@@ -685,10 +685,10 @@ router.post('/ventas', async (req, res) => {
 
     const result = await client.query(
       `INSERT INTO ventas (empresa_id, periodo_id, producto_id, fecha, cantidad, precio_unitario, descuento, descuento_global, total, nota,
-        tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16) RETURNING *`,
+        tipo_envio, costo_envio, zona_envio_id, direccion_envio, canal_id, cliente_id, vendedor_id)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17) RETURNING *`,
       [req.eid, pid, ventaProductoId, fecha, totalCantidad, ventaPrecioUnitario, totalDescuentoItems, descGlobal, total, nota || null,
-        tipo_envio || null, costoEnvio, zona_envio_id || null, direccion_envio || null, canal_id || null, cliente_id || null]
+        tipo_envio || null, costoEnvio, zona_envio_id || null, direccion_envio || null, canal_id || null, cliente_id || null, vendedor_id || null]
     );
     const venta = result.rows[0];
 
@@ -702,6 +702,25 @@ router.post('/ventas', async (req, res) => {
     }
 
     await client.query('COMMIT');
+
+    // Auto-create commission if vendedor has comision_pct
+    if (vendedor_id) {
+      try {
+        const vendRes = await pool.query('SELECT comision_pct FROM usuarios WHERE id = $1 AND empresa_id = $2', [vendedor_id, req.eid]);
+        const pct = parseFloat(vendRes.rows[0]?.comision_pct) || 0;
+        if (pct > 0) {
+          const baseComision = total - costoEnvio;
+          const montoComision = Math.round(baseComision * (pct / 100) * 100) / 100;
+          await pool.query(
+            `INSERT INTO comisiones (empresa_id, venta_id, vendedor_id, monto_venta, costo_envio, base_comision, comision_pct, comision_monto, fecha)
+             VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
+            [req.eid, venta.id, vendedor_id, total, costoEnvio, baseComision, pct, montoComision, fecha]
+          );
+        }
+      } catch (comErr) {
+        console.error('Commission creation error:', comErr);
+      }
+    }
 
     // Auto-deduct stock for products with control_stock=true
     const { registrarMovimiento } = require('./stock');

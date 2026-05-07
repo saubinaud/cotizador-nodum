@@ -75,6 +75,10 @@ export default function PLVentasPage() {
   const [fechaEntrega, setFechaEntrega] = useState('');
   const [cuentas, setCuentas] = useState([]);
 
+  // Vendedor state
+  const [vendedores, setVendedores] = useState([]);
+  const [vendedorId, setVendedorId] = useState('');
+
   // Shipping state
   const [tieneEnvio, setTieneEnvio] = useState(false);
   const [tipoEnvio, setTipoEnvio] = useState('propio');
@@ -94,7 +98,8 @@ export default function PLVentasPage() {
       api.get('/clientes').catch(() => ({ data: [] })),
       api.get('/canales/zonas').catch(() => ({ data: [] })),
       api.get('/canales').catch(() => ({ data: [] })),
-    ]).then(([perRes, prodRes, cuentasRes, clientesRes, zonasRes, canalesRes]) => {
+      api.get('/equipo').catch(() => ({ data: [] })),
+    ]).then(([perRes, prodRes, cuentasRes, clientesRes, zonasRes, canalesRes, equipoRes]) => {
       const pers = perRes.data || [];
       setPeriodos(pers);
       setCuentas((cuentasRes.data || []).map(c => ({ value: c.id, label: c.nombre })));
@@ -102,6 +107,8 @@ export default function PLVentasPage() {
       setVentaClientes((clientesRes.data || []).map(c => ({ value: c.id, label: `${c.num_doc} — ${c.razon_social || 'Sin nombre'}` })));
       setZonas(zonasRes.data || []);
       setCanales(canalesRes.data || []);
+      const vends = (equipoRes.data || []).filter(m => parseFloat(m.comision_pct) > 0);
+      setVendedores(vends);
       // Default to current month (Lima time)
       const now = new Date(Date.now() - 5*60*60*1000);
       setPeriodo({ year: now.getFullYear(), month: now.getMonth() + 1 });
@@ -220,6 +227,7 @@ export default function PLVentasPage() {
     setZonaEnvioId('');
     setDireccionEnvio('');
     setCanalId('');
+    setVendedorId('');
     setModalOpen(true);
   };
 
@@ -310,6 +318,7 @@ export default function PLVentasPage() {
           zona_envio_id: zonaEnvioId || null,
           direccion_envio: direccionEnvio || null,
           canal_id: canalId || null,
+          vendedor_id: vendedorId || null,
         });
         toast.success('Venta registrada');
 
@@ -349,6 +358,7 @@ export default function PLVentasPage() {
       setZonaEnvioId('');
       setDireccionEnvio('');
       setCanalId('');
+      setVendedorId('');
       setVentaItems([{ _id: Date.now(), producto_id: null, cantidad: 1, precio_unitario: '', descuento: 0 }]);
       setDescuentoGlobal(0);
       loadVentas(periodo);
@@ -787,6 +797,22 @@ export default function PLVentasPage() {
                       onChange={setCanalId}
                       options={[{ value: '', label: 'Venta directa (sin canal)' }, ...canales.map(c => ({ value: c.id, label: c.nombre }))]}
                       placeholder="Venta directa"
+                    />
+                  </div>
+                )}
+
+                {/* Vendedor (only if there are vendors with comision_pct > 0) */}
+                {vendedores.length > 0 && (
+                  <div>
+                    <label className={cx.label}>Vendedor (opcional)</label>
+                    <CustomSelect
+                      value={vendedorId}
+                      onChange={setVendedorId}
+                      options={[
+                        { value: '', label: 'Sin vendedor' },
+                        ...vendedores.map(v => ({ value: v.id, label: `${v.nombre} (${parseFloat(v.comision_pct)}%)` })),
+                      ]}
+                      placeholder="Seleccionar vendedor..."
                     />
                   </div>
                 )}

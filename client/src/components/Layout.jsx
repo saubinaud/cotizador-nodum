@@ -102,6 +102,7 @@ export default function Layout() {
       links: [
         { to: '/pl/ventas', label: 'Registro', icon: ShoppingCart, perm: 'ventas' },
         { to: '/pedidos', label: 'Contra Entrega', icon: ClipboardList, perm: 'ventas' },
+        { to: '/comisiones', label: 'Comisiones', icon: Users, perm: 'ventas' },
         { to: '/proyeccion', label: 'Proyeccion', icon: TrendingUp, perm: 'ventas' },
       ],
     },
