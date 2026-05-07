@@ -1432,6 +1432,35 @@ async function runMigrations() {
     // Add descuento_global to ventas
     await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS descuento_global NUMERIC(12,2) DEFAULT 0`);
 
+    // ==================== STOCK MANAGEMENT ====================
+
+    // Add stock columns to productos
+    await client.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS stock_actual NUMERIC(12,2) NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS stock_minimo NUMERIC(12,2) NOT NULL DEFAULT 0`);
+    await client.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS control_stock BOOLEAN NOT NULL DEFAULT false`);
+    await client.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS sku VARCHAR(50)`);
+
+    // stock_movimientos table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS stock_movimientos (
+        id SERIAL PRIMARY KEY,
+        empresa_id INTEGER NOT NULL REFERENCES empresas(id),
+        producto_id INTEGER NOT NULL REFERENCES productos(id) ON DELETE CASCADE,
+        tipo VARCHAR(20) NOT NULL,
+        cantidad NUMERIC(12,2) NOT NULL,
+        stock_anterior NUMERIC(12,2) NOT NULL DEFAULT 0,
+        stock_nuevo NUMERIC(12,2) NOT NULL DEFAULT 0,
+        referencia_tipo VARCHAR(30),
+        referencia_id INTEGER,
+        nota TEXT,
+        created_by INTEGER REFERENCES usuarios(id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_stock_mov_empresa ON stock_movimientos(empresa_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_stock_mov_producto ON stock_movimientos(producto_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_stock_mov_created ON stock_movimientos(created_at)`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

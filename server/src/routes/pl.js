@@ -703,6 +703,28 @@ router.post('/ventas', async (req, res) => {
 
     await client.query('COMMIT');
 
+    // Auto-deduct stock for products with control_stock=true
+    const { registrarMovimiento } = require('./stock');
+    for (const item of items) {
+      try {
+        const prodCheck = await pool.query('SELECT control_stock FROM productos WHERE id = $1', [item.producto_id]);
+        if (prodCheck.rows[0]?.control_stock) {
+          await registrarMovimiento(pool, {
+            empresaId: req.eid,
+            productoId: item.producto_id,
+            tipo: 'salida',
+            cantidad: -(parseInt(item.cantidad) || 1),
+            referenciaT: 'venta',
+            referenciaId: venta.id,
+            nota: null,
+            userId: req.uid,
+          });
+        }
+      } catch (stockErr) {
+        console.error('Stock deduct error:', stockErr);
+      }
+    }
+
     // Dual-write ONE transaccion for the whole ticket (with cuenta_id for cash flow)
     try {
       await pool.query(

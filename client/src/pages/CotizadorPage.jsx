@@ -176,6 +176,11 @@ export default function CotizadorPage() {
   const [showPriceChoice, setShowPriceChoice] = useState(false);
   const [selectedPrice, setSelectedPrice] = useState(null);
 
+  const [controlStock, setControlStock] = useState(false);
+  const [sku, setSku] = useState('');
+  const [stockActual, setStockActual] = useState('');
+  const [stockMinimo, setStockMinimo] = useState('');
+
   const [catalogInsumos, setCatalogInsumos] = useState([]);
   const [catalogMateriales, setCatalogMateriales] = useState([]);
   const [catalogPreps, setCatalogPreps] = useState([]);
@@ -262,6 +267,10 @@ export default function CotizadorPage() {
         setMargen(p.margen ? parseFloat((p.margen * 100).toFixed(2)) : 50);
         setMargenPorcion(p.margen_porcion ? parseFloat((p.margen_porcion * 100).toFixed(2)) : (p.margen ? parseFloat((p.margen * 100).toFixed(2)) : 50));
         setIgvRate(p.igv_rate ? parseFloat((p.igv_rate * 100).toFixed(2)) : (user?.igv_rate ? parseFloat((user.igv_rate * 100).toFixed(2)) : 18));
+        setControlStock(!!p.control_stock);
+        setSku(p.sku || '');
+        setStockActual(p.stock_actual != null ? String(p.stock_actual) : '');
+        setStockMinimo(p.stock_minimo != null ? String(p.stock_minimo) : '');
 
         if (p.preparaciones?.length) {
           setPreparaciones(
@@ -531,6 +540,10 @@ export default function CotizadorPage() {
     setTipoPresentacion('unidad');
     setUnidadesPorProducto(1);
     setImagenUrl('');
+    setControlStock(false);
+    setSku('');
+    setStockActual('');
+    setStockMinimo('');
   };
 
   // --- Save ---
@@ -577,6 +590,10 @@ export default function CotizadorPage() {
         igv_rate: igvRate / 100,
         tipo_presentacion: tipoPresentacion,
         unidades_por_producto: tipoPresentacion === 'entero' ? unidadesPorProducto : 1,
+        control_stock: controlStock,
+        sku: controlStock ? sku.trim() || null : null,
+        stock_actual: controlStock ? (Number(stockActual) || 0) : null,
+        stock_minimo: controlStock ? (Number(stockMinimo) || 0) : null,
         preparaciones: preparaciones.map((p) => ({
           id: p.id,
           nombre: p.nombre,
@@ -857,6 +874,33 @@ export default function CotizadorPage() {
                         }}
                       />
                     </label>
+                  </div>
+                )}
+              </div>
+              {/* Stock control */}
+              <div className="mt-4 border-t border-stone-100 pt-4">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" checked={controlStock} onChange={e => setControlStock(e.target.checked)}
+                    className="accent-[var(--accent)] w-4 h-4" />
+                  <span className="text-sm text-stone-700">Control de stock</span>
+                </label>
+                {controlStock && (
+                  <div className="grid grid-cols-3 gap-3 mt-3">
+                    <div>
+                      <label className={cx.label}>SKU</label>
+                      <input type="text" value={sku} onChange={e => setSku(e.target.value)}
+                        className={cx.input} placeholder="ABC-001" />
+                    </div>
+                    <div>
+                      <label className={cx.label}>Stock actual</label>
+                      <input type="number" value={stockActual} onChange={e => setStockActual(e.target.value)}
+                        className={cx.input} placeholder="0" />
+                    </div>
+                    <div>
+                      <label className={cx.label}>Stock minimo</label>
+                      <input type="number" value={stockMinimo} onChange={e => setStockMinimo(e.target.value)}
+                        className={cx.input} placeholder="5" />
+                    </div>
                   </div>
                 )}
               </div>

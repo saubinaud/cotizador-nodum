@@ -23,6 +23,7 @@ const canalesRoutes = require('./routes/canales');
 const equipoRoutes = require('./routes/equipo');
 const analisisRoutes = require('./routes/analisis');
 const uploadRoutes = require('./routes/upload');
+const stockRoutes = require('./routes/stock');
 const runMigrations = require('./models/migrate');
 
 const app = express();
@@ -62,6 +63,7 @@ app.use('/api/canales', canalesRoutes);
 app.use('/api/equipo', equipoRoutes);
 app.use('/api/analisis', analisisRoutes);
 app.use('/api/upload', uploadRoutes);
+app.use('/api/stock', stockRoutes);
 
 // --------------- 404 Handler ---------------
 
