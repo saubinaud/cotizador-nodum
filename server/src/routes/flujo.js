@@ -9,8 +9,8 @@ router.use(auth);
 
 // ==================== SEED DEFAULT CATEGORIES ====================
 
-async function seedCategorias(usuarioId) {
-  const existing = await pool.query('SELECT COUNT(*) FROM flujo_categorias WHERE usuario_id = $1', [usuarioId]);
+async function seedCategorias(empresaId, userId) {
+  const existing = await pool.query('SELECT COUNT(*) FROM flujo_categorias WHERE empresa_id = $1', [empresaId]);
   if (parseInt(existing.rows[0].count) > 0) return;
 
   const defaults = [
@@ -51,8 +51,8 @@ async function seedCategorias(usuarioId) {
 
   for (const cat of defaults) {
     await pool.query(
-      'INSERT INTO flujo_categorias (usuario_id, nombre, seccion, tipo, orden, es_default) VALUES ($1, $2, $3, $4, $5, true)',
-      [usuarioId, cat.nombre, cat.seccion, cat.tipo, cat.orden]
+      'INSERT INTO flujo_categorias (usuario_id, empresa_id, nombre, seccion, tipo, orden, es_default) VALUES ($1, $2, $3, $4, $5, $6, true)',
+      [userId, empresaId, cat.nombre, cat.seccion, cat.tipo, cat.orden]
     );
   }
 }
@@ -63,8 +63,8 @@ async function seedCategorias(usuarioId) {
 router.get('/cuentas', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM flujo_cuentas WHERE usuario_id = $1 AND activa = true ORDER BY orden, nombre',
-      [req.user.id]
+      'SELECT * FROM flujo_cuentas WHERE empresa_id = $1 AND activa = true ORDER BY orden, nombre',
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -80,8 +80,8 @@ router.post('/cuentas', async (req, res) => {
     if (!nombre) return res.status(400).json({ success: false, error: 'Nombre requerido' });
     const validTipo = ['efectivo', 'banco', 'digital'].includes(tipo) ? tipo : 'efectivo';
     const result = await pool.query(
-      'INSERT INTO flujo_cuentas (usuario_id, nombre, tipo, saldo_actual, fondo_caja) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [req.user.id, nombre, validTipo, parseFloat(saldo_actual) || 0, parseFloat(fondo_caja) || 0]
+      'INSERT INTO flujo_cuentas (usuario_id, empresa_id, nombre, tipo, saldo_actual, fondo_caja) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+      [req.uid, req.eid, nombre, validTipo, parseFloat(saldo_actual) || 0, parseFloat(fondo_caja) || 0]
     );
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -99,8 +99,8 @@ router.put('/cuentas/:id', async (req, res) => {
         nombre = COALESCE($1, nombre), tipo = COALESCE($2, tipo),
         saldo_actual = COALESCE($3::numeric, saldo_actual), activa = COALESCE($4, activa),
         fondo_caja = COALESCE($7::numeric, fondo_caja), alerta_saldo_minimo = COALESCE($8::numeric, alerta_saldo_minimo)
-       WHERE id = $5 AND usuario_id = $6 RETURNING *`,
-      [nombre, tipo, saldo_actual, activa, req.params.id, req.user.id, fondo_caja, alerta_saldo_minimo]
+       WHERE id = $5 AND empresa_id = $6 RETURNING *`,
+      [nombre, tipo, saldo_actual, activa, req.params.id, req.eid, fondo_caja, alerta_saldo_minimo]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
     return res.json({ success: true, data: result.rows[0] });
@@ -114,8 +114,8 @@ router.put('/cuentas/:id', async (req, res) => {
 router.delete('/cuentas/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'UPDATE flujo_cuentas SET activa = false WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params.id, req.user.id]
+      'UPDATE flujo_cuentas SET activa = false WHERE id = $1 AND empresa_id = $2 RETURNING id',
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Cuenta no encontrada' });
     return res.json({ success: true, data: { message: 'Cuenta desactivada' } });
@@ -131,10 +131,10 @@ router.delete('/cuentas/:id', async (req, res) => {
 router.get('/categorias', async (req, res) => {
   try {
     // Seed defaults if first time
-    await seedCategorias(req.user.id);
+    await seedCategorias(req.eid, req.uid);
     const result = await pool.query(
-      'SELECT * FROM flujo_categorias WHERE usuario_id = $1 AND activa = true ORDER BY seccion, tipo DESC, orden',
-      [req.user.id]
+      'SELECT * FROM flujo_categorias WHERE empresa_id = $1 AND activa = true ORDER BY seccion, tipo DESC, orden',
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -151,8 +151,8 @@ router.post('/categorias', async (req, res) => {
     const validSeccion = ['operativo', 'inversion', 'financiamiento'].includes(seccion) ? seccion : 'operativo';
     const validTipo = ['ingreso', 'egreso'].includes(tipo) ? tipo : 'egreso';
     const result = await pool.query(
-      'INSERT INTO flujo_categorias (usuario_id, nombre, seccion, tipo) VALUES ($1, $2, $3, $4) RETURNING *',
-      [req.user.id, nombre, validSeccion, validTipo]
+      'INSERT INTO flujo_categorias (usuario_id, empresa_id, nombre, seccion, tipo) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [req.uid, req.eid, nombre, validSeccion, validTipo]
     );
     return res.status(201).json({ success: true, data: result.rows[0] });
   } catch (err) {
@@ -165,8 +165,8 @@ router.post('/categorias', async (req, res) => {
 router.delete('/categorias/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'UPDATE flujo_categorias SET activa = false WHERE id = $1 AND usuario_id = $2 AND es_default = false RETURNING id',
-      [req.params.id, req.user.id]
+      'UPDATE flujo_categorias SET activa = false WHERE id = $1 AND empresa_id = $2 AND es_default = false RETURNING id',
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) return res.status(404).json({ success: false, error: 'Categoría no encontrada o es predeterminada' });
     return res.json({ success: true, data: { message: 'Categoría desactivada' } });
@@ -207,7 +207,7 @@ router.post('/movimientos', async (req, res) => {
     }
 
     // Look up category to determine sign and section
-    const catRes = await pool.query('SELECT seccion, tipo FROM flujo_categorias WHERE id = $1 AND usuario_id = $2', [flujo_categoria_id, req.user.id]);
+    const catRes = await pool.query('SELECT seccion, tipo FROM flujo_categorias WHERE id = $1 AND empresa_id = $2', [flujo_categoria_id, req.eid]);
     if (catRes.rows.length === 0) return res.status(400).json({ success: false, error: 'Categoría no encontrada' });
     const cat = catRes.rows[0];
 
@@ -221,16 +221,16 @@ router.post('/movimientos', async (req, res) => {
     let pid = periodo_id;
     if (!pid) {
       const per = await pool.query(
-        'SELECT id FROM periodos WHERE usuario_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
-        [req.user.id, fecha]
+        'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+        [req.eid, fecha]
       );
       pid = per.rows[0]?.id || null;
     }
 
     const result = await pool.query(
-      `INSERT INTO transacciones (usuario_id, periodo_id, tipo, fecha, monto, monto_absoluto, descripcion, nota, cuenta_id, flujo_categoria_id, flujo_seccion)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
-      [req.user.id, pid, tipo, fecha, monto, absVal, descripcion || null, nota || null, cuenta_id || null, flujo_categoria_id, cat.seccion]
+      `INSERT INTO transacciones (usuario_id, empresa_id, periodo_id, tipo, fecha, monto, monto_absoluto, descripcion, nota, cuenta_id, flujo_categoria_id, flujo_seccion)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
+      [req.uid, req.eid, pid, tipo, fecha, monto, absVal, descripcion || null, nota || null, cuenta_id || null, flujo_categoria_id, cat.seccion]
     );
 
     // Update account balance if linked
@@ -253,7 +253,7 @@ router.post('/movimientos', async (req, res) => {
 // DELETE /api/flujo/movimientos/:id
 router.delete('/movimientos/:id', async (req, res) => {
   try {
-    const tx = await pool.query('SELECT * FROM transacciones WHERE id = $1 AND usuario_id = $2', [req.params.id, req.user.id]);
+    const tx = await pool.query('SELECT * FROM transacciones WHERE id = $1 AND empresa_id = $2', [req.params.id, req.eid]);
     if (tx.rows.length === 0) return res.status(404).json({ success: false, error: 'Movimiento no encontrado' });
 
     // Reverse account balance
@@ -282,8 +282,8 @@ router.get('/transferencias', async (req, res) => {
      FROM flujo_transferencias ft
      JOIN flujo_cuentas co ON co.id = ft.cuenta_origen_id
      JOIN flujo_cuentas cd ON cd.id = ft.cuenta_destino_id
-     WHERE ft.usuario_id = $1 AND ft.fecha BETWEEN $2 AND $3`;
-    const params = [req.user.id, start, end];
+     WHERE ft.empresa_id = $1 AND ft.fecha BETWEEN $2 AND $3`;
+    const params = [req.eid, start, end];
 
     query += ' ORDER BY ft.fecha DESC, ft.created_at DESC';
 
@@ -310,8 +310,8 @@ router.post('/transferencias', async (req, res) => {
 
     // Verify accounts belong to user
     const cuentas = await pool.query(
-      'SELECT id FROM flujo_cuentas WHERE id IN ($1, $2) AND usuario_id = $3',
-      [cuenta_origen_id, cuenta_destino_id, req.user.id]
+      'SELECT id FROM flujo_cuentas WHERE id IN ($1, $2) AND empresa_id = $3',
+      [cuenta_origen_id, cuenta_destino_id, req.eid]
     );
     if (cuentas.rows.length < 2) {
       return res.status(400).json({ success: false, error: 'Cuentas no encontradas' });
@@ -319,9 +319,9 @@ router.post('/transferencias', async (req, res) => {
 
     // Create transfer record
     const result = await pool.query(
-      `INSERT INTO flujo_transferencias (usuario_id, cuenta_origen_id, cuenta_destino_id, monto, fecha, descripcion, referencia)
-       VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
-      [req.user.id, cuenta_origen_id, cuenta_destino_id, montoAbs, fecha || new Date().toISOString().slice(0, 10), descripcion || null, referencia || null]
+      `INSERT INTO flujo_transferencias (usuario_id, empresa_id, cuenta_origen_id, cuenta_destino_id, monto, fecha, descripcion, referencia)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [req.uid, req.eid, cuenta_origen_id, cuenta_destino_id, montoAbs, fecha || new Date().toISOString().slice(0, 10), descripcion || null, referencia || null]
     );
 
     // Update account balances
@@ -340,7 +340,7 @@ router.post('/transferencias', async (req, res) => {
 // DELETE /api/flujo/transferencias/:id — reverse transfer
 router.delete('/transferencias/:id', async (req, res) => {
   try {
-    const tx = await pool.query('SELECT * FROM flujo_transferencias WHERE id = $1 AND usuario_id = $2', [req.params.id, req.user.id]);
+    const tx = await pool.query('SELECT * FROM flujo_transferencias WHERE id = $1 AND empresa_id = $2', [req.params.id, req.eid]);
     if (tx.rows.length === 0) return res.status(404).json({ success: false, error: 'Transferencia no encontrada' });
 
     const t = tx.rows[0];
@@ -364,21 +364,21 @@ router.get('/grid', async (req, res) => {
     const anio = parseInt(req.query.anio) || new Date().getFullYear();
 
     // Seed categories
-    await seedCategorias(req.user.id);
+    await seedCategorias(req.eid, req.uid);
 
     // Get all categories for this user
     const catsRes = await pool.query(
-      'SELECT * FROM flujo_categorias WHERE usuario_id = $1 AND activa = true ORDER BY seccion, tipo DESC, orden',
-      [req.user.id]
+      'SELECT * FROM flujo_categorias WHERE empresa_id = $1 AND activa = true ORDER BY seccion, tipo DESC, orden',
+      [req.eid]
     );
     const categorias = catsRes.rows;
 
     // Get all periods for this year
     const persRes = await pool.query(
-      `SELECT * FROM periodos WHERE usuario_id = $1
+      `SELECT * FROM periodos WHERE empresa_id = $1
        AND EXTRACT(YEAR FROM fecha_inicio) = $2
        ORDER BY fecha_inicio`,
-      [req.user.id, anio]
+      [req.eid, anio]
     );
     const periodos = persRes.rows;
 
@@ -398,18 +398,18 @@ router.get('/grid', async (req, res) => {
       const txRes = await pool.query(
         `SELECT flujo_categoria_id, SUM(monto) AS total, SUM(monto_absoluto) AS total_abs
          FROM transacciones
-         WHERE usuario_id = $1 AND periodo_id = $2 AND flujo_categoria_id IS NOT NULL
+         WHERE empresa_id = $1 AND periodo_id = $2 AND flujo_categoria_id IS NOT NULL
          GROUP BY flujo_categoria_id`,
-        [req.user.id, per.id]
+        [req.eid, per.id]
       );
 
       // Also get non-classified transactions (from legacy ventas/compras/gastos)
       const legacyRes = await pool.query(
         `SELECT tipo, SUM(monto) AS total, SUM(monto_absoluto) AS total_abs
          FROM transacciones
-         WHERE usuario_id = $1 AND periodo_id = $2 AND flujo_categoria_id IS NULL
+         WHERE empresa_id = $1 AND periodo_id = $2 AND flujo_categoria_id IS NULL
          GROUP BY tipo`,
-        [req.user.id, per.id]
+        [req.eid, per.id]
       );
 
       // Build per-category totals
@@ -495,8 +495,8 @@ router.get('/grid', async (req, res) => {
 router.get('/arqueo/historial', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM flujo_arqueos WHERE usuario_id = $1 ORDER BY fecha DESC, created_at DESC LIMIT 20',
-      [req.user.id]
+      'SELECT * FROM flujo_arqueos WHERE empresa_id = $1 ORDER BY fecha DESC, created_at DESC LIMIT 20',
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -514,19 +514,19 @@ router.get('/arqueo', async (req, res) => {
     let arqueo;
     if (fecha) {
       arqueo = await pool.query(
-        'SELECT * FROM flujo_arqueos WHERE fecha = $1 AND usuario_id = $2 ORDER BY created_at DESC LIMIT 1',
-        [fecha, req.user.id]
+        'SELECT * FROM flujo_arqueos WHERE fecha = $1 AND empresa_id = $2 ORDER BY created_at DESC LIMIT 1',
+        [fecha, req.eid]
       );
     } else {
       arqueo = await pool.query(
-        'SELECT * FROM flujo_arqueos WHERE periodo_id = $1 AND usuario_id = $2 ORDER BY created_at DESC LIMIT 1',
-        [periodo_id, req.user.id]
+        'SELECT * FROM flujo_arqueos WHERE periodo_id = $1 AND empresa_id = $2 ORDER BY created_at DESC LIMIT 1',
+        [periodo_id, req.eid]
       );
     }
 
     const cuentas = await pool.query(
-      'SELECT * FROM flujo_cuentas WHERE usuario_id = $1 AND activa = true ORDER BY orden, nombre',
-      [req.user.id]
+      'SELECT * FROM flujo_cuentas WHERE empresa_id = $1 AND activa = true ORDER BY orden, nombre',
+      [req.eid]
     );
 
     let detalles = [];
@@ -566,8 +566,8 @@ router.post('/arqueo', async (req, res) => {
     let pid = periodo_id;
     if (!pid) {
       const per = await pool.query(
-        'SELECT id FROM periodos WHERE usuario_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
-        [req.user.id, arqueoFecha]
+        'SELECT id FROM periodos WHERE empresa_id = $1 AND fecha_inicio <= $2 AND fecha_fin >= $2',
+        [req.eid, arqueoFecha]
       );
       pid = per.rows[0]?.id || null;
     }
@@ -582,8 +582,8 @@ router.post('/arqueo', async (req, res) => {
 
     // Delete existing arqueo for this date (replace)
     const existingArqueo = await pool.query(
-      'SELECT id FROM flujo_arqueos WHERE fecha = $1 AND usuario_id = $2',
-      [arqueoFecha, req.user.id]
+      'SELECT id FROM flujo_arqueos WHERE fecha = $1 AND empresa_id = $2',
+      [arqueoFecha, req.eid]
     );
     if (existingArqueo.rows.length > 0) {
       await pool.query('DELETE FROM flujo_arqueo_detalles WHERE arqueo_id = $1', [existingArqueo.rows[0].id]);
@@ -592,9 +592,9 @@ router.post('/arqueo', async (req, res) => {
 
     // Create new arqueo
     const arqueoRes = await pool.query(
-      `INSERT INTO flujo_arqueos (usuario_id, periodo_id, fecha, saldo_sistema, saldo_real, diferencia, observaciones, cerrado, desglose, fondo_inicial, responsable, tipo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
-      [req.user.id, pid, arqueoFecha, saldoSistema, saldoReal, diferencia, observaciones || null, cerrar || false, desglose ? JSON.stringify(desglose) : null, parseFloat(fondo_inicial) || 0, responsable || null, tipo || 'diario']
+      `INSERT INTO flujo_arqueos (usuario_id, empresa_id, periodo_id, fecha, saldo_sistema, saldo_real, diferencia, observaciones, cerrado, desglose, fondo_inicial, responsable, tipo)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13) RETURNING *`,
+      [req.uid, req.eid, pid, arqueoFecha, saldoSistema, saldoReal, diferencia, observaciones || null, cerrar || false, desglose ? JSON.stringify(desglose) : null, parseFloat(fondo_inicial) || 0, responsable || null, tipo || 'diario']
     );
     const arqueoId = arqueoRes.rows[0].id;
 
@@ -624,9 +624,9 @@ router.post('/arqueo', async (req, res) => {
       if (currentPer.rows.length > 0) {
         await pool.query(
           `UPDATE periodos SET saldo_inicial = $1 WHERE id = (
-            SELECT id FROM periodos WHERE usuario_id = $2 AND fecha_inicio > $3 ORDER BY fecha_inicio LIMIT 1
+            SELECT id FROM periodos WHERE empresa_id = $2 AND fecha_inicio > $3 ORDER BY fecha_inicio LIMIT 1
           )`,
-          [saldoReal, req.user.id, currentPer.rows[0].fecha_fin]
+          [saldoReal, req.eid, currentPer.rows[0].fecha_fin]
         );
       }
     }

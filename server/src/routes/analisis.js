@@ -81,10 +81,12 @@ router.get('/rentabilidad', async (req, res) => {
     } catch (_) { /* use default */ }
 
     // 6. Calculate per product
+    const r2 = n => Math.round((parseFloat(n) || 0) * 100) / 100;
+
     const resultado = productos.map(p => {
-      const costoNeto = parseFloat(p.costo_neto) || 0;
-      const precioVenta = parseFloat(p.precio_venta) || 0;
-      const gananciaUnitaria = precioVenta - costoNeto;
+      const costoNeto = r2(p.costo_neto);
+      const precioVenta = r2(p.precio_venta);
+      const gananciaUnitaria = r2(precioVenta - costoNeto);
       const margenActual = costoNeto > 0 ? ((precioVenta - costoNeto) / precioVenta) * 100 : 0;
 
       const unidades = sales[p.id]?.unidades || 0;
@@ -106,7 +108,7 @@ router.get('/rentabilidad', async (req, res) => {
       }
 
       const contribucion = (precioVenta - costoNeto) * unidades;
-      const revenue = sales[p.id]?.revenue || 0;
+      const revenue = r2(sales[p.id]?.revenue || 0);
 
       return {
         id: p.id,
@@ -115,14 +117,14 @@ router.get('/rentabilidad', async (req, res) => {
         costo_neto: costoNeto,
         precio_venta: precioVenta,
         ganancia_unitaria: gananciaUnitaria,
-        margen_actual: Math.round(margenActual * 100) / 100,
-        costo_fijo_unitario: Math.round(costoFijoUnitario * 100) / 100,
-        costo_total_unitario: Math.round(costoTotalUnitario * 100) / 100,
-        precio_minimo: Math.round(precioMinimo * 100) / 100,
-        margen_con_fijos: Math.round(margenConFijos * 100) / 100,
+        margen_actual: r2(margenActual),
+        costo_fijo_unitario: r2(costoFijoUnitario),
+        costo_total_unitario: r2(costoTotalUnitario),
+        precio_minimo: r2(precioMinimo),
+        margen_con_fijos: r2(margenConFijos),
         semaforo,
         unidades,
-        contribucion: Math.round(contribucion * 100) / 100,
+        contribucion: r2(contribucion),
         revenue,
       };
     });
@@ -132,15 +134,16 @@ router.get('/rentabilidad', async (req, res) => {
     resultado.sort((a, b) => orden[a.semaforo] - orden[b.semaforo]);
 
     const resumen = {
-      gastos_fijos_mes: Math.round(gastosFijos * 100) / 100,
+      gastos_fijos_mes: r2(gastosFijos),
       total_unidades_mes: totalUnidades,
-      margen_promedio: totalRevenue > 0 ? Math.round((resultado.reduce((s, p) => s + p.margen_actual * (p.revenue || 0), 0) / totalRevenue) * 100) / 100 : 0,
+      total_revenue: r2(totalRevenue),
+      margen_promedio: totalRevenue > 0 ? r2(resultado.reduce((s, p) => s + p.margen_actual * (p.revenue || 0), 0) / totalRevenue) : 0,
       productos_verde: resultado.filter(p => p.semaforo === 'verde').length,
       productos_amarillo: resultado.filter(p => p.semaforo === 'amarillo').length,
       productos_rojo: resultado.filter(p => p.semaforo === 'rojo').length,
-      margen_minimo_usado: margenMinimoGlobal,
+      margen_minimo_usado: r2(margenMinimoGlobal),
       nombre_rubro: nombreRubro,
-      margen_rubro: margenRubro,
+      margen_rubro: margenRubro ? r2(margenRubro) : null,
     };
 
     res.json({ success: true, data: { productos: resultado, resumen } });

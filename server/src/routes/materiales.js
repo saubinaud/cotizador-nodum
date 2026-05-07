@@ -11,8 +11,8 @@ router.use(auth);
 router.get('/', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM materiales WHERE usuario_id = $1 ORDER BY nombre ASC',
-      [req.user.id]
+      'SELECT * FROM materiales WHERE empresa_id = $1 ORDER BY nombre ASC',
+      [req.eid]
     );
     return res.json({ success: true, data: result.rows });
   } catch (err) {
@@ -25,8 +25,8 @@ router.get('/', async (req, res) => {
 router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query(
-      'SELECT * FROM materiales WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT * FROM materiales WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
     if (result.rows.length === 0) {
       return res.status(404).json({ success: false, error: 'Material no encontrado' });
@@ -50,8 +50,8 @@ router.post('/', async (req, res) => {
     const nombreNorm = nombre.trim().charAt(0).toUpperCase() + nombre.trim().slice(1).toLowerCase();
 
     const dup = await pool.query(
-      'SELECT id, nombre, cantidad_presentacion, unidad_medida, precio_presentacion FROM materiales WHERE LOWER(nombre) = LOWER($1) AND usuario_id = $2',
-      [nombreNorm, req.user.id]
+      'SELECT id, nombre, cantidad_presentacion, unidad_medida, precio_presentacion FROM materiales WHERE LOWER(nombre) = LOWER($1) AND empresa_id = $2',
+      [nombreNorm, req.eid]
     );
     if (dup.rows.length > 0) {
       return res.status(409).json({
@@ -62,10 +62,10 @@ router.post('/', async (req, res) => {
     }
 
     const result = await pool.query(
-      `INSERT INTO materiales (usuario_id, nombre, proveedor, detalle, unidad_medida, cantidad_presentacion, precio_presentacion)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
+      `INSERT INTO materiales (usuario_id, empresa_id, nombre, proveedor, detalle, unidad_medida, cantidad_presentacion, precio_presentacion)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
        RETURNING *`,
-      [req.user.id, nombreNorm, proveedor || null, detalle || null, unidad_medida || 'uni', cantidad_presentacion, precio_presentacion]
+      [req.uid, req.eid, nombreNorm, proveedor || null, detalle || null, unidad_medida || 'uni', cantidad_presentacion, precio_presentacion]
     );
 
     try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'material', result.rows[0].id, 'crear', JSON.stringify({ nombre })]); } catch (_) {}
@@ -87,8 +87,8 @@ router.put('/:id', async (req, res) => {
     }
 
     const existing = await pool.query(
-      'SELECT precio_presentacion, cantidad_presentacion FROM materiales WHERE id = $1 AND usuario_id = $2',
-      [req.params.id, req.user.id]
+      'SELECT precio_presentacion, cantidad_presentacion FROM materiales WHERE id = $1 AND empresa_id = $2',
+      [req.params.id, req.eid]
     );
 
     if (existing.rows.length === 0) {
@@ -104,9 +104,9 @@ router.put('/:id', async (req, res) => {
         cantidad_presentacion = COALESCE($5, cantidad_presentacion),
         precio_presentacion = COALESCE($6, precio_presentacion),
         updated_at = NOW()
-       WHERE id = $7 AND usuario_id = $8
+       WHERE id = $7 AND empresa_id = $8
        RETURNING *`,
-      [nombre, proveedor, detalle, unidad_medida, cantidad_presentacion, precio_presentacion, req.params.id, req.user.id]
+      [nombre, proveedor, detalle, unidad_medida, cantidad_presentacion, precio_presentacion, req.params.id, req.eid]
     );
 
     const old = existing.rows[0];
@@ -115,7 +115,7 @@ router.put('/:id', async (req, res) => {
 
     let recalculated = [];
     if (priceChanged) {
-      recalculated = await recalcularProductosPorMaterial(pool, req.params.id, req.user.id);
+      recalculated = await recalcularProductosPorMaterial(pool, req.params.id, req.eid);
     }
 
     try { await pool.query('INSERT INTO actividad_log (usuario_id, entidad, entidad_id, accion, cambios_json) VALUES ($1, $2, $3, $4, $5)', [req.user.id, 'material', req.params.id, 'actualizar', JSON.stringify({ nombre, proveedor, detalle, unidad_medida, cantidad_presentacion, precio_presentacion })]); } catch (_) {}
@@ -138,8 +138,8 @@ router.delete('/:id', async (req, res) => {
     const usageProductos = await pool.query(
       `SELECT COUNT(*) FROM producto_materiales pm
        JOIN productos p ON p.id = pm.producto_id
-       WHERE pm.material_id = $1 AND p.usuario_id = $2`,
-      [req.params.id, req.user.id]
+       WHERE pm.material_id = $1 AND p.empresa_id = $2`,
+      [req.params.id, req.eid]
     );
     if (parseInt(usageProductos.rows[0].count) > 0) {
       return res.status(409).json({
@@ -152,8 +152,8 @@ router.delete('/:id', async (req, res) => {
     const usagePred = await pool.query(
       `SELECT COUNT(*) FROM empaque_pred_materiales epm
        JOIN empaques_predeterminados ep ON ep.id = epm.empaque_pred_id
-       WHERE epm.material_id = $1 AND ep.usuario_id = $2`,
-      [req.params.id, req.user.id]
+       WHERE epm.material_id = $1 AND ep.empresa_id = $2`,
+      [req.params.id, req.eid]
     );
     if (parseInt(usagePred.rows[0].count) > 0) {
       return res.status(409).json({
@@ -163,8 +163,8 @@ router.delete('/:id', async (req, res) => {
     }
 
     const result = await pool.query(
-      'DELETE FROM materiales WHERE id = $1 AND usuario_id = $2 RETURNING id',
-      [req.params.id, req.user.id]
+      'DELETE FROM materiales WHERE id = $1 AND empresa_id = $2 RETURNING id',
+      [req.params.id, req.eid]
     );
 
     if (result.rows.length === 0) {

@@ -135,14 +135,14 @@ async function recalcularProducto(pool, productoId, motivo) {
   }
 }
 
-async function recalcularProductosPorInsumo(pool, insumoId, usuarioId) {
+async function recalcularProductosPorInsumo(pool, insumoId, empresaId) {
   const res = await pool.query(
     `SELECT DISTINCT p.id
      FROM productos p
      JOIN producto_preparaciones pp ON pp.producto_id = p.id
      JOIN producto_prep_insumos ppi ON ppi.producto_preparacion_id = pp.id
-     WHERE ppi.insumo_id = $1 AND p.usuario_id = $2`,
-    [insumoId, usuarioId]
+     WHERE ppi.insumo_id = $1 AND p.empresa_id = $2`,
+    [insumoId, empresaId]
   );
 
   const results = [];
@@ -153,13 +153,13 @@ async function recalcularProductosPorInsumo(pool, insumoId, usuarioId) {
   return results;
 }
 
-async function recalcularProductosPorMaterial(pool, materialId, usuarioId) {
+async function recalcularProductosPorMaterial(pool, materialId, empresaId) {
   const res = await pool.query(
     `SELECT DISTINCT p.id
      FROM productos p
      JOIN producto_materiales pm ON pm.producto_id = p.id
-     WHERE pm.material_id = $1 AND p.usuario_id = $2`,
-    [materialId, usuarioId]
+     WHERE pm.material_id = $1 AND p.empresa_id = $2`,
+    [materialId, empresaId]
   );
 
   const results = [];

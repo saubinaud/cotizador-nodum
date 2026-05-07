@@ -53,8 +53,8 @@ router.post('/', async (req, res) => {
 
     // Check for duplicate name (DB has UNIQUE constraint on usuario_id + nombre)
     const dup = await pool.query(
-      `SELECT id FROM insumos WHERE LOWER(nombre) = LOWER($1) AND usuario_id = $2`,
-      [nombreNorm, req.user.id]
+      `SELECT id FROM insumos WHERE LOWER(nombre) = LOWER($1) AND empresa_id = $2`,
+      [nombreNorm, req.eid]
     );
     if (dup.rows.length > 0) {
       return res.status(409).json({
@@ -131,7 +131,7 @@ router.put('/:id', async (req, res) => {
 
     let recalculated = [];
     if (priceChanged) {
-      recalculated = await recalcularProductosPorInsumo(pool, req.params.id, req.user.id);
+      recalculated = await recalcularProductosPorInsumo(pool, req.params.id, req.eid);
     }
 
     logAudit({ userId: req.uid, entidad: 'insumo', entidadId: req.params.id, accion: 'editar', descripcion: `Edito insumo "${nombre || 'ID ' + req.params.id}"` });

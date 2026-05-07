@@ -2,6 +2,8 @@ const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
 
+const r2 = n => Math.round((parseFloat(n) || 0) * 100) / 100;
+
 const router = express.Router();
 router.use(auth);
 
@@ -11,8 +13,8 @@ router.use(auth);
  */
 async function registrarMovimiento(dbPool, { empresaId, productoId, tipo, cantidad, referenciaT, referenciaId, nota, userId }) {
   const prod = await dbPool.query('SELECT stock_actual FROM productos WHERE id = $1', [productoId]);
-  const anterior = parseFloat(prod.rows[0]?.stock_actual) || 0;
-  const nuevo = anterior + cantidad; // cantidad is negative for salidas
+  const anterior = Math.round((parseFloat(prod.rows[0]?.stock_actual) || 0) * 100) / 100;
+  const nuevo = Math.round((anterior + cantidad) * 100) / 100; // cantidad is negative for salidas
 
   await dbPool.query(
     `INSERT INTO stock_movimientos (empresa_id, producto_id, tipo, cantidad, stock_anterior, stock_nuevo, referencia_tipo, referencia_id, nota, created_by)
@@ -38,6 +40,10 @@ router.get('/', async (req, res) => {
 
     const productos = result.rows.map(p => ({
       ...p,
+      precio_final: r2(p.precio_final),
+      costo_neto: r2(p.costo_neto),
+      stock_actual: r2(p.stock_actual),
+      stock_minimo: r2(p.stock_minimo),
       alerta: parseFloat(p.stock_actual) <= parseFloat(p.stock_minimo),
     }));
 
@@ -114,7 +120,7 @@ router.post('/ajuste', async (req, res) => {
       userId: req.uid,
     });
 
-    return res.status(201).json({ success: true, data: { producto_id, anterior: mov.anterior, nuevo: mov.nuevo, diferencia } });
+    return res.status(201).json({ success: true, data: { producto_id, anterior: r2(mov.anterior), nuevo: r2(mov.nuevo), diferencia: r2(diferencia) } });
   } catch (err) {
     console.error('Stock ajuste error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });
@@ -129,8 +135,13 @@ router.post('/entrada', async (req, res) => {
       return res.status(400).json({ success: false, error: 'producto_id y cantidad son requeridos' });
     }
 
-    const prod = await pool.query('SELECT id FROM productos WHERE id = $1 AND empresa_id = $2', [producto_id, req.eid]);
+    const prod = await pool.query('SELECT id, control_stock FROM productos WHERE id = $1 AND empresa_id = $2', [producto_id, req.eid]);
     if (prod.rows.length === 0) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+
+    // Auto-enable control_stock if not already active
+    if (!prod.rows[0].control_stock) {
+      await pool.query('UPDATE productos SET control_stock = true, updated_at = NOW() WHERE id = $1', [producto_id]);
+    }
 
     const cant = parseFloat(cantidad);
     if (cant <= 0) return res.status(400).json({ success: false, error: 'cantidad debe ser mayor a 0' });
@@ -146,7 +157,7 @@ router.post('/entrada', async (req, res) => {
       userId: req.uid,
     });
 
-    return res.status(201).json({ success: true, data: { producto_id, anterior: mov.anterior, nuevo: mov.nuevo, cantidad: cant } });
+    return res.status(201).json({ success: true, data: { producto_id, anterior: r2(mov.anterior), nuevo: r2(mov.nuevo), cantidad: r2(cant) } });
   } catch (err) {
     console.error('Stock entrada error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });

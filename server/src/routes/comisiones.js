@@ -3,6 +3,8 @@ const pool = require('../models/db');
 const auth = require('../middleware/auth');
 const { getDateRange } = require('../utils/dateRange');
 
+const r2 = n => Math.round((parseFloat(n) || 0) * 100) / 100;
+
 const router = express.Router();
 router.use(auth);
 
@@ -24,7 +26,13 @@ router.get('/', async (req, res) => {
       [req.eid, start, end]
     );
 
-    return res.json({ success: true, data: result.rows });
+    const data = result.rows.map(r => ({
+      ...r,
+      total_base: r2(r.total_base),
+      total_comision: r2(r.total_comision),
+    }));
+
+    return res.json({ success: true, data });
   } catch (err) {
     console.error('Comisiones summary error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });
@@ -45,7 +53,14 @@ router.get('/vendedor/:id', async (req, res) => {
       [req.eid, req.params.id, start, end]
     );
 
-    return res.json({ success: true, data: result.rows });
+    const data = result.rows.map(r => ({
+      ...r,
+      base_comision: r2(r.base_comision),
+      comision_monto: r2(r.comision_monto),
+      venta_total: r2(r.venta_total),
+    }));
+
+    return res.json({ success: true, data });
   } catch (err) {
     console.error('Comisiones vendedor detail error:', err);
     return res.status(500).json({ success: false, error: 'Error interno' });

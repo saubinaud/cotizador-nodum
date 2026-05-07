@@ -2,6 +2,8 @@ const express = require('express');
 const pool = require('../models/db');
 const auth = require('../middleware/auth');
 
+const r2 = n => Math.round((parseFloat(n) || 0) * 100) / 100;
+
 const router = express.Router();
 
 // Support token in query param for new-tab printing
@@ -20,7 +22,7 @@ router.get('/:comprobanteId', async (req, res) => {
     const compRes = await pool.query(
       `SELECT c.*, v.fecha AS venta_fecha, v.nota,
         json_agg(json_build_object(
-          'nombre', COALESCE(vi.producto_nombre, p.nombre, 'Producto'),
+          'nombre', COALESCE(p.nombre, 'Producto'),
           'cantidad', COALESCE(vi.cantidad, v.cantidad),
           'precio', COALESCE(vi.precio_unitario, v.precio_unitario),
           'subtotal', COALESCE(vi.subtotal, v.total)
@@ -83,9 +85,9 @@ router.get('/:comprobanteId', async (req, res) => {
       timeZone: 'America/Lima',
     });
 
-    const mtoOperGravadas = Number(c.mto_oper_gravadas || 0).toFixed(2);
-    const mtoIgv = Number(c.mto_igv || 0).toFixed(2);
-    const mtoTotal = Number(c.mto_total || 0).toFixed(2);
+    const mtoOperGravadas = r2(c.mto_oper_gravadas).toFixed(2);
+    const mtoIgv = r2(c.mto_igv).toFixed(2);
+    const mtoTotal = r2(c.mto_total).toFixed(2);
 
     const clienteRazonSocial = c.cliente_razon_social || 'VARIOS';
     const clienteTipoDoc = c.cliente_tipo_doc || '0';
@@ -96,8 +98,8 @@ router.get('/:comprobanteId', async (req, res) => {
     <tr>
       <td class="item-name">${escHtml(i.nombre || 'Producto')}</td>
       <td class="item-qty">${i.cantidad || 1}</td>
-      <td class="item-price">${Number(i.precio || 0).toFixed(2)}</td>
-      <td class="item-total">${Number(i.subtotal || 0).toFixed(2)}</td>
+      <td class="item-price">${r2(i.precio).toFixed(2)}</td>
+      <td class="item-total">${r2(i.subtotal).toFixed(2)}</td>
     </tr>`).join('');
 
     const clienteSection = clienteRazonSocial !== 'VARIOS' ? `

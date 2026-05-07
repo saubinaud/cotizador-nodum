@@ -137,7 +137,7 @@ router.post('/', async (req, res) => {
       try {
         const txRes = await pool.query(
           `INSERT INTO transacciones (usuario_id, empresa_id, tipo, fecha, monto, monto_absoluto, descripcion, cuenta_id)
-           VALUES ($1, $2, 'venta', CURRENT_DATE, $3, $3, $4, $5) RETURNING id`,
+           VALUES ($1, $2, 'pago_pedido', CURRENT_DATE, $3, $3, $4, $5) RETURNING id`,
           [req.uid, req.eid, adelantoMonto, `Adelanto pedido #${pedido.id}: ${descripcion}`, cuenta_id || null]
         );
         transaccionId = txRes.rows[0].id;
@@ -162,7 +162,7 @@ router.post('/', async (req, res) => {
       try {
         const txRes = await pool.query(
           `INSERT INTO transacciones (usuario_id, empresa_id, tipo, fecha, monto, monto_absoluto, descripcion, cuenta_id)
-           VALUES ($1, $2, 'venta', CURRENT_DATE, $3, $3, $4, $5) RETURNING id`,
+           VALUES ($1, $2, 'pago_pedido', CURRENT_DATE, $3, $3, $4, $5) RETURNING id`,
           [req.uid, req.eid, montoTotal, `Pedido #${pedido.id}: ${descripcion}`, cuenta_id || null]
         );
         transaccionId = txRes.rows[0].id;
@@ -266,7 +266,7 @@ router.post('/:id/pagos', async (req, res) => {
     try {
       const txRes = await pool.query(
         `INSERT INTO transacciones (usuario_id, empresa_id, tipo, fecha, monto, monto_absoluto, descripcion, cuenta_id)
-         VALUES ($1, $2, 'venta', CURRENT_DATE, $3, $3, $4, $5) RETURNING id`,
+         VALUES ($1, $2, 'pago_pedido', CURRENT_DATE, $3, $3, $4, $5) RETURNING id`,
         [req.uid, req.eid, montoP, `Pago ${tipo} pedido #${p.id}: ${p.descripcion}`, cuenta_id || null]
       );
       transaccionId = txRes.rows[0].id;

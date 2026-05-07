@@ -64,6 +64,9 @@ export default function StockPage() {
   const [ajusteNota, setAjusteNota] = useState('');
   const [savingAjuste, setSavingAjuste] = useState(false);
 
+  // All products (for the entrada selector — not filtered by control_stock)
+  const [allProductos, setAllProductos] = useState([]);
+
   const loadStock = () => {
     setLoading(true);
     api.get('/stock')
@@ -75,8 +78,15 @@ export default function StockPage() {
       .finally(() => setLoading(false));
   };
 
+  const loadAllProductos = () => {
+    api.get('/stock/todos')
+      .then((r) => setAllProductos(r.data || []))
+      .catch(() => {});
+  };
+
   useEffect(() => {
     loadStock();
+    loadAllProductos();
   }, []);
 
   const sorted = useMemo(() => {
@@ -419,7 +429,7 @@ export default function StockPage() {
               <div>
                 <label className={cx.label}>Producto</label>
                 <SearchableSelect
-                  options={productos}
+                  options={allProductos}
                   value={entradaProductoId}
                   onChange={(item) => setEntradaProductoId(item.id)}
                   placeholder="Seleccionar producto..."

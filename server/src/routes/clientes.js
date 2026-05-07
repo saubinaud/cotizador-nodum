@@ -44,8 +44,8 @@ router.post('/', async (req, res) => {
 
     // Upsert: update if exists, insert if not
     const existing = await pool.query(
-      'SELECT id FROM clientes WHERE usuario_id = $1 AND num_doc = $2',
-      [req.uid, num_doc]
+      'SELECT id FROM clientes WHERE empresa_id = $1 AND num_doc = $2',
+      [req.eid, num_doc]
     );
 
     let result;

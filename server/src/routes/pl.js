@@ -1273,31 +1273,28 @@ router.post('/compras', async (req, res) => {
       if (item.producto_id) {
         const prodRes = await client.query('SELECT costo_neto, control_stock FROM productos WHERE id = $1', [item.producto_id]);
         if (prodRes.rows.length > 0) {
-          const prod = prodRes.rows[0];
           const purchaseUnitPrice = parseFloat(item.precio_unitario);
 
-          // Update costo_neto with last purchase price
+          // Auto-enable control_stock + update costo_neto
           await client.query(
-            'UPDATE productos SET costo_neto = $1, updated_at = NOW() WHERE id = $2',
+            'UPDATE productos SET costo_neto = $1, control_stock = true, updated_at = NOW() WHERE id = $2',
             [purchaseUnitPrice, item.producto_id]
           );
 
-          // If control_stock is enabled, add stock via registrarMovimiento
-          if (prod.control_stock) {
-            try {
-              await registrarMovimiento(client, {
-                empresaId: req.eid,
-                productoId: item.producto_id,
-                tipo: 'entrada',
-                cantidad: parseInt(item.cantidad) || 1,
-                referenciaT: 'compra',
-                referenciaId: compra.id,
-                nota: null,
-                userId: req.uid,
-              });
-            } catch (stockErr) {
-              console.error('Stock add error (compra producto):', stockErr);
-            }
+          // Add stock via registrarMovimiento
+          try {
+            await registrarMovimiento(client, {
+              empresaId: req.eid,
+              productoId: item.producto_id,
+              tipo: 'entrada',
+              cantidad: parseInt(item.cantidad) || 1,
+              referenciaT: 'compra',
+              referenciaId: compra.id,
+              nota: null,
+              userId: req.uid,
+            });
+          } catch (stockErr) {
+            console.error('Stock add error (compra producto):', stockErr);
           }
         }
       }

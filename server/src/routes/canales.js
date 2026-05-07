@@ -153,6 +153,10 @@ router.put('/precios/:productoId', async (req, res) => {
     const { canal_id, precio_override } = req.body;
     if (!canal_id) return res.status(400).json({ success: false, error: 'canal_id requerido' });
 
+    // Verify product belongs to this empresa
+    const prod = await pool.query('SELECT id FROM productos WHERE id = $1 AND empresa_id = $2', [req.params.productoId, req.eid]);
+    if (prod.rows.length === 0) return res.status(404).json({ success: false, error: 'Producto no encontrado' });
+
     if (precio_override != null) {
       await pool.query(
         `INSERT INTO producto_canal_precio (producto_id, canal_id, precio_override) VALUES ($1, $2, $3)

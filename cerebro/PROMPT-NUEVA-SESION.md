@@ -35,8 +35,8 @@ Lee `cerebro/22-BUGS-INTEGRACION-MAYO-2026.md` — tiene diagnóstico completo, 
 
 ## DESPUÉS: Pendientes de features
 
+- **Shopify OAuth** — Implementar auth directo via Partners Dashboard. Plan en `cerebro/23-PLAN-SHOPIFY-AUTH-DIRECTO.md`. Prerequisito: crear cuenta Partner en shopify.com y registrar app Kudi.
 - **Órdenes de compra** — PDF, estados (borrador/enviada/recibida), tipo cambio USD. Plan en `cerebro/20-PLAN-COMERCIO-STOCK.md`
-- **Shopify auto-sync** — interval polling + webhook orders/create
 - **Cartas y categorías** — organizar productos por catálogos
 
 ## Patrones clave del proyecto
