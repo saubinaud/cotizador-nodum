@@ -9,8 +9,9 @@ import ConfirmDialog, { PromptDialog } from '../components/ConfirmDialog';
 import { useAuth } from '../context/AuthContext';
 import {
   FileText, Receipt, Eye, Ban, DollarSign, Trash2,
-  Settings, Upload, CheckCircle, Circle, AlertTriangle, Search,
+  Settings, Upload, CheckCircle, Circle, AlertTriangle, Search, Printer,
 } from 'lucide-react';
+import { API_BASE } from '../config/api';
 
 const TIPO_DOC_OPTIONS = [
   { value: '', label: 'Todos' },
@@ -604,6 +605,13 @@ export default function ComprobantesPage() {
                         <button onClick={() => viewPdf(c.id)} className={cx.btnIcon} title="Ver PDF">
                           <Eye size={14} />
                         </button>
+                        <button
+                          onClick={() => window.open(`${API_BASE.replace('/api','')}/api/ticket/${c.id}?token=${localStorage.getItem('nodum_token')}`, '_blank')}
+                          className={cx.btnIcon}
+                          title="Imprimir ticket"
+                        >
+                          <Printer size={14} />
+                        </button>
                         {c.estado === 'emitido' && (
                           <button onClick={() => setAnularTarget(c)} className={cx.btnIcon + ' hover:text-rose-600'} title="Anular">
                             <Ban size={14} />
@@ -641,6 +649,13 @@ export default function ComprobantesPage() {
                   <div className="flex gap-1">
                     <button onClick={() => viewPdf(c.id)} className={cx.btnGhost + ' text-xs flex items-center gap-1'}>
                       <Eye size={12} /> PDF
+                    </button>
+                    <button
+                      onClick={() => window.open(`${API_BASE.replace('/api','')}/api/ticket/${c.id}?token=${localStorage.getItem('nodum_token')}`, '_blank')}
+                      className={cx.btnGhost + ' text-xs flex items-center gap-1'}
+                      title="Imprimir ticket"
+                    >
+                      <Printer size={12} /> Ticket
                     </button>
                     {c.estado === 'emitido' && (
                       <button onClick={() => setAnularTarget(c)} className={cx.btnDanger + ' text-xs flex items-center gap-1'}>

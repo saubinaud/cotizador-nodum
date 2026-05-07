@@ -27,6 +27,7 @@ const stockRoutes = require('./routes/stock');
 const comisionesRoutes = require('./routes/comisiones');
 const proveedoresRoutes = require('./routes/proveedores');
 const shopifyRoutes = require('./routes/shopify');
+const ticketRoutes = require('./routes/ticket');
 const runMigrations = require('./models/migrate');
 
 const app = express();
@@ -70,6 +71,7 @@ app.use('/api/stock', stockRoutes);
 app.use('/api/comisiones', comisionesRoutes);
 app.use('/api/proveedores', proveedoresRoutes);
 app.use('/api/shopify', shopifyRoutes);
+app.use('/api/ticket', ticketRoutes);
 
 // --------------- 404 Handler ---------------
 
