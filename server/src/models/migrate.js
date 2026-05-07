@@ -1489,6 +1489,33 @@ async function runMigrations() {
     await client.query(`CREATE INDEX IF NOT EXISTS idx_comisiones_vendedor ON comisiones(vendedor_id)`);
     await client.query(`CREATE INDEX IF NOT EXISTS idx_comisiones_fecha ON comisiones(fecha)`);
 
+    // ==================== PROVEEDORES ====================
+
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS proveedores (
+        id SERIAL PRIMARY KEY,
+        empresa_id INTEGER NOT NULL REFERENCES empresas(id),
+        created_by INTEGER REFERENCES usuarios(id) ON DELETE SET NULL,
+        nombre VARCHAR(200) NOT NULL,
+        ruc VARCHAR(20),
+        contacto VARCHAR(200),
+        email VARCHAR(200),
+        telefono VARCHAR(50),
+        direccion TEXT,
+        notas TEXT,
+        activo BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_proveedores_empresa ON proveedores(empresa_id)`);
+
+    // Add proveedor_id to compras
+    await client.query(`ALTER TABLE compras ADD COLUMN IF NOT EXISTS proveedor_id INTEGER REFERENCES proveedores(id) ON DELETE SET NULL`);
+
+    // Add producto_id to compra_items
+    await client.query(`ALTER TABLE compra_items ADD COLUMN IF NOT EXISTS producto_id INTEGER REFERENCES productos(id) ON DELETE SET NULL`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

@@ -28,7 +28,7 @@ function currentMonthPeriod() {
   return { nombre: `${MESES[m]} ${y}`, fecha_inicio: inicio, fecha_fin: fin };
 }
 
-const EMPTY_ITEM = { tipo: 'insumo', insumo_id: null, material_id: null, nombre_item: '', cantidad: '', unidad: '', precio_unitario: '', _precio_catalogo: 0 };
+const EMPTY_ITEM = { tipo: 'insumo', insumo_id: null, material_id: null, producto_id: null, nombre_item: '', cantidad: '', unidad: '', precio_unitario: '', _precio_catalogo: 0 };
 
 export default function PLComprasPage() {
   const api = useApi();
@@ -44,6 +44,8 @@ export default function PLComprasPage() {
   const [resumen, setResumen] = useState(null);
   const [insumos, setInsumos] = useState([]);
   const [materiales, setMateriales] = useState([]);
+  const [productos, setProductos] = useState([]);
+  const [proveedores, setProveedores] = useState([]);
 
   // UI state
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function PLComprasPage() {
   const [saving, setSaving] = useState(false);
 
   // Modal form
-  const [form, setForm] = useState({ fecha: todayStr(), proveedor: '', nota: '', cuenta_id: '' });
+  const [form, setForm] = useState({ fecha: todayStr(), proveedor: '', proveedor_id: '', nota: '', cuenta_id: '' });
   const [items, setItems] = useState([{ ...EMPTY_ITEM }]);
   const [cuentas, setCuentas] = useState([]);
 
@@ -66,12 +68,16 @@ export default function PLComprasPage() {
       api.get('/insumos').catch(() => ({ data: [] })),
       api.get('/materiales').catch(() => ({ data: [] })),
       api.get('/flujo/cuentas').catch(() => ({ data: [] })),
-    ]).then(([perRes, insRes, matRes, cuentasRes]) => {
+      api.get('/productos').catch(() => ({ data: [] })),
+      api.get('/proveedores').catch(() => ({ data: [] })),
+    ]).then(([perRes, insRes, matRes, cuentasRes, prodRes, provRes]) => {
       const pers = perRes.data || [];
       setPeriodos(pers);
       setInsumos(insRes.data || []);
       setMateriales(matRes.data || []);
       setCuentas((cuentasRes.data || []).map(c => ({ value: c.id, label: c.nombre })));
+      setProductos(prodRes.data || []);
+      setProveedores(provRes.data || []);
       setLoading(false);
     });
   }, []);
@@ -117,7 +123,7 @@ export default function PLComprasPage() {
 
   // Modal helpers
   const openNewCompra = () => {
-    setForm({ fecha: todayStr(), proveedor: '', nota: '' });
+    setForm({ fecha: todayStr(), proveedor: '', proveedor_id: '', nota: '', cuenta_id: '' });
     setItems([{ ...EMPTY_ITEM }]);
     setModalOpen(true);
   };
@@ -137,8 +143,10 @@ export default function PLComprasPage() {
       if (field === 'tipo') {
         updated.insumo_id = null;
         updated.material_id = null;
+        updated.producto_id = null;
         updated.nombre_item = '';
         updated.unidad = '';
+        updated._precio_catalogo = 0;
       }
       return updated;
     }));
@@ -164,6 +172,14 @@ export default function PLComprasPage() {
     }));
   };
 
+  const selectProducto = (idx, prod) => {
+    const precioSugerido = Number(prod.costo_neto) || 0;
+    setItems((prev) => prev.map((item, i) => {
+      if (i !== idx) return item;
+      return { ...item, producto_id: prod.id, unidad: 'uni', precio_unitario: parseFloat(precioSugerido.toFixed(2)), _precio_catalogo: precioSugerido };
+    }));
+  };
+
   // Computed total
   const formTotal = useMemo(() =>
     items.reduce((s, item) => s + ((parseFloat(item.precio_unitario) || 0) * (parseFloat(item.cantidad) || 0)), 0),
@@ -178,7 +194,7 @@ export default function PLComprasPage() {
     if (!form.fecha) { toast.error('Fecha es requerida'); return; }
     const validItems = items.filter((it) =>
       (parseFloat(it.cantidad) > 0) && (parseFloat(it.precio_unitario) > 0) &&
-      (it.insumo_id || it.material_id || it.nombre_item)
+      (it.insumo_id || it.material_id || it.producto_id || it.nombre_item)
     );
     if (validItems.length === 0) { toast.error('Agrega al menos un item valido'); return; }
 
@@ -187,11 +203,13 @@ export default function PLComprasPage() {
       await api.post('/pl/compras', {
         fecha: form.fecha,
         proveedor: form.proveedor || null,
+        proveedor_id: form.proveedor_id || null,
         nota: form.nota || null,
         cuenta_id: form.cuenta_id || null,
         items: validItems.map((it) => ({
           insumo_id: it.insumo_id || null,
           material_id: it.material_id || null,
+          producto_id: it.producto_id || null,
           nombre_item: it.nombre_item || null,
           cantidad: parseFloat(it.cantidad),
           unidad: it.unidad || null,
@@ -275,7 +293,7 @@ export default function PLComprasPage() {
 
       {/* Summary cards */}
       {resumen && (
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-5">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 mb-5">
           <SummaryCard
             icon={<Salad size={18} />}
             label="Compras Insumos"
@@ -288,6 +306,14 @@ export default function PLComprasPage() {
             value={formatCurrency(resumen.total_materiales)}
             color="text-blue-600"
           />
+          {parseFloat(resumen.total_productos || 0) > 0 && (
+            <SummaryCard
+              icon={<ShoppingBag size={18} />}
+              label="Compras Productos"
+              value={formatCurrency(resumen.total_productos)}
+              color="text-violet-600"
+            />
+          )}
           <SummaryCard
             icon={<DollarSign size={18} />}
             label="Total Compras"
@@ -363,10 +389,16 @@ export default function PLComprasPage() {
                           {compra.items.map((it) => {
                             const variation = (() => {
                               const catItem = it.insumo_id ? insumos.find(ins => ins.id === it.insumo_id)
-                                : it.material_id ? materiales.find(m => m.id === it.material_id) : null;
+                                : it.material_id ? materiales.find(m => m.id === it.material_id)
+                                : it.producto_id ? productos.find(p => p.id === it.producto_id) : null;
                               if (!catItem) return null;
-                              const catPrice = Number(catItem.cantidad_presentacion) > 0
-                                ? Number(catItem.precio_presentacion) / Number(catItem.cantidad_presentacion) : 0;
+                              let catPrice;
+                              if (it.producto_id) {
+                                catPrice = Number(catItem.costo_neto) || 0;
+                              } else {
+                                catPrice = Number(catItem.cantidad_presentacion) > 0
+                                  ? Number(catItem.precio_presentacion) / Number(catItem.cantidad_presentacion) : 0;
+                              }
                               if (catPrice <= 0) return null;
                               const diff = ((parseFloat(it.precio_unitario) / catPrice) - 1) * 100;
                               if (Math.abs(diff) < 0.5) return null;
@@ -464,14 +496,29 @@ export default function PLComprasPage() {
                   />
                 </div>
                 <div>
-                  <label className={cx.label}>Proveedor (opcional)</label>
-                  <input
-                    type="text"
-                    value={form.proveedor}
-                    onChange={(e) => setForm((f) => ({ ...f, proveedor: e.target.value }))}
-                    className={cx.input}
-                    placeholder="Ej: Mercado central"
-                  />
+                  <label className={cx.label}>Proveedor</label>
+                  {proveedores.length > 0 ? (
+                    <CustomSelect
+                      options={[
+                        { value: '', label: 'Sin especificar' },
+                        ...proveedores.map(p => ({ value: p.id, label: p.nombre })),
+                      ]}
+                      value={form.proveedor_id}
+                      onChange={(v) => {
+                        const prov = proveedores.find(p => p.id === v);
+                        setForm((f) => ({ ...f, proveedor_id: v, proveedor: prov?.nombre || '' }));
+                      }}
+                      placeholder="Seleccionar proveedor"
+                    />
+                  ) : (
+                    <input
+                      type="text"
+                      value={form.proveedor}
+                      onChange={(e) => setForm((f) => ({ ...f, proveedor: e.target.value }))}
+                      className={cx.input}
+                      placeholder="Ej: Mercado central"
+                    />
+                  )}
                 </div>
                 {cuentas.length > 0 && (
                 <div>
@@ -500,6 +547,7 @@ export default function PLComprasPage() {
                           options={[
                             { value: 'insumo', label: 'Insumo' },
                             { value: 'material', label: 'Material' },
+                            { value: 'producto', label: 'Producto' },
                             { value: 'otro', label: 'Otro' },
                           ]}
                           compact
@@ -530,6 +578,16 @@ export default function PLComprasPage() {
                             value={item.material_id}
                             onChange={(mat) => selectMaterial(idx, mat)}
                             placeholder="Buscar material..."
+                          />
+                        </div>
+                      )}
+                      {item.tipo === 'producto' && (
+                        <div className="mb-2">
+                          <SearchableSelect
+                            options={productos}
+                            value={item.producto_id}
+                            onChange={(prod) => selectProducto(idx, prod)}
+                            placeholder="Buscar producto..."
                           />
                         </div>
                       )}

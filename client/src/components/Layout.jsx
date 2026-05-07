@@ -114,6 +114,7 @@ export default function Layout() {
         { to: '/pl', label: 'Timeline', icon: Activity, perm: 'finanzas', end: true },
         { to: '/pl/resumen', label: 'Estado de resultados', icon: BarChart3, perm: 'finanzas' },
         { to: '/pl/compras', label: 'Compras', icon: ShoppingBag, perm: 'finanzas' },
+        { to: '/proveedores', label: 'Proveedores', icon: Truck, perm: 'finanzas' },
         { to: '/pl/gastos', label: 'Gastos', icon: Receipt, perm: 'finanzas' },
         { to: '/pl/cashflow', label: 'Flujo de Caja', icon: Wallet, perm: 'finanzas' },
         { to: '/perdidas', label: 'Perdidas / Mermas', icon: TrendingDown, perm: 'finanzas' },

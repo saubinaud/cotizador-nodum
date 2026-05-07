@@ -25,6 +25,7 @@ const analisisRoutes = require('./routes/analisis');
 const uploadRoutes = require('./routes/upload');
 const stockRoutes = require('./routes/stock');
 const comisionesRoutes = require('./routes/comisiones');
+const proveedoresRoutes = require('./routes/proveedores');
 const runMigrations = require('./models/migrate');
 
 const app = express();
@@ -66,6 +67,7 @@ app.use('/api/analisis', analisisRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/stock', stockRoutes);
 app.use('/api/comisiones', comisionesRoutes);
+app.use('/api/proveedores', proveedoresRoutes);
 
 // --------------- 404 Handler ---------------
 

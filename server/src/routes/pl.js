@@ -138,8 +138,8 @@ router.get('/transacciones', async (req, res) => {
     for (const t of result.rows) {
       if (t.tipo === 'compra' && t.compra_id) {
         const items = await pool.query(
-          `SELECT ci.*, COALESCE(i.nombre, m.nombre, ci.nombre_item) AS item_nombre
-           FROM compra_items ci LEFT JOIN insumos i ON i.id = ci.insumo_id LEFT JOIN materiales m ON m.id = ci.material_id
+          `SELECT ci.*, COALESCE(i.nombre, m.nombre, p.nombre, ci.nombre_item) AS item_nombre
+           FROM compra_items ci LEFT JOIN insumos i ON i.id = ci.insumo_id LEFT JOIN materiales m ON m.id = ci.material_id LEFT JOIN productos p ON p.id = ci.producto_id
            WHERE ci.compra_id = $1`, [t.compra_id]
         );
         t.compra_items = items.rows;
@@ -1172,7 +1172,8 @@ router.get('/compras/resumen', async (req, res) => {
         COALESCE(SUM(ci.total), 0) AS total_compras,
         COALESCE(SUM(CASE WHEN ci.insumo_id IS NOT NULL THEN ci.total ELSE 0 END), 0) AS total_insumos,
         COALESCE(SUM(CASE WHEN ci.material_id IS NOT NULL THEN ci.total ELSE 0 END), 0) AS total_materiales,
-        COALESCE(SUM(CASE WHEN ci.insumo_id IS NULL AND ci.material_id IS NULL THEN ci.total ELSE 0 END), 0) AS total_otros
+        COALESCE(SUM(CASE WHEN ci.producto_id IS NOT NULL THEN ci.total ELSE 0 END), 0) AS total_productos,
+        COALESCE(SUM(CASE WHEN ci.insumo_id IS NULL AND ci.material_id IS NULL AND ci.producto_id IS NULL THEN ci.total ELSE 0 END), 0) AS total_otros
        FROM compras c
        LEFT JOIN compra_items ci ON ci.compra_id = c.id
        WHERE c.empresa_id = $1 AND c.fecha >= $2 AND c.fecha <= $3`,
@@ -1200,10 +1201,11 @@ router.get('/compras', async (req, res) => {
     for (const compra of compras.rows) {
       const items = await pool.query(
         `SELECT ci.*,
-                COALESCE(i.nombre, m.nombre, ci.nombre_item) AS item_nombre
+                COALESCE(i.nombre, m.nombre, p.nombre, ci.nombre_item) AS item_nombre
          FROM compra_items ci
          LEFT JOIN insumos i ON i.id = ci.insumo_id
          LEFT JOIN materiales m ON m.id = ci.material_id
+         LEFT JOIN productos p ON p.id = ci.producto_id
          WHERE ci.compra_id = $1
          ORDER BY ci.id`,
         [compra.id]
@@ -1222,7 +1224,7 @@ router.get('/compras', async (req, res) => {
 router.post('/compras', async (req, res) => {
   const client = await pool.connect();
   try {
-    const { fecha, proveedor, nota, items, cuenta_id } = req.body;
+    const { fecha, proveedor, proveedor_id, nota, items, cuenta_id } = req.body;
     if (!fecha || !items || items.length === 0) {
       return res.status(400).json({ success: false, error: 'fecha y al menos un item son requeridos' });
     }
@@ -1235,19 +1237,20 @@ router.post('/compras', async (req, res) => {
     const total = items.reduce((s, item) => s + (parseFloat(item.precio_unitario) * parseFloat(item.cantidad)), 0);
 
     const compraRes = await client.query(
-      'INSERT INTO compras (periodo_id, usuario_id, empresa_id, fecha, proveedor, nota, total) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *',
-      [pid, req.uid, req.eid, fecha, proveedor || null, nota || null, total]
+      'INSERT INTO compras (periodo_id, usuario_id, empresa_id, fecha, proveedor, proveedor_id, nota, total) VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *',
+      [pid, req.uid, req.eid, fecha, proveedor || null, proveedor_id || null, nota || null, total]
     );
     const compra = compraRes.rows[0];
 
     const insumosToRecalc = new Set();
+    const { registrarMovimiento } = require('./stock');
 
     for (const item of items) {
       const itemTotal = parseFloat(item.precio_unitario) * parseFloat(item.cantidad);
       const ciRes = await client.query(
-        `INSERT INTO compra_items (compra_id, insumo_id, material_id, nombre_item, cantidad, unidad, precio_unitario, total)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING id`,
-        [compra.id, item.insumo_id || null, item.material_id || null, item.nombre_item || null,
+        `INSERT INTO compra_items (compra_id, insumo_id, material_id, producto_id, nombre_item, cantidad, unidad, precio_unitario, total)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`,
+        [compra.id, item.insumo_id || null, item.material_id || null, item.producto_id || null, item.nombre_item || null,
          item.cantidad, item.unidad || null, item.precio_unitario, itemTotal]
       );
 
@@ -1264,6 +1267,39 @@ router.post('/compras', async (req, res) => {
           [item.insumo_id, ciRes.rows[0].id, fecha, item.cantidad, cantBase, itemTotal, costoPorBase, proveedor || null]
         );
         insumosToRecalc.add(item.insumo_id);
+      }
+
+      // Handle producto_id: update costo_neto and stock
+      if (item.producto_id) {
+        const prodRes = await client.query('SELECT costo_neto, control_stock FROM productos WHERE id = $1', [item.producto_id]);
+        if (prodRes.rows.length > 0) {
+          const prod = prodRes.rows[0];
+          const purchaseUnitPrice = parseFloat(item.precio_unitario);
+
+          // Update costo_neto with last purchase price
+          await client.query(
+            'UPDATE productos SET costo_neto = $1, updated_at = NOW() WHERE id = $2',
+            [purchaseUnitPrice, item.producto_id]
+          );
+
+          // If control_stock is enabled, add stock via registrarMovimiento
+          if (prod.control_stock) {
+            try {
+              await registrarMovimiento(client, {
+                empresaId: req.eid,
+                productoId: item.producto_id,
+                tipo: 'entrada',
+                cantidad: parseInt(item.cantidad) || 1,
+                referenciaT: 'compra',
+                referenciaId: compra.id,
+                nota: null,
+                userId: req.uid,
+              });
+            } catch (stockErr) {
+              console.error('Stock add error (compra producto):', stockErr);
+            }
+          }
+        }
       }
     }
 
