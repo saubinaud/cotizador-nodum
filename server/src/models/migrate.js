@@ -1516,6 +1516,50 @@ async function runMigrations() {
     // Add producto_id to compra_items
     await client.query(`ALTER TABLE compra_items ADD COLUMN IF NOT EXISTS producto_id INTEGER REFERENCES productos(id) ON DELETE SET NULL`);
 
+    // ==================== SHOPIFY INTEGRATION ====================
+
+    // integraciones table (generic, supports shopify and future integrations)
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS integraciones (
+        id SERIAL PRIMARY KEY,
+        empresa_id INTEGER NOT NULL REFERENCES empresas(id),
+        tipo VARCHAR(30) NOT NULL,
+        access_token TEXT,
+        config JSONB NOT NULL DEFAULT '{}',
+        activo BOOLEAN NOT NULL DEFAULT true,
+        ultima_sync TIMESTAMPTZ,
+        created_by INTEGER REFERENCES usuarios(id),
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE(empresa_id, tipo)
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_integraciones_empresa ON integraciones(empresa_id)`);
+
+    // sync_log table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS sync_log (
+        id SERIAL PRIMARY KEY,
+        empresa_id INTEGER NOT NULL REFERENCES empresas(id),
+        tipo VARCHAR(30) NOT NULL,
+        accion VARCHAR(50) NOT NULL,
+        resultado VARCHAR(20) NOT NULL,
+        detalles JSONB DEFAULT '{}',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      )
+    `);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sync_log_empresa ON sync_log(empresa_id)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_sync_log_created ON sync_log(created_at)`);
+
+    // Shopify fields on productos
+    await client.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS shopify_product_id VARCHAR(50)`);
+    await client.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS shopify_variant_id VARCHAR(50)`);
+    await client.query(`ALTER TABLE productos ADD COLUMN IF NOT EXISTS shopify_inventory_item_id VARCHAR(50)`);
+
+    // Shopify order reference on ventas
+    await client.query(`ALTER TABLE ventas ADD COLUMN IF NOT EXISTS shopify_order_id VARCHAR(50)`);
+    await client.query(`CREATE INDEX IF NOT EXISTS idx_ventas_shopify_order ON ventas(shopify_order_id) WHERE shopify_order_id IS NOT NULL`);
+
     console.log('[migrate] OK');
   } catch (err) {
     console.error('[migrate] Error:', err.message);

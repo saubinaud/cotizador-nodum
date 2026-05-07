@@ -35,6 +35,7 @@ import AnalisisPage from './pages/AnalisisPage';
 import StockPage from './pages/StockPage';
 import ComisionesPage from './pages/ComisionesPage';
 import ProveedoresPage from './pages/ProveedoresPage';
+import ShopifyPage from './pages/ShopifyPage';
 
 function ScrollToTop() {
   const { pathname } = useLocation();
@@ -87,6 +88,7 @@ export default function App() {
               <Route path="/stock" element={<StockPage />} />
               <Route path="/comisiones" element={<ComisionesPage />} />
               <Route path="/proveedores" element={<ProveedoresPage />} />
+              <Route path="/shopify" element={<ShopifyPage />} />
               <Route path="/canales" element={<CanalesPage />} />
               <Route path="/equipo" element={<EquipoPage />} />
               <Route path="/perfil" element={<PerfilPage />} />

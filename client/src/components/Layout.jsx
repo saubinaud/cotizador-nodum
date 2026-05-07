@@ -32,6 +32,7 @@ import {
   FileText,
   ClipboardList,
   Truck,
+  Link2,
 } from 'lucide-react';
 
 
@@ -127,6 +128,14 @@ export default function Layout() {
       links: [
         { to: '/comprobantes', label: 'Comprobantes', icon: FileText, perm: 'facturacion' },
         { to: '/clientes', label: 'Clientes', icon: Users, perm: 'facturacion' },
+      ],
+    },
+    {
+      key: 'integraciones',
+      label: 'Integraciones',
+      icon: Link2,
+      links: [
+        { to: '/shopify', label: 'Shopify', icon: ShoppingBag, perm: 'dashboard' },
       ],
     },
   ];
