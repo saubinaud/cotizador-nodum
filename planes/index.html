@@ -1307,7 +1307,7 @@
       transition: opacity 0.2s;
     }
 
-    .p-card-period { font-size: 13px; color: var(--gray); margin-bottom: 6px; }
+    .p-card-period { font-size: 14px; color: var(--gray); margin-bottom: 2px; align-self: flex-end; padding-bottom: 8px; }
 
     .p-card-desc {
       font-size: 13px;
@@ -1382,6 +1382,35 @@
       background: rgba(255, 255, 255, 0.06);
       margin: 6px 0;
       list-style: none;
+    }
+
+    .p-feat-toggle {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      font-size: 13px;
+      color: rgba(255, 255, 255, 0.75);
+      cursor: pointer;
+      padding: 4px 0;
+      user-select: none;
+    }
+
+    .p-feat-toggle__arrow {
+      font-size: 10px;
+      color: var(--gray);
+      transition: transform 0.3s;
+    }
+
+    .p-feat-toggle__arrow.open { transform: rotate(180deg); }
+
+    .p-feat-expandable {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+
+    .p-feat-expandable.open {
+      max-height: 300px;
     }
 
     /* ═══════════════════════════════════════════════════════════
@@ -1562,6 +1591,33 @@
     }
 
     .ft-bottom-text { font-size: 12px; color: rgba(255, 255, 255, 0.22); }
+
+    .rotate-footer {
+      display: inline-block;
+      position: relative;
+      color: var(--light-green);
+      font-style: italic;
+      min-width: 80px;
+      text-align: center;
+    }
+
+    .rotate-footer span {
+      display: inline-block;
+      transition: opacity 0.4s ease, transform 0.4s ease;
+    }
+
+    .rotate-footer span.fade-out {
+      opacity: 0;
+      transform: translateY(-6px);
+      position: absolute;
+      left: 0;
+      right: 0;
+    }
+
+    .rotate-footer span.fade-in {
+      opacity: 1;
+      transform: translateY(0);
+    }
 
     /* ═══════════════════════════════════════════════════════════
        REGISTRO MODAL
@@ -1760,8 +1816,7 @@
         gap: 48px;
       }
 
-      .hero-visual { order: -1; }
-      .dashboard { max-width: 420px; }
+      .dashboard { max-width: 340px; margin: 0 auto; }
       .hero-headline { font-size: clamp(28px, 5vw, 42px); }
 
       /* Features */
@@ -1829,11 +1884,13 @@
 
       .cta-btn-large { padding: 16px 36px; font-size: 15px; }
 
+      .hero-visual { display: none; }
+
       .ft-grid { grid-template-columns: 1fr; }
       .ft-bottom { flex-direction: column; text-align: center; }
     }
   </style>
-  <script type="module" crossorigin src="/planes/assets/index-lbT3ueVz.js"></script>
+  <script type="module" crossorigin src="/planes/assets/index-CyJw2ywn.js"></script>
 </head>
 <body>
 
@@ -1881,20 +1938,20 @@
       <div class="hero-text">
         <p class="hero-eyebrow">Costeo + SUNAT + Inventario + POS</p>
         <h1 class="hero-headline">Costos claros.<br>Decisiones <em>seguras.</em></h1>
-        <p class="hero-subheadline">Sabe exactamente cuanto ganas por cada producto que vendes.</p>
-        <p class="hero-body">Kudi conecta tu costeo, facturacion SUNAT, inventario y punto de venta en un solo lugar. Para que cada venta sea una decision informada.</p>
+        <p class="hero-subheadline">¿Sabes exactamente cuánto ganas por cada producto que vendes?</p>
+        <p class="hero-body">¡Kudi conecta las finanzas de tu negocio, facturación en SUNAT, inventario y punto de venta en un solo lugar! Para que cada venta sea una decisión informada.</p>
         <div class="hero-ctas">
-          <a href="https://kudi.nodumstudio.com/#/onboarding" class="btn-primary" target="_blank" rel="noopener">Probar gratis 10 dias &#x2192;</a>
+          <a href="https://kudi.nodumstudio.com/#/onboarding" class="btn-primary" target="_blank" rel="noopener">Probar gratis 10 días &#x2192;</a>
           <a href="#producto" class="btn-ghost">Ver como funciona</a>
         </div>
         <div class="hero-trust">
           <span class="trust-item">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg>
-            Sin tarjeta de credito
+            Sin cobro automático
           </span>
           <span class="trust-item">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg>
-            29 rubros soportados
+            Adaptado a cada necesidad
           </span>
           <span class="trust-item">
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8.5l3.5 3.5L13 4.5"/></svg>
@@ -1908,7 +1965,7 @@
         <div class="dashboard">
           <div class="dash-header">
             <div class="dash-header-left">
-              <div class="dash-logo">K</div>
+              <img class="dash-logo" src="/planes/logo-kudi.jpg" alt="K" style="width:24px;height:24px;border-radius:6px;">
               <span class="dash-title">Resumen financiero</span>
             </div>
             <span class="dash-period">Este mes &#x25BE;</span>
@@ -1965,8 +2022,8 @@
   <section class="social-proof">
     <div class="noise"></div>
     <div class="social-proof-inner">
-      <p class="sp-eyebrow">Disenado para</p>
-      <h2 class="sp-headline">Negocios que <em>producen</em> y quieren saber su margen real</h2>
+      <p class="sp-eyebrow">Diseñado para</p>
+      <h2 class="sp-headline">Negocios que <em>venden</em> y quieren saber su margen real</h2>
       <div class="sp-pills">
         <span class="sp-pill">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 17c0 2 2 3 7 3s7-1 7-3"/><path d="M5 17c-1.5-1-2-3-1-5 1.5-3 4-4.5 8-4.5s6.5 1.5 8 4.5c1 2 .5 4-1 5"/><path d="M8 7c0-2 1.5-4 4-4s4 2 4 4"/></svg>
@@ -1983,10 +2040,6 @@
         <span class="sp-pill">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 010 8h-1"/><path d="M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8z"/><path d="M6 2v3"/><path d="M10 2v3"/><path d="M14 2v3"/></svg>
           Cafeterias
-        </span>
-        <span class="sp-pill">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="10" width="6" height="11" rx="1"/><path d="M12 10V7"/><path d="M12 7c-1-2 0-4 0-4s1.5 2 0 4"/></svg>
-          Velas
         </span>
         <span class="sp-pill">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15.5 2L12 6.5 8.5 2"/><path d="M4 8l8 2 8-2"/><path d="M4 8v10c0 2 3 4 8 4s8-2 8-4V8"/></svg>
@@ -2009,8 +2062,8 @@
     <div class="container">
       <div class="features-header reveal">
         <span class="features-tag">Producto</span>
-        <h2 class="features-title">Produce mas. <em>Pierde menos.</em></h2>
-        <p class="features-subtitle">Cada modulo resuelve un problema real de tu negocio.</p>
+        <h2 class="features-title">Más control. <em>Mejor margen.</em></h2>
+        <p class="features-subtitle">Cada módulo resuelve un problema real de tu negocio.</p>
       </div>
 
       <div class="bento-grid">
@@ -2022,7 +2075,7 @@
           </div>
           <div class="bento-card__body">
             <div class="bento-card__label">Cotizador</div>
-            <h3 class="bento-card__title">Cada producto tiene un costo real. Conocelo.</h3>
+            <h3 class="bento-card__title">Cada producto tiene un costo real. Conócelo.</h3>
             <p class="bento-card__desc">Registra insumos, recetas y empaque. Kudi calcula tu costo por unidad, sugiere el precio y te muestra tu ganancia por cada pieza que vendes.</p>
           </div>
         </div>
@@ -2034,9 +2087,9 @@
             <span class="bento-card__tooltip">Click para ampliar</span>
           </div>
           <div class="bento-card__body">
-            <div class="bento-card__label">Facturacion</div>
-            <h3 class="bento-card__title">Factura ante SUNAT. Sin contador.</h3>
-            <p class="bento-card__desc">Boletas y facturas electronicas en 2 clics. Serie automatica, validacion SUNAT, PDF descargable y ticket termico.</p>
+            <div class="bento-card__label">Facturación</div>
+            <h3 class="bento-card__title">Emite boletas y facturas. Sin contador.</h3>
+            <p class="bento-card__desc">Boletas y facturas electrónicas en 2 clics. Serie automática, validación SUNAT y PDF descargable.</p>
           </div>
         </div>
 
@@ -2048,7 +2101,7 @@
           </div>
           <div class="bento-card__body">
             <div class="bento-card__label">Ventas</div>
-            <h3 class="bento-card__title">Vende y sabe cuanto ganas. Al instante.</h3>
+            <h3 class="bento-card__title">Vendes y sabes cuánto ganas. ¡Al instante!</h3>
             <p class="bento-card__desc">Mientras cobras, Kudi calcula tu utilidad bruta y margen real. Sin esperar al cierre de mes.</p>
           </div>
         </div>
@@ -2061,8 +2114,8 @@
           </div>
           <div class="bento-card__body">
             <div class="bento-card__label">Inventario</div>
-            <h3 class="bento-card__title">363 productos. Cero sorpresas de stock.</h3>
-            <p class="bento-card__desc">Variantes, SKU, alertas automaticas. Once Joyas sincronizo todo su catalogo desde Shopify sin tocar nada.</p>
+            <h3 class="bento-card__title">Todos tus productos. Cero sorpresas de stock.</h3>
+            <p class="bento-card__desc">Variantes, SKU y alertas automáticas. Controla tu inventario en tiempo real desde cualquier lugar.</p>
           </div>
         </div>
 
@@ -2073,9 +2126,9 @@
             <span class="bento-card__tooltip">Click para ampliar</span>
           </div>
           <div class="bento-card__body">
-            <div class="bento-card__label">Catalogo</div>
-            <h3 class="bento-card__title">Tus productos. Con margen visible.</h3>
-            <p class="bento-card__desc">Galeria con imagenes reales, margenes y precios por carta. Importa desde Shopify o crea manualmente.</p>
+            <div class="bento-card__label">Catálogo</div>
+            <h3 class="bento-card__title">Tus productos. Con márgenes visibles.</h3>
+            <p class="bento-card__desc">Galería con imágenes reales, márgenes y precios por carta. Crea tu catálogo profesional.</p>
           </div>
         </div>
 
@@ -2086,9 +2139,9 @@
             <span class="bento-card__tooltip">Click para ampliar</span>
           </div>
           <div class="bento-card__body">
-            <div class="bento-card__label">29 Rubros</div>
-            <h3 class="bento-card__title">Panaderia, joyeria, textil. Tu idioma.</h3>
-            <p class="bento-card__desc">Kudi adapta la terminologia a tu industria. Ingredientes o materiales, recetas o disenos.</p>
+            <div class="bento-card__label">Adaptado a cada necesidad</div>
+            <h3 class="bento-card__title">Panadería, joyería, textil. Todo en tu idioma.</h3>
+            <p class="bento-card__desc">Kudi adapta la terminología a tu industria. Ingredientes o materiales, recetas o diseños.</p>
           </div>
         </div>
       </div>
@@ -2101,22 +2154,62 @@
     <img id="lightbox-img" src="" alt="Vista ampliada">
   </div>
 
-  <!-- CTAs redirect to kudi.nodumstudio.com/#/onboarding -->
+  <!-- ═══════════ REGISTRO MODAL ═══════════ -->
+  <div class="registro-modal" id="registro-modal">
+    <button class="registro-modal__close" id="registro-close" aria-label="Cerrar">&times;</button>
+    <div class="registro-modal__card">
+      <div class="registro-modal__header">
+        <img class="registro-modal__logo" src="/planes/logo-kudi.jpg" alt="Kudi">
+        <h3 class="registro-modal__title">Empieza tu prueba gratis</h3>
+        <p class="registro-modal__subtitle">10 d&iacute;as. Sin tarjeta. Sin compromiso.</p>
+      </div>
+      <form id="registro-form" novalidate>
+        <div class="form-field">
+          <label for="reg-nombre">Tu nombre</label>
+          <input type="text" id="reg-nombre" placeholder="Ej: Mar&iacute;a L&oacute;pez" required autocomplete="name">
+        </div>
+        <div class="form-field">
+          <label for="reg-email">Correo electr&oacute;nico</label>
+          <input type="email" id="reg-email" placeholder="Ej: maria@empresa.com" required autocomplete="email">
+        </div>
+        <div class="form-field">
+          <label for="reg-telefono">Tel&eacute;fono / WhatsApp</label>
+          <input type="tel" id="reg-telefono" placeholder="Ej: 987 654 321" autocomplete="tel">
+        </div>
+        <div class="form-field">
+          <label for="reg-giro">Rubro de tu negocio</label>
+          <select id="reg-giro">
+            <option value="">Selecciona tu rubro...</option>
+          </select>
+        </div>
+        <div class="hp-field" aria-hidden="true">
+          <input type="text" id="reg-website" name="website" tabindex="-1" autocomplete="off">
+        </div>
+        <div class="form-error" id="registro-error"></div>
+        <button type="submit" class="registro-submit" id="registro-submit">
+          Comenzar prueba gratis &#x2192;
+        </button>
+      </form>
+      <p class="registro-modal__footer">
+        &iquest;Ya tienes cuenta? <a href="https://kudi.nodumstudio.com/#/login" target="_blank" rel="noopener">Inicia sesi&oacute;n</a>
+      </p>
+    </div>
+  </div>
 
   <!-- ═══════════ HOW IT WORKS ═══════════ -->
   <section class="how-section" id="como-funciona">
     <div class="container">
       <div class="how-header reveal">
-        <span class="how-tag">Como funciona</span>
+        <span class="how-tag">Cómo funciona</span>
         <h2 class="how-title">En 3 pasos, <em>control total</em></h2>
-        <p class="how-subtitle">Configura tu negocio en minutos. Los primeros resultados los ves el mismo dia.</p>
+        <p class="how-subtitle">Configura tu negocio en minutos. Los primeros resultados los ves el mismo día.</p>
       </div>
       <div class="how-steps" id="how-steps">
         <div class="how-step reveal" data-step="0">
           <div class="how-step-circle">1</div>
           <div class="how-step-connector"></div>
           <h3>Registra <span class="rotate-text" data-words='["tus insumos y recetas","tu nueva mercaderia","tus materiales y disenos","tus ingredientes y mezclas"]'><span class="fade-in">tus insumos y recetas</span></span></h3>
-          <p class="rotate-desc" data-descs='["Carga tus materias primas y recetas. Kudi las organiza segun tu rubro. 10 minutos y listo.","Registra cada producto que compras o importas. Organiza por proveedor y categoria.","Sube tus piedras, metales y componentes. Kudi arma la ficha de cada pieza.","Agrega tus esencias, bases y fragancias. Kudi calcula el costo por lote y por unidad."]'><span class="fade-in">Carga tus materias primas y recetas. Kudi las organiza segun tu rubro. 10 minutos y listo.</span></p>
+          <p class="rotate-desc" data-descs='["Carga tus materias primas y recetas. Kudi las organiza según tu rubro. 10 minutos y listo.","Registra cada producto que compras o importas. Organiza por proveedor y categoria.","Sube tus piedras, metales y componentes. Kudi arma la ficha de cada pieza.","Agrega tus esencias, bases y fragancias. Kudi calcula el costo por lote y por unidad."]'><span class="fade-in">Carga tus materias primas y recetas. Kudi las organiza según tu rubro. 10 minutos y listo.</span></p>
         </div>
         <div class="how-step reveal" style="transition-delay: 0.15s" data-step="1">
           <div class="how-step-circle">2</div>
@@ -2184,7 +2277,7 @@
       <div class="pricing-header reveal">
         <span class="pricing-tag">Precios</span>
         <h2 class="pricing-title">Planes simples, <em>sin sorpresas</em></h2>
-        <p class="pricing-subtitle">Prueba gratis por 10 dias. Elige tu plan cuando estes listo. Sin contratos ni letra chica.</p>
+        <p class="pricing-subtitle">Prueba gratis por 10 días. Elige tu plan cuando estés listo. Sin contratos ni letra chica.</p>
       </div>
 
       <div class="pricing-toggle-row">
@@ -2198,12 +2291,12 @@
 
       <div class="pricing-cards">
         <div class="p-card reveal" style="transition-delay: 0.1s">
-          <div class="p-card-plan">Profesional</div>
+          <div class="p-card-plan">Plan Independiente</div>
           <div class="p-card-price">
             <span class="p-card-currency">S/</span>
             <span class="pricing-amount" data-monthly="80" data-annual="64">80</span>
+            <span class="p-card-period">/ mes</span>
           </div>
-          <div class="p-card-period">/ mes</div>
           <div class="p-card-desc">Para negocios que necesitan control total de costos y ventas.</div>
           <a href="https://kudi.nodumstudio.com/#/onboarding" class="p-card-cta" target="_blank" rel="noopener">Comenzar ahora</a>
           <ul class="p-card-features">
@@ -2211,30 +2304,37 @@
             <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Cotizador completo</li>
             <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Stock con variantes</li>
             <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> POS</li>
-            <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> 3 usuarios</li>
+            <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> 1 usuario</li>
             <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Export CSV</li>
             <li class="p-card-divider"></li>
-            <li class="p-feat p-feat--no"><span class="p-feat-icon">&minus;</span> Facturacion SUNAT</li>
-            <li class="p-feat p-feat--no"><span class="p-feat-icon">&minus;</span> Shopify sync</li>
+            <li class="p-feat p-feat--no"><span class="p-feat-icon">&minus;</span> Vista P&amp;L y Flujo de Caja</li>
+            <li class="p-feat p-feat--no"><span class="p-feat-icon">&minus;</span> Boletas y facturas electrónicas</li>
             <li class="p-feat p-feat--no"><span class="p-feat-icon">&minus;</span> Multi-sede</li>
           </ul>
         </div>
 
         <div class="p-card p-card--highlight reveal" style="transition-delay: 0.15s">
-          <span class="p-card-badge">Mas popular</span>
-          <div class="p-card-plan">Profesional + SUNAT</div>
+          <span class="p-card-badge">Más popular</span>
+          <div class="p-card-plan">Plan Emprendedor</div>
           <div class="p-card-price">
             <span class="p-card-currency">S/</span>
             <span class="pricing-amount" data-monthly="100" data-annual="80">100</span>
+            <span class="p-card-period">/ mes</span>
           </div>
-          <div class="p-card-period">/ mes</div>
-          <div class="p-card-desc">Todo de Profesional + facturacion electronica SUNAT.</div>
+          <div class="p-card-desc">Todo del plan Independiente + finanzas completas y facturación.</div>
           <a href="https://kudi.nodumstudio.com/#/onboarding" class="p-card-cta p-card-cta--green" target="_blank" rel="noopener">Comenzar ahora</a>
           <ul class="p-card-features">
-            <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Todo de Profesional</li>
-            <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Facturacion SUNAT</li>
-            <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Boletas y facturas electronicas</li>
-            <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Ticket termico / ESC-POS</li>
+            <li class="p-feat-toggle" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.p-feat-toggle__arrow').classList.toggle('open')">
+              <span><span class="p-feat-icon" style="background:rgba(74,222,128,0.15);color:var(--light-green);width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;">&#x2713;</span> Todo de Independiente</span>
+              <span class="p-feat-toggle__arrow">&#x25BC;</span>
+            </li>
+            <div class="p-feat-expandable">
+              <li class="p-feat p-feat--yes" style="padding-left:26px;opacity:0.6"><span style="font-size:12px;">Productos ilimitados, Cotizador, Stock, POS, Export CSV</span></li>
+            </div>
+            <li class="p-card-divider"></li>
+            <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Vista P&amp;L y Flujo de Caja</li>
+            <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Boletas y facturas electrónicas</li>
+            <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Hasta 5 usuarios</li>
             <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Soporte prioritario</li>
             <li class="p-card-divider"></li>
             <li class="p-feat p-feat--no"><span class="p-feat-icon">&minus;</span> Shopify sync</li>
@@ -2244,16 +2344,23 @@
         </div>
 
         <div class="p-card reveal" style="transition-delay: 0.2s">
-          <div class="p-card-plan">Negocio</div>
+          <div class="p-card-plan">Plan Empresario</div>
           <div class="p-card-price">
             <span class="p-card-currency">S/</span>
             <span class="pricing-amount" data-monthly="180" data-annual="144">180</span>
+            <span class="p-card-period">/ mes</span>
           </div>
-          <div class="p-card-period">/ mes</div>
-          <div class="p-card-desc">Para empresas con multiples sedes, canales y equipos.</div>
+          <div class="p-card-desc">Para empresas con múltiples sedes, canales y equipos.</div>
           <a href="https://kudi.nodumstudio.com/#/onboarding" class="p-card-cta" target="_blank" rel="noopener">Contactar ventas</a>
           <ul class="p-card-features">
-            <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Todo de Profesional</li>
+            <li class="p-feat-toggle" onclick="this.nextElementSibling.classList.toggle('open'); this.querySelector('.p-feat-toggle__arrow').classList.toggle('open')">
+              <span><span class="p-feat-icon" style="background:rgba(74,222,128,0.15);color:var(--light-green);width:16px;height:16px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;">&#x2713;</span> Todo de Emprendedor</span>
+              <span class="p-feat-toggle__arrow">&#x25BC;</span>
+            </li>
+            <div class="p-feat-expandable">
+              <li class="p-feat p-feat--yes" style="padding-left:26px;opacity:0.6"><span style="font-size:12px;">P&amp;L, Flujo de Caja, Boletas/Facturas, 5 usuarios, Soporte prioritario</span></li>
+            </div>
+            <li class="p-card-divider"></li>
             <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Usuarios ilimitados</li>
             <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Shopify sync</li>
             <li class="p-feat p-feat--yes"><span class="p-feat-icon">&#x2713;</span> Multi-sede</li>
@@ -2272,15 +2379,15 @@
     <div class="container">
       <div class="cta-inner reveal">
         <span class="cta-eyebrow">Empieza hoy</span>
-        <h2 class="cta-title">Deja de vender a <em>precio de costo</em>.</h2>
+        <h2 class="cta-title">Deja de vender <em>con precios al ojo</em>.</h2>
         <p class="cta-subtitle">
           Kudi te muestra tu margen real en minutos.<br>
           Sin tarjeta. Sin trucos. Solo claridad financiera.
         </p>
         <a href="https://kudi.nodumstudio.com/#/onboarding" class="cta-btn-large" target="_blank" rel="noopener">
-          Probar gratis 10 dias &#x2192;
+          Probar gratis 10 días &#x2192;
         </a>
-        <p class="cta-trust">Configuracion en 5 minutos &middot; Prueba gratis 10 dias &middot; 29 rubros</p>
+        <p class="cta-trust">Configuración en 5 minutos &middot; Prueba gratis 10 días</p>
       </div>
     </div>
   </section>
@@ -2294,13 +2401,13 @@
             <img src="/planes/logo-kudi.jpg" alt="Kudi">
             <span class="ft-brand-text">KUDI</span>
           </a>
-          <p class="ft-tagline">Costeo, facturacion y POS<br>para MYPEs productoras en Peru.</p>
+          <p class="ft-tagline">Costeo, facturación y POS<br>para MYPEs productoras en Perú.</p>
         </div>
         <div>
           <div class="ft-col-title">Producto</div>
           <ul class="ft-links">
             <li><a href="#producto">Costeo</a></li>
-            <li><a href="#producto">Facturacion SUNAT</a></li>
+            <li><a href="#producto">Facturación SUNAT</a></li>
             <li><a href="#producto">POS</a></li>
             <li><a href="#producto">Inventario</a></li>
             <li><a href="#producto">Estado de resultados</a></li>
@@ -2331,7 +2438,7 @@
         </div>
       </div>
       <div class="ft-bottom">
-        <span class="ft-bottom-text">Hecho con amor en Lima, Peru</span>
+        <span class="ft-bottom-text">Hecho con <span class="rotate-footer" id="rotate-footer"><span class="fade-in">amor</span></span> en Lima, Perú</span>
         <span class="ft-bottom-text">&copy; 2026 Nodum Studio. Todos los derechos reservados.</span>
       </div>
     </div>
