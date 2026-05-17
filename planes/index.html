@@ -782,6 +782,224 @@
       margin: 0;
     }
 
+    /* ─── BENTO MOCKUPS ─── */
+    .bento-card__mock {
+      position: relative;
+      margin: 12px 12px 0;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #0d1f19;
+      border: 1px solid rgba(255,255,255,0.06);
+      padding: 16px;
+      font-family: var(--font);
+      min-height: 200px;
+    }
+
+    .bento-card--wide .bento-card__mock { min-height: 240px; }
+
+    .mock-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 14px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .mock-header-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .mock-header-badge {
+      font-size: 10px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+
+    .mock-header-badge--green {
+      background: rgba(74,222,128,0.12);
+      color: var(--light-green);
+    }
+
+    .mock-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .mock-kpi {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 8px;
+      padding: 10px;
+    }
+
+    .mock-kpi-label {
+      font-size: 9px;
+      color: var(--gray);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .mock-kpi-value {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--white);
+    }
+
+    .mock-kpi-value--green { color: var(--light-green); }
+    .mock-kpi-value--red { color: #f87171; }
+
+    .mock-table {
+      width: 100%;
+      font-size: 11px;
+    }
+
+    .mock-table th {
+      text-align: left;
+      font-size: 9px;
+      font-weight: 600;
+      color: var(--gray);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .mock-table td {
+      padding: 7px 0;
+      color: rgba(255,255,255,0.7);
+      border-bottom: 1px solid rgba(255,255,255,0.03);
+    }
+
+    .mock-table td:last-child {
+      text-align: right;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .mock-badge {
+      display: inline-block;
+      font-size: 9px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 4px;
+    }
+
+    .mock-badge--green {
+      background: rgba(74,222,128,0.12);
+      color: var(--light-green);
+    }
+
+    .mock-badge--amber {
+      background: rgba(251,191,36,0.12);
+      color: #fbbf24;
+    }
+
+    .mock-badge--red {
+      background: rgba(248,113,113,0.12);
+      color: #f87171;
+    }
+
+    .mock-slider-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin: 8px 0;
+    }
+
+    .mock-slider-track {
+      flex: 1;
+      height: 4px;
+      background: rgba(255,255,255,0.08);
+      border-radius: 2px;
+      position: relative;
+    }
+
+    .mock-slider-fill {
+      height: 100%;
+      background: var(--light-green);
+      border-radius: 2px;
+    }
+
+    .mock-slider-val {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--light-green);
+      min-width: 40px;
+      text-align: right;
+    }
+
+    .mock-product-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .mock-product-tile {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 8px;
+      padding: 10px 8px;
+      text-align: center;
+    }
+
+    .mock-product-icon {
+      font-size: 20px;
+      margin-bottom: 4px;
+    }
+
+    .mock-product-name {
+      font-size: 10px;
+      color: rgba(255,255,255,0.6);
+      margin-bottom: 2px;
+    }
+
+    .mock-product-price {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--white);
+    }
+
+    .mock-product-margin {
+      font-size: 9px;
+      color: var(--light-green);
+    }
+
+    .mock-pl-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      font-size: 12px;
+    }
+
+    .mock-pl-label { color: rgba(255,255,255,0.5); }
+    .mock-pl-value { font-weight: 600; color: var(--white); }
+    .mock-pl-value--green { color: var(--light-green); }
+
+    .mock-pl-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+      margin: 4px 0;
+    }
+
+    .mock-pl-total {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 0;
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .mock-pl-total .mock-pl-label { color: var(--white); }
+
     /* ─── LIGHTBOX ─── */
     .lightbox {
       position: fixed;
@@ -2023,7 +2241,7 @@
     <div class="noise"></div>
     <div class="social-proof-inner">
       <p class="sp-eyebrow">Hecho para emprendedores que producen</p>
-      <h2 class="sp-headline">Si haces, vendes y quieres saber si <em>realmente ganas</em></h2>
+      <h2 class="sp-headline">Negocios que <em>venden</em> y quieren saber su margen real</h2>
       <div class="sp-pills">
         <span class="sp-pill">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 8h1a4 4 0 010 8h-1"/><path d="M3 8h14v9a4 4 0 01-4 4H7a4 4 0 01-4-4V8z"/><path d="M6 2v3"/><path d="M10 2v3"/><path d="M14 2v3"/></svg>
@@ -2064,10 +2282,30 @@
 
       <div class="bento-grid">
         <div class="bento-card bento-card--wide reveal" style="transition-delay: 0.05s">
-          <div class="bento-card__image" data-lightbox="/screenshots/cotizador-chunks.png">
+          <div class="bento-card__mock">
             <span class="bento-card__number">01</span>
-            <img src="/planes/screenshots/cotizador-chunks.png" alt="Cotizador de costos Kudi" loading="lazy">
-            <span class="bento-card__tooltip">Click para ampliar</span>
+            <div class="mock-header">
+              <span class="mock-header-title">Brownie doble chocolate</span>
+              <span class="mock-header-badge mock-header-badge--green">Margen OK</span>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+              <div>
+                <table class="mock-table">
+                  <tr><th>INSUMO</th><th style="text-align:right">COSTO</th></tr>
+                  <tr><td>Chocolate bitter 70%</td><td>S/ 2.40</td></tr>
+                  <tr><td>Mantequilla</td><td>S/ 1.15</td></tr>
+                  <tr><td>Harina</td><td>S/ 0.35</td></tr>
+                  <tr><td>Huevos (x2)</td><td>S/ 0.90</td></tr>
+                  <tr><td>Empaque</td><td>S/ 0.80</td></tr>
+                </table>
+              </div>
+              <div style="display:flex;flex-direction:column;justify-content:center;gap:8px;">
+                <div class="mock-kpi"><div class="mock-kpi-label">Costo total</div><div class="mock-kpi-value">S/ 5.60</div></div>
+                <div class="mock-slider-row"><span style="font-size:11px;color:var(--gray)">Margen</span><div class="mock-slider-track"><div class="mock-slider-fill" style="width:47%"></div></div><span class="mock-slider-val">47%</span></div>
+                <div class="mock-kpi"><div class="mock-kpi-label">Precio sugerido</div><div class="mock-kpi-value mock-kpi-value--green">S/ 10.50</div></div>
+                <div style="font-size:10px;color:var(--light-green);text-align:center;background:rgba(74,222,128,0.08);padding:6px;border-radius:6px;">Ganancia: S/ 4.90 por unidad</div>
+              </div>
+            </div>
           </div>
           <div class="bento-card__body">
             <div class="bento-card__label">Cotizador</div>
@@ -2077,10 +2315,19 @@
         </div>
 
         <div class="bento-card reveal" style="transition-delay: 0.1s">
-          <div class="bento-card__image" data-lightbox="/screenshots/chunks-comprobantes.png">
+          <div class="bento-card__mock">
             <span class="bento-card__number">02</span>
-            <img src="/planes/screenshots/chunks-comprobantes.png" alt="Facturacion SUNAT" loading="lazy">
-            <span class="bento-card__tooltip">Click para ampliar</span>
+            <div class="mock-header">
+              <span class="mock-header-title">Comprobantes — Mayo 2026</span>
+              <span style="font-size:10px;color:var(--gray)">4 emitidos</span>
+            </div>
+            <table class="mock-table">
+              <tr><th>SERIE</th><th>PRODUCTO</th><th>TOTAL</th><th style="text-align:right">ESTADO</th></tr>
+              <tr><td>B001-4</td><td style="color:rgba(255,255,255,0.7)">Box x12 Brownies</td><td>S/ 85.00</td><td style="text-align:right"><span class="mock-badge mock-badge--green">Aceptado</span></td></tr>
+              <tr><td>B001-3</td><td style="color:rgba(255,255,255,0.7)">Torta chocolate</td><td>S/ 45.00</td><td style="text-align:right"><span class="mock-badge mock-badge--green">Aceptado</span></td></tr>
+              <tr><td>B001-2</td><td style="color:rgba(255,255,255,0.7)">6 Cupcakes red velvet</td><td>S/ 36.00</td><td style="text-align:right"><span class="mock-badge mock-badge--green">Aceptado</span></td></tr>
+              <tr><td>B001-1</td><td style="color:rgba(255,255,255,0.7)">Cheesecake personal</td><td>S/ 22.00</td><td style="text-align:right"><span class="mock-badge mock-badge--green">Aceptado</span></td></tr>
+            </table>
           </div>
           <div class="bento-card__body">
             <div class="bento-card__label">Facturación</div>
@@ -2090,10 +2337,19 @@
         </div>
 
         <div class="bento-card reveal" style="transition-delay: 0.15s">
-          <div class="bento-card__image" data-lightbox="/screenshots/chunks-ventas.png">
+          <div class="bento-card__mock">
             <span class="bento-card__number">03</span>
-            <img src="/planes/screenshots/chunks-ventas.png" alt="Ventas y POS" loading="lazy">
-            <span class="bento-card__tooltip">Click para ampliar</span>
+            <div class="mock-kpi-row">
+              <div class="mock-kpi"><div class="mock-kpi-label">Ingresos</div><div class="mock-kpi-value">S/ 2,480</div></div>
+              <div class="mock-kpi"><div class="mock-kpi-label">Costo</div><div class="mock-kpi-value">S/ 1,290</div></div>
+              <div class="mock-kpi"><div class="mock-kpi-label">Utilidad</div><div class="mock-kpi-value mock-kpi-value--green">S/ 1,190</div></div>
+            </div>
+            <table class="mock-table">
+              <tr><th>FECHA</th><th>PRODUCTO</th><th style="text-align:right">TOTAL</th></tr>
+              <tr><td>17/05</td><td style="color:rgba(255,255,255,0.7)">Box x12 Brownies</td><td>S/ 85.00</td></tr>
+              <tr><td>16/05</td><td style="color:rgba(255,255,255,0.7)">Torta 3 leches</td><td>S/ 65.00</td></tr>
+              <tr><td>15/05</td><td style="color:rgba(255,255,255,0.7)">3 productos</td><td>S/ 120.00</td></tr>
+            </table>
           </div>
           <div class="bento-card__body">
             <div class="bento-card__label">Ventas</div>
@@ -2103,10 +2359,20 @@
         </div>
 
         <div class="bento-card bento-card--wide reveal" style="transition-delay: 0.2s">
-          <div class="bento-card__image" data-lightbox="/screenshots/once-stock-real.png">
+          <div class="bento-card__mock">
             <span class="bento-card__number">04</span>
-            <img src="/planes/screenshots/once-stock-real.png" alt="Inventario en tiempo real" loading="lazy">
-            <span class="bento-card__tooltip">Click para ampliar</span>
+            <div class="mock-kpi-row">
+              <div class="mock-kpi"><div class="mock-kpi-label">Productos</div><div class="mock-kpi-value">24</div></div>
+              <div class="mock-kpi"><div class="mock-kpi-label">Stock bajo</div><div class="mock-kpi-value" style="color:#fbbf24">3</div></div>
+              <div class="mock-kpi"><div class="mock-kpi-label">Agotados</div><div class="mock-kpi-value mock-kpi-value--red">1</div></div>
+            </div>
+            <table class="mock-table">
+              <tr><th>PRODUCTO</th><th>SKU</th><th>STOCK</th><th style="text-align:right">ESTADO</th></tr>
+              <tr><td>Brownie doble choc.</td><td style="color:var(--gray)">KUD-0001</td><td>45</td><td style="text-align:right"><span class="mock-badge mock-badge--green">OK</span></td></tr>
+              <tr><td>Torta 3 leches</td><td style="color:var(--gray)">KUD-0002</td><td>12</td><td style="text-align:right"><span class="mock-badge mock-badge--green">OK</span></td></tr>
+              <tr><td>Cheesecake personal</td><td style="color:var(--gray)">KUD-0003</td><td>4</td><td style="text-align:right"><span class="mock-badge mock-badge--amber">Bajo</span></td></tr>
+              <tr><td>Cupcake red velvet</td><td style="color:var(--gray)">KUD-0004</td><td>0</td><td style="text-align:right"><span class="mock-badge mock-badge--red">Agotado</span></td></tr>
+            </table>
           </div>
           <div class="bento-card__body">
             <div class="bento-card__label">Inventario</div>
@@ -2116,10 +2382,20 @@
         </div>
 
         <div class="bento-card reveal" style="transition-delay: 0.25s">
-          <div class="bento-card__image" data-lightbox="/screenshots/dashboard-once.png">
+          <div class="bento-card__mock">
             <span class="bento-card__number">05</span>
-            <img src="/planes/screenshots/dashboard-once.png" alt="Catalogo de productos" loading="lazy">
-            <span class="bento-card__tooltip">Click para ampliar</span>
+            <div class="mock-header">
+              <span class="mock-header-title">Mis productos</span>
+              <span style="font-size:10px;color:var(--gray)">24 productos</span>
+            </div>
+            <div class="mock-product-grid">
+              <div class="mock-product-tile"><div class="mock-product-icon">🍫</div><div class="mock-product-name">Brownie</div><div class="mock-product-price">S/ 10.50</div><div class="mock-product-margin">47% margen</div></div>
+              <div class="mock-product-tile"><div class="mock-product-icon">🎂</div><div class="mock-product-name">Torta 3 leches</div><div class="mock-product-price">S/ 65.00</div><div class="mock-product-margin">52% margen</div></div>
+              <div class="mock-product-tile"><div class="mock-product-icon">🧁</div><div class="mock-product-name">Cupcake</div><div class="mock-product-price">S/ 8.00</div><div class="mock-product-margin">44% margen</div></div>
+              <div class="mock-product-tile"><div class="mock-product-icon">🍰</div><div class="mock-product-name">Cheesecake</div><div class="mock-product-price">S/ 22.00</div><div class="mock-product-margin">55% margen</div></div>
+              <div class="mock-product-tile"><div class="mock-product-icon">🍪</div><div class="mock-product-name">Galletas x6</div><div class="mock-product-price">S/ 15.00</div><div class="mock-product-margin">60% margen</div></div>
+              <div class="mock-product-tile"><div class="mock-product-icon">🥐</div><div class="mock-product-name">Croissant</div><div class="mock-product-price">S/ 6.50</div><div class="mock-product-margin">42% margen</div></div>
+            </div>
           </div>
           <div class="bento-card__body">
             <div class="bento-card__label">Catálogo</div>
@@ -2129,10 +2405,21 @@
         </div>
 
         <div class="bento-card reveal" style="transition-delay: 0.3s">
-          <div class="bento-card__image" data-lightbox="/screenshots/chunks-pl-resumen.png">
+          <div class="bento-card__mock">
             <span class="bento-card__number">06</span>
-            <img src="/planes/screenshots/chunks-pl-resumen.png" alt="Estado de resultados y flujo de caja" loading="lazy">
-            <span class="bento-card__tooltip">Click para ampliar</span>
+            <div class="mock-header">
+              <span class="mock-header-title">Estado de Resultados — Mayo</span>
+              <span class="mock-header-badge mock-header-badge--green">Rentable</span>
+            </div>
+            <div class="mock-pl-row"><span class="mock-pl-label">Ventas brutas</span><span class="mock-pl-value">S/ 2,480.00</span></div>
+            <div class="mock-pl-row"><span class="mock-pl-label">Descuentos</span><span class="mock-pl-value" style="color:#f87171">-S/ 45.00</span></div>
+            <div class="mock-pl-divider"></div>
+            <div class="mock-pl-row"><span class="mock-pl-label" style="color:var(--white)">Ingresos netos</span><span class="mock-pl-value">S/ 2,435.00</span></div>
+            <div class="mock-pl-divider"></div>
+            <div class="mock-pl-row"><span class="mock-pl-label">Costo insumos</span><span class="mock-pl-value">S/ 890.00</span></div>
+            <div class="mock-pl-row"><span class="mock-pl-label">Empaque</span><span class="mock-pl-value">S/ 185.00</span></div>
+            <div class="mock-pl-divider"></div>
+            <div class="mock-pl-total"><span class="mock-pl-label">Utilidad bruta</span><span class="mock-pl-value mock-pl-value--green">S/ 1,360.00 (55.8%)</span></div>
           </div>
           <div class="bento-card__body">
             <div class="bento-card__label">Finanzas</div>
